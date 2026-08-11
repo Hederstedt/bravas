@@ -25,3 +25,6 @@ dist-ssr
 
 # Driftplan med infra-detaljer - hålls utanför det publika repot
 PLAN.local.md
+
+# Lokala Claude Code-behörighetsinställningar
+.claude/settings.local.json
