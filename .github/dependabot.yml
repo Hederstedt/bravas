@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: daily
+    # Vänta 3 dagar efter release innan uppdateringen föreslås —
+    # skydd mot färska supply chain-attacker som upptäcks inom dagar.
+    cooldown:
+      default-days: 3
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3

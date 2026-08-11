@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Driftplan med infra-detaljer - hålls utanför det publika repot
+PLAN.local.md
