@@ -1,0 +1,21 @@
+[Unit]
+Description=Bravas API
+After=network.target
+
+[Service]
+Type=simple
+User=mike
+Group=bravas-deploy
+WorkingDirectory=/srv/bravas-api/app/server
+EnvironmentFile=/srv/bravas-api/.env
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/srv/bravas-api/data
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

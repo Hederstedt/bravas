@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { config } from "../config.ts";
-import { doubleCsrfProtection, generateCsrfToken } from "../csrf.ts";
+import { generateCsrfToken } from "../csrf.ts";
 import { isAllowlisted, upsertMemberLogin } from "../db.ts";
 import { authLimiter } from "../middleware/rateLimit.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
@@ -47,7 +47,7 @@ authRouter.get("/steam/callback", async (req, res) => {
   res.redirect(`${config.publicOrigin}/`);
 });
 
-authRouter.post("/logout", doubleCsrfProtection, (_req, res) => {
+authRouter.post("/logout", (_req, res) => {
   res.clearCookie(sessionCookie.name, { path: "/" });
   res.status(204).end();
 });
