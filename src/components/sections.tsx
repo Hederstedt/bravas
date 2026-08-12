@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+import { fetchMembers, type RosterMember } from '../api'
 import { members, games, statHighlights, statsIsMock, discordInvite } from '../data/clan'
+import { SteamLogin } from './auth'
 import { BvsMark } from './BvsMark'
 import { DiscordIcon, CrosshairIcon, AxeIcon, FactoryIcon, TankIcon, TrophyIcon } from './icons'
 
@@ -50,6 +52,7 @@ export function Nav() {
               {l.label}
             </a>
           ))}
+          <SteamLogin />
         </div>
         <button
           type="button"
@@ -70,6 +73,7 @@ export function Nav() {
               {l.label}
             </a>
           ))}
+          <SteamLogin />
         </div>
       )}
     </nav>
@@ -138,6 +142,20 @@ export function Games() {
 }
 
 export function Roster() {
+  // Gubbarna dyker upp här först när de loggat in med Steam. Tills dess (och om
+  // API:et är nere) visas platshållarna, så sektionen aldrig står tom.
+  const [live, setLive] = useState<RosterMember[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchMembers().then((m) => {
+      if (!cancelled) setLive(m)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <section id="gubbarna">
       <div className="container">
@@ -146,17 +164,33 @@ export function Roster() {
           <h2>Gubbarna</h2>
         </div>
         <div className="roster-grid">
-          {members.map((m) => (
-            <article key={m.nick} className="member-card">
-              <div className="avatar">{m.nick.replace('Gubbe #', '')}</div>
-              <h3>{m.nick}</h3>
-              <p className="role">{m.role}</p>
-              <p className="flavor">{m.flavor}</p>
-            </article>
-          ))}
+          {live.length > 0
+            ? live.map((m) => (
+                <article key={m.steamid64} className="member-card">
+                  <div className="avatar">
+                    {m.avatarUrl ? (
+                      <img src={m.avatarUrl} alt={m.personaName} />
+                    ) : (
+                      m.personaName.replace(/^\[BVS\]\s*/, '').charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <h3>{m.personaName}</h3>
+                  {m.discordName && <p className="role">{m.discordName}</p>}
+                </article>
+              ))
+            : members.map((m) => (
+                <article key={m.nick} className="member-card">
+                  <div className="avatar">{m.nick.replace('Gubbe #', '')}</div>
+                  <h3>{m.nick}</h3>
+                  <p className="role">{m.role}</p>
+                  <p className="flavor">{m.flavor}</p>
+                </article>
+              ))}
         </div>
         <p className="roster-note">
-          Rostern fylls på med riktiga nick och Steam-avatarer — Steam-koppling är på ingång.
+          {live.length > 0
+            ? 'Gubbarna som loggat in med Steam. Fler dyker upp allt eftersom.'
+            : 'Rostern fylls på med riktiga nick och Steam-avatarer — logga in med Steam för att synas här.'}
         </p>
       </div>
     </section>

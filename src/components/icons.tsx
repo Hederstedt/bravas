@@ -40,6 +40,14 @@ export function TankIcon() {
   )
 }
 
+export function SteamIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2a10 10 0 0 0-10 9.6l5.4 2.2a2.8 2.8 0 0 1 1.6-.5h.2l2.4-3.5v-.1a3.8 3.8 0 1 1 3.8 3.8h-.1l-3.4 2.5v.1a2.8 2.8 0 0 1-5.6.2l-3.8-1.6A10 10 0 1 0 12 2Zm-3.3 15.2a2.2 2.2 0 0 0 2.9-1.2 2.2 2.2 0 0 0-1.2-2.9l-1.3-.5a2.6 2.6 0 0 1 1.9 4.8l-.3-.2Zm7-4.6a2.5 2.5 0 1 0 0-5.1 2.5 2.5 0 0 0 0 5.1Zm0-.8a1.7 1.7 0 1 1 0-3.5 1.7 1.7 0 0 1 0 3.5Z" />
+    </svg>
+  )
+}
+
 export function TrophyIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">

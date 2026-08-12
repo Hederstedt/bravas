@@ -1,0 +1,6 @@
+# Installeras som /etc/sudoers.d/ghrunner-bravas-api (chmod 440, ägs av root).
+#
+# Ger deploy-runnern rätt att starta om API-tjänsten — och ingenting annat.
+# Kommandot är helt utskrivet utan wildcards, så det går inte att vidga till
+# andra tjänster eller flaggor.
+ghrunner ALL=(root) NOPASSWD: /usr/bin/systemctl restart bravas-api.service
