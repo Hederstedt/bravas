@@ -37,38 +37,49 @@ body {
   position: relative;
 }
 
-/* Topografiskt konturmönster — subtil "karta" över hela sidan */
+/* Topografiskt konturmönster — som en taktisk karta bakom allt innehåll */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: -2;
   pointer-events: none;
-  opacity: 0.5;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420' viewBox='0 0 420 420'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.03' stroke-width='1.2'%3E%3Cpath d='M60 210c0-60 60-105 150-105s150 45 150 105-60 105-150 105S60 270 60 210Z'/%3E%3Cpath d='M100 210c0-42 46-75 110-75s110 33 110 75-46 75-110 75-110-33-110-75Z'/%3E%3Cpath d='M140 210c0-26 30-48 70-48s70 22 70 48-30 48-70 48-70-22-70-48Z'/%3E%3Cpath d='M-40 40c40-30 100-30 140 0s100 30 140 0 100-30 140 0 100 30 140 0'/%3E%3Cpath d='M-40 400c40-28 100-28 140 0s100 28 140 0 100-28 140 0 100 28 140 0'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='520' viewBox='0 0 520 520'%3E%3Cg fill='none' stroke='%23ff7a1a' stroke-opacity='0.055' stroke-width='1.3'%3E%3Cpath d='M90 260c0-75 76-132 170-132s170 57 170 132-76 132-170 132S90 335 90 260Z'/%3E%3Cpath d='M130 260c0-55 58-96 130-96s130 41 130 96-58 96-130 96-130-41-130-96Z'/%3E%3Cpath d='M172 260c0-36 40-64 88-64s88 28 88 64-40 64-88 64-88-28-88-64Z'/%3E%3Cpath d='M214 260c0-19 21-34 46-34s46 15 46 34-21 34-46 34-46-15-46-34Z'/%3E%3Cpath d='M-50 60c50-38 125-38 175 0s125 38 175 0 125-38 175 0 125 38 175 0'/%3E%3Cpath d='M-50 130c50-30 125-30 175 0s125 30 175 0 125-30 175 0 125 30 175 0' stroke-opacity='0.035'/%3E%3Cpath d='M-50 480c50-34 125-34 175 0s125 34 175 0 125-34 175 0 125 34 175 0'/%3E%3Ccircle cx='260' cy='260' r='3' fill='%23ff7a1a' fill-opacity='0.12' stroke='none'/%3E%3C/g%3E%3C/svg%3E");
+  mask-image: linear-gradient(180deg, black, rgba(0, 0, 0, 0.35) 50%, black);
 }
 
-/* Drivande rökblobbar — djup utan bilder */
+/* Drivande rök — djup och rörelse utan bilder */
 body::after {
   content: '';
   position: fixed;
-  inset: -20%;
+  inset: -25%;
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(600px 400px at 20% 70%, rgba(255, 122, 26, 0.05), transparent 65%),
-    radial-gradient(700px 500px at 85% 25%, rgba(74, 106, 148, 0.07), transparent 65%);
-  filter: blur(40px);
-  animation: smoke-drift 46s ease-in-out infinite alternate;
+    radial-gradient(640px 420px at 18% 72%, rgba(255, 122, 26, 0.13), transparent 62%),
+    radial-gradient(760px 520px at 85% 22%, rgba(74, 106, 148, 0.16), transparent 62%),
+    radial-gradient(520px 380px at 55% 95%, rgba(255, 154, 61, 0.08), transparent 60%);
+  filter: blur(55px);
+  animation: smoke-drift 38s ease-in-out infinite alternate;
 }
 
 @keyframes smoke-drift {
   from {
-    transform: translate3d(-2%, -1%, 0) scale(1);
+    transform: translate3d(-2.5%, -1.5%, 0) scale(1) rotate(-1deg);
   }
   to {
-    transform: translate3d(2%, 2%, 0) scale(1.08);
+    transform: translate3d(2.5%, 2%, 0) scale(1.1) rotate(1deg);
   }
+}
+
+/* Vinjett — mörkare kanter ger djup och fokus mot mitten */
+#root::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.5));
 }
 
 @media (prefers-reduced-motion: reduce) {
