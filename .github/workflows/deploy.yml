@@ -41,3 +41,39 @@ jobs:
 
       - name: Prune old releases (keep 5)
         run: ls -dt /srv/bravas/releases/* | tail -n +6 | xargs -r rm -rf
+
+      # ---------- API ----------
+      # Samma atomiska mönster: bygg i en ny release-mapp, byt symlänk, starta
+      # om tjänsten. Omstarten är den enda delen som kräver privilegier och
+      # ligger bakom en exakt sudoers-regel (se server/deploy/sudoers-ghrunner-api).
+      - name: Build API
+        working-directory: server
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy API release and switch symlink
+        run: |
+          rel="/srv/bravas-api/releases/$(date +%Y%m%d%H%M%S)-$(git rev-parse --short HEAD)"
+          mkdir -p "$rel/server"
+          cp -r server/dist server/node_modules server/package.json "$rel/server/"
+          ln -sfn "$rel" /srv/bravas-api/current
+
+      - name: Restart API
+        run: sudo /usr/bin/systemctl restart bravas-api.service
+
+      - name: Verify API is serving
+        run: |
+          for i in $(seq 1 10); do
+            if curl -fsS -o /dev/null http://127.0.0.1:3001/api/config; then
+              echo "API healthy"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API did not come back up" >&2
+          systemctl status bravas-api.service --no-pager || true
+          exit 1
+
+      - name: Prune old API releases (keep 5)
+        run: ls -dt /srv/bravas-api/releases/* | tail -n +6 | xargs -r rm -rf

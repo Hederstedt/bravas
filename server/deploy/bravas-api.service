@@ -6,7 +6,10 @@ After=network.target
 Type=simple
 User=mike
 Group=bravas-deploy
-WorkingDirectory=/srv/bravas-api/app/bravas/server
+# Symlänk som deployen byter — pekar på senaste releasen under
+# /srv/bravas-api/releases/. Måste vara WorkingDirectory (inte en fast sökväg)
+# för att omstart ska plocka upp den nya releasen.
+WorkingDirectory=/srv/bravas-api/current/server
 EnvironmentFile=/srv/bravas-api/.env
 ExecStart=/usr/bin/node dist/index.js
 Restart=on-failure
