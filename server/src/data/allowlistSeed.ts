@@ -1,6 +1,9 @@
 // Källa: Mikaels Steam-vänlista, filtrerad på "[BVS]" i personanamnet (2026-08-12).
 // Namnen är bara till för spårbarhet i seedningen — själva profilnamnet cachas i members-tabellen vid inloggning.
+// Mikaels eget konto står först: det ingår inte i hans egen vänlista och fångas
+// därför aldrig av filtret, trots att han har taggen.
 export const allowlistSeed: { steamid64: string; note: string }[] = [
+  { steamid64: "76561198060166361", note: "[BVS] Kungalv" },
   { steamid64: "76561198360569618", note: "[BVS] ⛟" },
   { steamid64: "76561198449272295", note: "[BVS] Berry ⛟ Long Hauler ⛟" },
   { steamid64: "76561197963771177", note: "[BVS] g0nza" },
