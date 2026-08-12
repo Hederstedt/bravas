@@ -19,6 +19,9 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.6.2"
   },
+  "allowScripts": {
+    "better-sqlite3": true
+  },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
     "@types/cookie-parser": "^1.4.10",
