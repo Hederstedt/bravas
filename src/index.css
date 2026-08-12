@@ -34,6 +34,47 @@ body {
     radial-gradient(900px 500px at -10% 30%, rgba(64, 90, 128, 0.12), transparent 55%),
     var(--bg);
   overflow-x: hidden;
+  position: relative;
+}
+
+/* Topografiskt konturmönster — subtil "karta" över hela sidan */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420' viewBox='0 0 420 420'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.03' stroke-width='1.2'%3E%3Cpath d='M60 210c0-60 60-105 150-105s150 45 150 105-60 105-150 105S60 270 60 210Z'/%3E%3Cpath d='M100 210c0-42 46-75 110-75s110 33 110 75-46 75-110 75-110-33-110-75Z'/%3E%3Cpath d='M140 210c0-26 30-48 70-48s70 22 70 48-30 48-70 48-70-22-70-48Z'/%3E%3Cpath d='M-40 40c40-30 100-30 140 0s100 30 140 0 100-30 140 0 100 30 140 0'/%3E%3Cpath d='M-40 400c40-28 100-28 140 0s100 28 140 0 100-28 140 0 100 28 140 0'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Drivande rökblobbar — djup utan bilder */
+body::after {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(600px 400px at 20% 70%, rgba(255, 122, 26, 0.05), transparent 65%),
+    radial-gradient(700px 500px at 85% 25%, rgba(74, 106, 148, 0.07), transparent 65%);
+  filter: blur(40px);
+  animation: smoke-drift 46s ease-in-out infinite alternate;
+}
+
+@keyframes smoke-drift {
+  from {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(2%, 2%, 0) scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::after {
+    animation: none;
+  }
 }
 
 h1,

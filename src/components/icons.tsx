@@ -32,10 +32,18 @@ export function FactoryIcon() {
   )
 }
 
-export function CubeIcon() {
+export function TankIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="m12 2 9 5v10l-9 5-9-5V7l9-5Zm0 2.3L5.9 7.7 12 11l6.1-3.3L12 4.3ZM5 9.4v6.4l6 3.3v-6.4L5 9.4Zm14 0-6 3.3v6.4l6-3.3V9.4Z" />
+      <path d="M10 5h4v2h5l-1.2 3H13v1h6a3 3 0 0 1 3 3v1.2A4.8 4.8 0 0 1 17.2 20H6.8A4.8 4.8 0 0 1 2 15.2V15a3 3 0 0 1 3-3h6v-1H8.2L7 8h3V5Zm-3.2 9a2.2 2.2 0 1 0 0 4.4h10.4a2.2 2.2 0 1 0 0-4.4H6.8Zm.7 1.6a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8Zm4.5 0a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8Zm4.5 0a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8Z" />
+    </svg>
+  )
+}
+
+export function TrophyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7 3h10v2h4v3a5 5 0 0 1-4.5 4.97A5.5 5.5 0 0 1 13 16.7V19h3v2H8v-2h3v-2.3a5.5 5.5 0 0 1-3.5-3.73A5 5 0 0 1 3 8V5h4V3Zm0 4H5v1a3 3 0 0 0 2 2.83V7Zm12 1V7h-2v3.83A3 3 0 0 0 19 8Z" />
     </svg>
   )
 }

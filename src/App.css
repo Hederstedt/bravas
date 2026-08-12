@@ -9,6 +9,12 @@ section {
   position: relative;
 }
 
+@media (max-width: 720px) {
+  section {
+    padding: 56px 0;
+  }
+}
+
 .section-head {
   display: flex;
   align-items: baseline;
@@ -90,9 +96,73 @@ section {
   color: var(--accent);
 }
 
+.nav-burger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 44px;
+  height: 44px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 10px;
+}
+
+.nav-burger span {
+  display: block;
+  height: 2px;
+  background: var(--accent);
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+.nav-burger[aria-expanded='true'] span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.nav-burger[aria-expanded='true'] span:nth-child(2) {
+  opacity: 0;
+}
+
+.nav-burger[aria-expanded='true'] span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+.nav-overlay {
+  position: fixed;
+  inset: 64px 0 0;
+  z-index: 19;
+  background: rgba(10, 12, 15, 0.97);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.nav-overlay a {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 30px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text);
+  padding: 14px 32px;
+  min-height: 44px;
+}
+
+.nav-overlay a:active,
+.nav-overlay a:hover {
+  color: var(--accent);
+}
+
 @media (max-width: 720px) {
   .nav-links {
     display: none;
+  }
+
+  .nav-burger {
+    display: flex;
   }
 }
 
@@ -177,6 +247,62 @@ section {
   }
   50% {
     transform: translateY(6px);
+  }
+}
+
+/* Glödande embers som stiger i hero:n */
+.embers {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.embers span {
+  --i: 0;
+  position: absolute;
+  bottom: -8px;
+  left: calc((var(--i) * 7.3%) + 2%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  opacity: 0;
+  filter: blur(0.5px);
+  box-shadow: 0 0 8px 2px rgba(255, 122, 26, 0.35);
+  animation: ember-rise calc(9s + var(--i) * 1.7s) linear infinite;
+  animation-delay: calc(var(--i) * -1.9s);
+}
+
+.embers span:nth-child(odd) {
+  width: 3px;
+  height: 3px;
+}
+
+@keyframes ember-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  8% {
+    opacity: 0.8;
+  }
+  60% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(20px - (var(--i) * 3px)), -92vh, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .embers span,
+  .hero-scroll {
+    animation: none;
+  }
+  .embers {
+    display: none;
   }
 }
 
@@ -364,6 +490,94 @@ section {
   font-size: 14px;
   border-left: 3px solid var(--accent);
   padding-left: 14px;
+}
+
+/* ---------- Stats (mock) ---------- */
+.demo-badge {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  background: rgba(125, 211, 252, 0.12);
+  color: #7dd3fc;
+  outline: 1px dashed rgba(125, 211, 252, 0.5);
+  outline-offset: -1px;
+  white-space: nowrap;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  padding: 22px;
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-line);
+}
+
+.stat-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.stat-card-head svg {
+  width: 16px;
+  height: 16px;
+  fill: var(--accent);
+}
+
+.stat-game {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stat-label {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 34px;
+  line-height: 1.1;
+  color: var(--accent);
+  margin: 2px 0 6px;
+  text-transform: uppercase;
+}
+
+.stat-holder {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text);
+  margin: 0;
+}
+
+.stat-detail {
+  color: var(--muted);
+  font-size: 13.5px;
+  margin: 8px 0 0;
 }
 
 /* ---------- About ---------- */

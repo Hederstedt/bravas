@@ -1,5 +1,5 @@
 import './App.css'
-import { Nav, Hero, Games, Roster, About, DiscordCta, Footer } from './components/sections'
+import { Nav, Hero, Games, Roster, Stats, About, DiscordCta, Footer } from './components/sections'
 
 function App() {
   return (
@@ -9,6 +9,7 @@ function App() {
       <main>
         <Games />
         <Roster />
+        <Stats />
         <About />
         <DiscordCta />
       </main>

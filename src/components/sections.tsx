@@ -1,13 +1,19 @@
+import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { members, games, discordInvite } from '../data/clan'
+import { members, games, statHighlights, statsIsMock, discordInvite } from '../data/clan'
 import { BvsMark } from './BvsMark'
-import { DiscordIcon, CrosshairIcon, AxeIcon, FactoryIcon, CubeIcon } from './icons'
+import { DiscordIcon, CrosshairIcon, AxeIcon, FactoryIcon, TankIcon, TrophyIcon } from './icons'
 
 const gameArt: Record<string, { tint: string; art: string; icon: ReactNode }> = {
   cs2: {
     tint: '#ff7a1a',
     art: 'linear-gradient(135deg, #3d2410, #14100b 70%)',
     icon: <CrosshairIcon />,
+  },
+  wot: {
+    tint: '#a3b18a',
+    art: 'linear-gradient(135deg, #2c331f, #10130b 70%)',
+    icon: <TankIcon />,
   },
   valheim: {
     tint: '#7dd3fc',
@@ -19,27 +25,53 @@ const gameArt: Record<string, { tint: string; art: string; icon: ReactNode }> = 
     art: 'linear-gradient(135deg, #3d3210, #14120b 70%)',
     icon: <FactoryIcon />,
   },
-  minecraft: {
-    tint: '#4ade80',
-    art: 'linear-gradient(135deg, #16341c, #0b140d 70%)',
-    icon: <CubeIcon />,
-  },
 }
 
+const navLinks = [
+  { href: '#spel', label: 'Spel' },
+  { href: '#gubbarna', label: 'Gubbarna' },
+  { href: '#siffrorna', label: 'Siffrorna' },
+  { href: '#om', label: 'Om oss' },
+  { href: '#discord', label: 'Discord' },
+]
+
 export function Nav() {
+  const [open, setOpen] = useState(false)
+
   return (
     <nav className="nav">
       <div className="container nav-inner">
-        <a href="#top" className="nav-brand">
+        <a href="#top" className="nav-brand" onClick={() => setOpen(false)}>
           <BvsMark className="mark" /> BVS
         </a>
         <div className="nav-links">
-          <a href="#spel">Spel</a>
-          <a href="#gubbarna">Gubbarna</a>
-          <a href="#om">Om oss</a>
-          <a href="#discord">Discord</a>
+          {navLinks.map((l) => (
+            <a key={l.href} href={l.href}>
+              {l.label}
+            </a>
+          ))}
         </div>
+        <button
+          type="button"
+          className="nav-burger"
+          aria-label={open ? 'Stäng menyn' : 'Öppna menyn'}
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
       </div>
+      {open && (
+        <div className="nav-overlay" role="dialog" aria-label="Meny">
+          {navLinks.map((l) => (
+            <a key={l.href} href={l.href} onClick={() => setOpen(false)}>
+              {l.label}
+            </a>
+          ))}
+        </div>
+      )}
     </nav>
   )
 }
@@ -47,12 +79,17 @@ export function Nav() {
 export function Hero() {
   return (
     <header className="hero" id="top">
+      <div className="embers" aria-hidden="true">
+        {Array.from({ length: 14 }, (_, i) => (
+          <span key={i} style={{ '--i': i } as React.CSSProperties} />
+        ))}
+      </div>
       <div className="container">
         <p className="hero-tag">Est. Västra Götaland</p>
         <h1>Bravas</h1>
         <p className="hero-sub">
-          <strong>Goa gubbar</strong> som lirar CS2, bygger fabriker och dör mot troll — på egen
-          server, i eget garage.
+          <strong>Goa gubbar</strong> som lirar CS2, rullar pansar, bygger fabriker och dör mot
+          troll — på egen server, i eget garage.
         </p>
         <div className="hero-actions">
           <a className="btn btn-primary" href={discordInvite}>
@@ -126,19 +163,51 @@ export function Roster() {
   )
 }
 
+export function Stats() {
+  return (
+    <section id="siffrorna">
+      <div className="container">
+        <div className="section-head">
+          <span className="index">03</span>
+          <h2>Siffrorna</h2>
+          {statsIsMock && <span className="demo-badge">Demo-data</span>}
+        </div>
+        <div className="stats-grid">
+          {statHighlights.map((s) => (
+            <article key={`${s.gameId}-${s.label}`} className="stat-card">
+              <div className="stat-card-head">
+                <TrophyIcon />
+                <span className="stat-game">{s.gameTitle}</span>
+              </div>
+              <p className="stat-label">{s.label}</p>
+              <p className="stat-value">{s.value}</p>
+              <p className="stat-holder">{s.holder}</p>
+              <p className="stat-detail">{s.detail}</p>
+            </article>
+          ))}
+        </div>
+        <p className="roster-note">
+          Placeholder-siffror så länge — riktig statistik hämtas från Steam och Wargaming när
+          Steam-kopplingen är live.
+        </p>
+      </div>
+    </section>
+  )
+}
+
 export function About() {
   return (
     <section id="om" className="about">
       <div className="container about-grid">
         <div>
           <div className="section-head">
-            <span className="index">03</span>
+            <span className="index">04</span>
             <h2>Om BVS</h2>
           </div>
           <p>
             BVS — <strong>Bravas</strong> — är ett gäng goa gubbar från Västra Götaland som har
-            lirat ihop sedan hedenhös. Numera mest CS2 på kvällarna, med avstickare till Valheim
-            när vikingasuget slår till och Satisfactory när någon säger orden{' '}
+            lirat ihop sedan hedenhös. Numera mest CS2 på kvällarna, pansarslag i World of Tanks,
+            och avstickare till Valheim och Satisfactory när någon säger orden{' '}
             <em>"jag har optimerat fabriken"</em>.
           </p>
           <p>

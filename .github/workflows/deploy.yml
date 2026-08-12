@@ -28,7 +28,16 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy to /srv/bravas
+      # Atomisk deploy: varje release får en egen mapp och symlänken
+      # /srv/bravas/current byts i en enda operation — inga trasiga
+      # mellanlägen för besökare mitt i en deploy. Nginx-root ska peka
+      # på /srv/bravas/current (se TODO.md).
+      - name: Deploy release and switch symlink
         run: |
-          rm -rf /srv/bravas/*
-          cp -r dist/. /srv/bravas/
+          rel="/srv/bravas/releases/$(date +%Y%m%d%H%M%S)-$(git rev-parse --short HEAD)"
+          mkdir -p "$rel"
+          cp -r dist/. "$rel/"
+          ln -sfn "$rel" /srv/bravas/current
+
+      - name: Prune old releases (keep 5)
+        run: ls -dt /srv/bravas/releases/* | tail -n +6 | xargs -r rm -rf
