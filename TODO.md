@@ -32,4 +32,4 @@ cd /srv/bravas && ls | grep -v -E "^(releases|current)$" | xargs -r rm -rf --
 
 När detta är gjort: bocka av här, committa och pusha — då vet båda datorernas Claude att det är klart.
 
-- [ ] Nginx-flip utförd och gamla root-filer städade
+- [x] Nginx-flip utförd och gamla root-filer städade
