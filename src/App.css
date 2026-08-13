@@ -991,14 +991,31 @@ a.steam-login:hover {
   outline-offset: 2px;
 }
 
+/* Läggs ovanpå kortets nedre del i stället för i flödet. Korten i raden är
+   flex-items som sträcker sig till det högsta syskonet, så ett panelöppnande i
+   flödet hade vuxit varenda kort samtidigt och knuffat hela sidan nedåt. */
 .attr-detail {
-  margin-top: 14px;
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1;
   padding: 12px 14px;
-  background: rgba(0, 0, 0, 0.32);
+  background: #0d1116;
+  outline: 1px solid var(--panel-edge);
+  outline-offset: -1px;
   border-left: 2px solid var(--accent);
+  box-shadow: 0 -10px 24px -12px rgba(0, 0, 0, 0.9);
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* Sidan nollar bara marginalerna på rubriker, så styckena här bär annars med
+   sig webbläsarens 1em uppe och nere — panelen blev nästan dubbelt så hög som
+   sitt innehåll och täckte attributen ovanför. */
+.attr-detail p {
+  margin: 0;
 }
 
 .attr-detail-name {
@@ -1149,11 +1166,11 @@ a.steam-login:hover {
   padding: 22px;
   clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
   transition: transform 0.15s, border-color 0.15s;
-  /* Kolumn så att "visa alla"-knappen kan lägga sig till vänster i stället för
-     att sträcka sig över hela kortet. */
+  /* Kolumn så att "visa alla"-knappen kan krympa till sitt innehåll via
+     align-self. Ingen align-items här: det hade krympt även rubrik och text
+     till innehållsbredd i stället för att fylla kortet. */
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
 }
 
 .stat-card:hover {

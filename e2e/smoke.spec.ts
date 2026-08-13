@@ -137,6 +137,30 @@ test('no horizontal overflow', async ({ page }) => {
   expect(overflow).toBe(false)
 })
 
+// Panelen låg först i flödet. Korten i raden är flex-items som sträcker sig
+// till det högsta syskonet, så ett öppnat attribut växte varenda kort samtidigt
+// och knuffade hela sidan nedåt.
+test('opening an attribute does not resize the lineup', async ({ page }) => {
+  await page.goto('/')
+
+  const card = page.locator('.player-card').first()
+  const before = await card.evaluate((el) => el.getBoundingClientRect().height)
+
+  await card.getByRole('button', { name: /NYT/ }).click()
+  await expect(card.locator('.attr-detail')).toBeVisible()
+
+  const after = await card.evaluate((el) => el.getBoundingClientRect().height)
+  expect(after).toBe(before)
+
+  // Och panelen ska hålla sig innanför kortet den hör till.
+  const fits = await card.evaluate((el) => {
+    const c = el.getBoundingClientRect()
+    const p = el.querySelector('.attr-detail')!.getBoundingClientRect()
+    return p.top >= c.top && p.bottom <= c.bottom
+  })
+  expect(fits).toBe(true)
+})
+
 test('the lineup scrolls sideways without dragging the page with it', async ({ page }) => {
   await page.goto('/')
   const lineup = page.getByRole('group', { name: 'Gubbarna i BVS' })
