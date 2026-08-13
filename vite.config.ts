@@ -16,6 +16,11 @@ export default defineConfig({
       },
     },
   },
+  // Preview ärver annars `server.proxy`, vilket skulle få e2e-testerna i CI att
+  // ringa skarp drift — de ska vara självständiga och stubbar /api själva.
+  preview: {
+    proxy: {},
+  },
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',

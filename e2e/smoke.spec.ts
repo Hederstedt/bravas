@@ -1,5 +1,16 @@
 import { test, expect } from '@playwright/test'
 
+// Stubbas i testet i stället för att gå mot ett riktigt API: CI ska inte bero
+// på att driften är uppe, och svaren blir förutsägbara. Default är den
+// utloggade vyn med tom roster — det besökaren möter.
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/auth/me', (route) => route.fulfill({ json: { authenticated: false } }))
+  await page.route('**/api/members', (route) => route.fulfill({ json: { members: [] } }))
+  await page.route('**/api/config', (route) =>
+    route.fulfill({ json: { discordServerId: '', discordInviteUrl: '' } }),
+  )
+})
+
 test('landing page loads without console errors', async ({ page }) => {
   const errors: string[] = []
   page.on('console', (msg) => {
@@ -34,6 +45,44 @@ test('navigation scrolls to roster section', async ({ page, isMobile }) => {
   }
 
   await expect(page.locator('#gubbarna')).toBeInViewport()
+})
+
+test('anonymous visitors are offered Steam login', async ({ page, isMobile }) => {
+  await page.goto('/')
+
+  if (isMobile) await page.getByRole('button', { name: 'Öppna menyn' }).click()
+  await expect(page.getByRole('link', { name: /Logga in med Steam/ }).first()).toBeVisible()
+
+  // Ingen har loggat in i det här scenariot, så platshållarna ska stå kvar.
+  await expect(page.getByRole('heading', { name: 'Gubbe #1' })).toBeAttached()
+})
+
+test('signed-in members replace the placeholder roster', async ({ page, isMobile }) => {
+  await page.route('**/api/auth/me', (route) =>
+    route.fulfill({ json: { authenticated: true, steamid64: '76561198060166361' } }),
+  )
+  await page.route('**/api/members', (route) =>
+    route.fulfill({
+      json: {
+        members: [
+          {
+            steamid64: '76561198060166361',
+            personaName: '[BVS] Kungalv',
+            avatarUrl: null,
+            discordName: null,
+          },
+        ],
+      },
+    }),
+  )
+
+  await page.goto('/')
+
+  await expect(page.getByRole('heading', { name: '[BVS] Kungalv' })).toBeAttached()
+  await expect(page.getByRole('heading', { name: 'Gubbe #1' })).toHaveCount(0)
+
+  if (isMobile) await page.getByRole('button', { name: 'Öppna menyn' }).click()
+  await expect(page.getByRole('link', { name: /Logga in med Steam/ })).toHaveCount(0)
 })
 
 test('no horizontal overflow', async ({ page }) => {

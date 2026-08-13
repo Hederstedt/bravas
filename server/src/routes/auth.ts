@@ -52,13 +52,16 @@ authRouter.post("/logout", (_req, res) => {
   res.status(204).end();
 });
 
+// A session probe, not a protected resource: being logged out is a normal
+// answer, so it returns 200 either way. A 401 here would log a console error
+// on every anonymous page load. Protected endpoints still use requireAuth.
 authRouter.get("/me", (req, res) => {
   const steamid64 = verifySessionCookieValue(req.cookies?.[sessionCookie.name]);
   if (!steamid64) {
-    res.status(401).json({ error: "not_authenticated" });
+    res.json({ authenticated: false });
     return;
   }
-  res.json({ steamid64 });
+  res.json({ authenticated: true, steamid64 });
 });
 
 // Frontend calls this once logged in to obtain a token for subsequent

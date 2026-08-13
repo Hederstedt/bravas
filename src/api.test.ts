@@ -56,17 +56,26 @@ describe('fetchMembers', () => {
 
 describe('fetchSession', () => {
   it('returns the session when logged in', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ steamid64: '76561198060166361' }))
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ authenticated: true, steamid64: '76561198060166361' }),
+    )
     await expect(fetchSession()).resolves.toEqual({ steamid64: '76561198060166361' })
   })
 
+  // Being logged out is a 200 with authenticated:false — the endpoint is a
+  // probe, so an anonymous visitor never sees a failed request in the console.
   it('returns null when not logged in', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'not_authenticated' }, 401))
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ authenticated: false }))
     await expect(fetchSession()).resolves.toBeNull()
   })
 
   it('returns null when the API is unreachable', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'))
+    await expect(fetchSession()).resolves.toBeNull()
+  })
+
+  it('returns null on a server error', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'boom' }, 500))
     await expect(fetchSession()).resolves.toBeNull()
   })
 })
