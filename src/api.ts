@@ -33,8 +33,12 @@ export async function fetchMembers(): Promise<RosterMember[]> {
   return data?.members ?? []
 }
 
+// The endpoint answers 200 either way — an anonymous visitor is a normal
+// result, not a failed request — so the logged-out case is a flag in the body.
 export async function fetchSession(): Promise<Session | null> {
-  return await getJson<Session>('/api/auth/me')
+  const data = await getJson<{ authenticated: boolean; steamid64?: string }>('/api/auth/me')
+  if (!data?.authenticated || !data.steamid64) return null
+  return { steamid64: data.steamid64 }
 }
 
 export async function fetchSiteConfig(): Promise<SiteConfig> {

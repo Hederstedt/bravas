@@ -51,6 +51,36 @@ describe("GET /api/members", () => {
   });
 });
 
+// The frontend probes this on every page load to decide whether to show the
+// login button. Anonymous visitors are the normal case, not an error — a 401
+// here would put a red entry in every visitor's console.
+describe("GET /api/auth/me", () => {
+  it("reports an anonymous visitor without erroring", async () => {
+    const res = await request(app).get("/api/auth/me").expect(200);
+    expect(res.body).toEqual({ authenticated: false });
+  });
+
+  it("reports a signed-in member", async () => {
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+
+    const res = await request(app)
+      .get("/api/auth/me")
+      .set("Cookie", sessionFor(ALLOWED))
+      .expect(200);
+    expect(res.body).toEqual({ authenticated: true, steamid64: ALLOWED });
+  });
+
+  it("treats a tampered session cookie as anonymous", async () => {
+    const res = await request(app)
+      .get("/api/auth/me")
+      .set("Cookie", `${sessionCookie.name}=not-a-valid-signed-value`)
+      .expect(200);
+    expect(res.body).toEqual({ authenticated: false });
+  });
+});
+
 // CSRF protection is mounted globally, so it answers before requireAuth ever
 // runs: a token-less write is 403 whether or not the caller has a session.
 describe("POST /api/members/link", () => {
