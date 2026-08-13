@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildQuips, QUIP_RULES, type Derived } from "./cs2Quips.ts";
+import { assignQuips, buildQuips, QUIP_RULES, type Derived } from "./cs2Quips.ts";
 
 // Svensk sifferformatering grupperar med hårt mellanslag. Skrivs som escape —
 // tecknet är osynligt i editorn och ett vanligt mellanslag här ger ett fel som
@@ -164,5 +164,110 @@ describe("determinism", () => {
   it("does not depend on the order the stats happened to arrive in", () => {
     const reordered: Derived = { ...base({ knifeKills: 120 }) };
     expect(buildQuips(reordered, SEED)).toEqual(buildQuips(d, SEED));
+  });
+});
+
+describe("assignQuips across the crew", () => {
+  function crew(count: number, overrides: Partial<Derived> = {}) {
+    return Array.from({ length: count }, (_, i) => ({
+      id: `7656119800000${String(i).padStart(4, "0")}`,
+      derived: base(overrides),
+    }));
+  }
+
+  function allLines(assigned: Map<string, { text: string }[]>): string[] {
+    return [...assigned.values()].flat().map((q) => q.text);
+  }
+
+  it("never gives two gubbar the same line when they all match one rule", () => {
+    // Utan tilldelning över hela laget hade alla tio sprayat med samma mening.
+    const assigned = assignQuips(crew(10, { accuracy: 0.12, shotsFired: 200000 }));
+    const lines = allLines(assigned);
+
+    expect(lines).toHaveLength(new Set(lines).size);
+  });
+
+  it("never gives two gubbar the same line when nobody stands out", () => {
+    const assigned = assignQuips(crew(8));
+    const lines = allLines(assigned);
+
+    expect(lines).toHaveLength(new Set(lines).size);
+  });
+
+  it("never gives two locked profiles the same line", () => {
+    // Sex av tio profiler är stängda samtidigt, så private-poolen måste räcka.
+    const assigned = assignQuips(crew(6, { hasStats: false }));
+    const lines = allLines(assigned);
+
+    expect(lines).toHaveLength(6);
+    expect(lines).toHaveLength(new Set(lines).size);
+  });
+
+  it("gives every gubbe a line even when the crew outgrows the variants", () => {
+    // Hellre en upprepning än ett kort utan kommentar.
+    const assigned = assignQuips(crew(40));
+
+    expect(assigned.size).toBe(40);
+    for (const quips of assigned.values()) {
+      expect(quips.length).toBeGreaterThan(0);
+      expect(quips[0]!.text.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("lets the most constrained gubbe pick before the generic ones", () => {
+    // Knivgubben matchar bara kniv-regeln. De andra matchar kniv plus mycket
+    // annat, så de har någonstans att ta vägen — han har inte det.
+    const knifeOnly = { id: "76561198000000001", derived: base({ knifeKills: 120 }) };
+    const spoiled = Array.from({ length: 4 }, (_, i) => ({
+      id: `7656119800000100${i}`,
+      derived: base({ knifeKills: 500, taserKills: 90, hsRate: 0.7, hours: 5000, mvpRate: 0.3 }),
+    }));
+
+    const assigned = assignQuips([...spoiled, knifeOnly]);
+    const his = assigned.get(knifeOnly.id)!;
+
+    expect(his).toHaveLength(1);
+    expect(his[0]!.ruleId).toBe("kniv");
+  });
+
+  it("gives the same crew the same assignment every time", () => {
+    const subjects = crew(6, { knifeKills: 120 });
+    const first = allLines(assignQuips(subjects));
+
+    for (let i = 0; i < 10; i++) {
+      expect(allLines(assignQuips(subjects))).toEqual(first);
+    }
+  });
+
+  it("does not depend on the order members arrived in", () => {
+    const subjects = crew(6, { taserKills: 20 });
+    const forwards = assignQuips(subjects);
+    const backwards = assignQuips([...subjects].reverse());
+
+    for (const s of subjects) {
+      expect(backwards.get(s.id)).toEqual(forwards.get(s.id));
+    }
+  });
+
+  it("still caps each gubbe at two lines", () => {
+    const assigned = assignQuips(
+      crew(3, { knifeKills: 500, taserKills: 90, hsRate: 0.7, hours: 5000, mvpRate: 0.3 })
+    );
+    for (const quips of assigned.values()) {
+      expect(quips.length).toBe(2);
+    }
+  });
+});
+
+describe("variant pools", () => {
+  // Poolerna måste räcka till hela laget, annars börjar raderna upprepas.
+  it("has enough locked-profile lines for a crew of mostly closed profiles", () => {
+    const rule = QUIP_RULES.find((r) => r.id === "private")!;
+    expect(rule.lines.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it("has enough generic lines for a crew where nobody stands out", () => {
+    const rule = QUIP_RULES.find((r) => r.id === "fallback")!;
+    expect(rule.lines.length).toBeGreaterThanOrEqual(10);
   });
 });

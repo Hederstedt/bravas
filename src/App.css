@@ -882,10 +882,9 @@ a.steam-login:hover {
 }
 
 .attr {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   font-family: var(--font-display);
   font-weight: 600;
 }
@@ -903,7 +902,6 @@ a.steam-login:hover {
 }
 
 .attr-bar {
-  grid-column: 1 / -1;
   height: 3px;
   background: rgba(255, 255, 255, 0.16);
 }
@@ -952,6 +950,187 @@ a.steam-login:hover {
   }
 }
 
+/* Läses upp av skärmläsare men tar ingen plats. Förkortningarna på kortet
+   säger ingenting utskrivna, så de behöver sitt riktiga namn med sig. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Attributet är en knapp, inte bara text: på touch finns ingen hover att
+   sväva med, och sidan har lika mycket mobiltrafik som desktop. */
+.attr-toggle {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.attr-toggle:hover .attr-rating,
+.attr-toggle[aria-expanded='true'] .attr-rating {
+  color: var(--accent-soft);
+}
+
+.attr-toggle:focus-visible .attr-key {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Läggs ovanpå kortets nedre del i stället för i flödet. Korten i raden är
+   flex-items som sträcker sig till det högsta syskonet, så ett panelöppnande i
+   flödet hade vuxit varenda kort samtidigt och knuffat hela sidan nedåt. */
+.attr-detail {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1;
+  padding: 12px 14px;
+  background: #0d1116;
+  outline: 1px solid var(--panel-edge);
+  outline-offset: -1px;
+  border-left: 2px solid var(--accent);
+  box-shadow: 0 -10px 24px -12px rgba(0, 0, 0, 0.9);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Sidan nollar bara marginalerna på rubriker, så styckena här bär annars med
+   sig webbläsarens 1em uppe och nere — panelen blev nästan dubbelt så hög som
+   sitt innehåll och täckte attributen ovanför. */
+.attr-detail p {
+  margin: 0;
+}
+
+.attr-detail-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.attr-detail-what {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.attr-detail-rank {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0.5px;
+  color: var(--accent-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Förklaringslistan under raden. Samma innehåll som detaljpanelen, men
+   tillgänglig utan att klicka på något alls. */
+.attr-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px 26px;
+  margin: 26px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--panel-edge);
+}
+
+.attr-legend dt {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.attr-legend-key {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.attr-legend dd {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+/* ---------- Rangordningen bakom ett klanrekord ---------- */
+.stat-expand {
+  margin-top: 14px;
+  align-self: flex-start;
+  padding: 5px 12px;
+  background: none;
+  border: 1px solid var(--accent-line);
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.stat-expand:hover {
+  background: var(--accent);
+  color: #12100d;
+}
+
+.stat-standings {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--panel-edge);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.stat-standings li {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 14px;
+}
+
+.stat-standings .rank {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-standings .who {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.stat-standings .what {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .roster-note {
   margin-top: 26px;
   color: var(--muted);
@@ -987,6 +1166,11 @@ a.steam-login:hover {
   padding: 22px;
   clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
   transition: transform 0.15s, border-color 0.15s;
+  /* Kolumn så att "visa alla"-knappen kan krympa till sitt innehåll via
+     align-self. Ingen align-items här: det hade krympt även rubrik och text
+     till innehållsbredd i stället för att fylla kortet. */
+  display: flex;
+  flex-direction: column;
 }
 
 .stat-card:hover {

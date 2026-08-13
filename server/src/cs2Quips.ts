@@ -43,10 +43,15 @@ export const QUIP_RULES: QuipRule[] = [
   {
     id: "private",
     when: (d) => !d.hasStats,
+    // Sex av tio profiler kan vara stängda samtidigt, och varje låst gubbe tar
+    // en rad ur den här poolen. Den måste räcka till dem allihop.
     lines: [
       "Steam-profilen är låst. Vi vet ingenting, och han vill nog ha det så.",
       "Profilen är privat. Antingen är han pinsamt bra eller pinsamt dålig.",
       "Ingen statistik ute. Han säger att det är en principsak.",
+      "Stängd profil. Siffrorna finns, vi får bara inte se dem.",
+      "Har dragit ner rullgardinen på Steam. Ingen vet varför.",
+      "Profilen säger ingenting. Det gör han också när man frågar.",
     ],
   },
   {
@@ -171,11 +176,22 @@ export const QUIP_RULES: QuipRule[] = [
   {
     id: "fallback",
     when: () => true,
+    // Här hamnar alla utan särdrag, så poolen måste vara den största av alla —
+    // i värsta fall är hela klanen omärkvärdig samtidigt och var och en ska
+    // ändå få en egen rad.
     lines: [
       "Goa gubben. Statistiken säger inget särskilt, men eftersnacket säger allt.",
       "Inget sticker ut i siffrorna. Han håller jämna plågor hela vägen.",
       "Statistiskt fullständigt normal. Det är också en prestation.",
       "Gör sitt, säger inte mycket, dyker alltid upp på kvällen.",
+      "Varken bäst eller sämst. Någon ska ju hålla mitten.",
+      "Siffrorna är oförargliga. Precis som han.",
+      "Ingen har något att anmärka på. Ingen har något att berömma heller.",
+      "Lirar på. Det är ungefär vad som går att säga, och det räcker.",
+      "Helt genomsnittlig, med besked. Det krävs disciplin.",
+      "Ligger mitt i tabellen i allt. Man vet var man har honom.",
+      "Har inga toppar och inga dalar. Bara en lång platå.",
+      "Statistiken vägrar säga något roligt om honom. Vi har försökt.",
     ],
   },
 ];
@@ -199,23 +215,83 @@ function fill(line: string, d: Derived): string {
     .replaceAll("{kills}", nf.format(Math.round(d.kills)));
 }
 
-function pick(rule: QuipRule, d: Derived, seed: string): Quip {
-  const line = rule.lines[hash(`${seed}:${rule.id}`) % rule.lines.length]!;
-  return { ruleId: rule.id, text: fill(line, d) };
+const PRIVATE_RULE = QUIP_RULES.find((r) => r.id === "private")!;
+const FALLBACK_RULE = QUIP_RULES.find((r) => r.id === "fallback")!;
+
+function quipFrom(rule: QuipRule, index: number, d: Derived): Quip {
+  return { ruleId: rule.id, text: fill(rule.lines[index]!, d) };
 }
 
-// Högst två rader per kort: en tredje gör kortet till en uppsats och den roliga
-// poängen dör. Fallback-regeln används bara när inget annat sagt något, annars
-// hade varje kort avslutats med "inget sticker ut" trots att något gjorde det.
-export function buildQuips(d: Derived, seed: string): Quip[] {
-  const locked = QUIP_RULES.find((r) => r.id === "private")!;
-  if (locked.when(d)) return [pick(locked, d, seed)];
+// Reglerna en gubbe faktiskt kan få något ur. En låst profil har bara en sak
+// att säga om sig, så den kortsluter resten.
+function matchingRules(d: Derived): QuipRule[] {
+  if (PRIVATE_RULE.when(d)) return [PRIVATE_RULE];
+  return QUIP_RULES.filter((r) => r.id !== "private" && r.id !== "fallback" && r.when(d));
+}
 
-  const matched = QUIP_RULES.filter((r) => r.id !== "private" && r.id !== "fallback" && r.when(d));
-  if (matched.length === 0) {
-    const fallback = QUIP_RULES.find((r) => r.id === "fallback")!;
-    return [pick(fallback, d, seed)];
+// Börjar på den hash-valda varianten och stegar runt tills en som ingen annan
+// tagit dyker upp. Nyckeln är regel plus variantnummer, inte den färdiga
+// texten: annars hade två veteraner kunnat få samma mening med olika siffror i
+// och läst som en upprepning.
+function takeUnused(rule: QuipRule, d: Derived, seed: string, used: Set<string>): Quip | null {
+  const start = hash(`${seed}:${rule.id}`) % rule.lines.length;
+  for (let step = 0; step < rule.lines.length; step++) {
+    const index = (start + step) % rule.lines.length;
+    const key = `${rule.id}#${index}`;
+    if (used.has(key)) continue;
+    used.add(key);
+    return quipFrom(rule, index, d);
+  }
+  return null;
+}
+
+export interface QuipSubject {
+  id: string;
+  derived: Derived;
+}
+
+// Tilldelningen sker över hela laget, inte per gubbe. Väljer man oberoende får
+// två gubbar som matchar samma regel samma rad så fort hasharna krockar — med
+// tio gubbar och en handfull varianter per regel är det snarare regel än
+// undantag.
+//
+// Ordningen är färst matchande regler först: den som bara matchar en enda regel
+// måste få välja innan de mångsidiga äter upp hans enda rad. Lika antal avgörs
+// på id så tilldelningen står still mellan körningar.
+export function assignQuips(subjects: QuipSubject[]): Map<string, Quip[]> {
+  const used = new Set<string>();
+  const assigned = new Map<string, Quip[]>();
+
+  const order = subjects
+    .map((s) => ({ ...s, rules: matchingRules(s.derived) }))
+    .sort((a, b) => a.rules.length - b.rules.length || a.id.localeCompare(b.id));
+
+  for (const { id, derived, rules } of order) {
+    const quips: Quip[] = [];
+
+    for (const rule of rules) {
+      if (quips.length >= MAX_QUIPS) break;
+      const quip = takeUnused(rule, derived, id, used);
+      if (quip) quips.push(quip);
+    }
+
+    // Fallback bara när inget annat sagt något — annars hade varje kort
+    // avslutats med "inget sticker ut" trots att något gjorde det.
+    if (quips.length === 0) {
+      const quip = takeUnused(FALLBACK_RULE, derived, id, used);
+      // Är även den poolen slut får en rad återanvändas. Ett kort utan
+      // kommentar vore sämre än en upprepning.
+      quips.push(quip ?? quipFrom(FALLBACK_RULE, hash(id) % FALLBACK_RULE.lines.length, derived));
+    }
+
+    assigned.set(id, quips);
   }
 
-  return matched.slice(0, MAX_QUIPS).map((r) => pick(r, d, seed));
+  return assigned;
+}
+
+// Enskild gubbe, utan lag att ta hänsyn till. Används av tester och av den som
+// bara vill se vad en viss statistik ger.
+export function buildQuips(d: Derived, seed: string): Quip[] {
+  return assignQuips([{ id: seed, derived: d }]).get(seed)!;
 }

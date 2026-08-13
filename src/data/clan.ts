@@ -1,4 +1,4 @@
-import type { CardAttribute, CardTier } from '../api'
+import type { CardAttribute, CardTier, StatHighlight } from '../api'
 
 // Platshållarna ritas med exakt samma kortkomponent som de riktiga gubbarna, så
 // de bär samma fält. En utloggad besökare ska möta en färdig laguppställning,
@@ -12,15 +12,25 @@ export interface Member {
   attributes: CardAttribute[]
 }
 
-function attrs(sik: number, ska: number, fra: number, tal: number, nyt: number, tid: number) {
-  return [
-    { key: 'SIK', label: 'Sikte', rating: sik },
-    { key: 'SKA', label: 'Skallar', rating: ska },
-    { key: 'FRA', label: 'Frag', rating: fra },
-    { key: 'TÅL', label: 'Tålighet', rating: tal },
-    { key: 'NYT', label: 'Nytta', rating: nyt },
-    { key: 'TID', label: 'Tid', rating: tid },
-  ]
+// Speglar SPEC i server/src/cs2Cards.ts. Platshållarna finns bara innan någon
+// loggat in, men de ska förklara attributen på precis samma sätt som de riktiga
+// korten gör.
+const ATTR_META = [
+  ['SIK', 'Sikte', 'Andel av avlossade skott som träffar'],
+  ['SKA', 'Skallar', 'Andel av hans kills som är headshots'],
+  ['FRA', 'Frag', 'Kills per spelad runda'],
+  ['TÅL', 'Tålighet', 'Hur ofta han överlever rundan'],
+  ['NYT', 'Nytta', 'Planterade och desarmerade bomber plus MVP:er, per runda'],
+  ['TID', 'Tid', 'Total speltid i CS2'],
+] as const
+
+function attrs(...ratings: [number, number, number, number, number, number]): CardAttribute[] {
+  return ATTR_META.map(([key, label, description], i) => ({
+    key,
+    label,
+    description,
+    rating: ratings[i]!,
+  }))
 }
 
 export interface Game {
@@ -118,14 +128,10 @@ export const games: Game[] = [
 //  - Speltid: Steam IPlayerService/GetOwnedGames (playtime_forever, minuter)
 // ------------------------------------------------------------------
 
-export interface StatHighlight {
-  gameId: string
-  gameTitle: string
-  label: string
-  value: string
-  holder: string
-  detail: string
-}
+// Formen kommer från API:et. Mock-datan ska ha exakt samma fält som det riktiga
+// svaret — en egen kopia här hade glidit isär och skillnaden märkts först i
+// webbläsaren.
+export type { StatHighlight } from '../api'
 
 export const statsIsMock = true
 
@@ -137,6 +143,11 @@ export const statHighlights: StatHighlight[] = [
     value: 'AK-47',
     holder: 'Gubbe #2',
     detail: '1 337 kills · 42 % headshots',
+    standings: [
+      { name: 'AK-47', value: '1 337 kills' },
+      { name: 'AWP', value: '812 kills' },
+      { name: 'M4A4', value: '604 kills' },
+    ],
   },
   {
     gameId: 'cs2',
@@ -145,6 +156,11 @@ export const statHighlights: StatHighlight[] = [
     value: '512',
     holder: 'Gubbe #1',
     detail: 'IGL:n tar åt sig äran för allihop',
+    standings: [
+      { name: 'Gubbe #1', value: '512' },
+      { name: 'Gubbe #5', value: '488' },
+      { name: 'Gubbe #2', value: '431' },
+    ],
   },
   {
     gameId: 'wot',
@@ -153,6 +169,10 @@ export const statHighlights: StatHighlight[] = [
     value: 'T-34',
     holder: 'Gubbe #4',
     detail: '2 041 strider · 54 % winrate',
+    standings: [
+      { name: 'T-34', value: '2 041 strider' },
+      { name: 'KV-1', value: '1 508 strider' },
+    ],
   },
   {
     gameId: 'valheim',
@@ -161,6 +181,10 @@ export const statHighlights: StatHighlight[] = [
     value: '23',
     holder: 'Gubbe #6',
     detail: '"Jag hade ju träklubban"',
+    standings: [
+      { name: 'Gubbe #6', value: '23' },
+      { name: 'Gubbe #3', value: '17' },
+    ],
   },
   {
     gameId: 'satisfactory',
@@ -169,6 +193,10 @@ export const statHighlights: StatHighlight[] = [
     value: '4,2 km',
     holder: 'Gubbe #3',
     detail: 'Spagettin har egen postkod',
+    standings: [
+      { name: 'Gubbe #3', value: '4,2 km' },
+      { name: 'Gubbe #1', value: '2,8 km' },
+    ],
   },
   {
     gameId: 'steam',
@@ -177,6 +205,10 @@ export const statHighlights: StatHighlight[] = [
     value: '3 812 h',
     holder: 'Gubbe #5',
     detail: 'Hörs aldrig, syns aldrig — men är alltid online',
+    standings: [
+      { name: 'Gubbe #5', value: '3 812 h' },
+      { name: 'Gubbe #2', value: '3 104 h' },
+    ],
   },
 ]
 

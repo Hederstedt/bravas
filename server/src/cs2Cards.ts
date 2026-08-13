@@ -1,4 +1,4 @@
-import { buildQuips, type Derived } from "./cs2Quips.ts";
+import { assignQuips, buildQuips, type Derived } from "./cs2Quips.ts";
 import type { MemberStats } from "./cs2Stats.ts";
 
 export type AttrKey = "SIK" | "SKA" | "FRA" | "TÅL" | "NYT" | "TID";
@@ -7,6 +7,7 @@ export type Tier = "ikon" | "guld" | "silver" | "brons" | "okänd";
 export interface CardAttribute {
   key: AttrKey;
   label: string;
+  description: string;
   rating: number;
 }
 
@@ -36,9 +37,13 @@ interface DerivedCore extends Derived {
 // räkna om allas betyg, och sämsta gubben hade alltid legat i botten oavsett
 // hur bra han faktiskt är. Varje tabell börjar på noll så beteendet är
 // definierat hela vägen ner.
-const SPEC: Record<AttrKey, { label: string; anchors: Anchors; of: (d: DerivedCore) => number }> = {
+const SPEC: Record<
+  AttrKey,
+  { label: string; description: string; anchors: Anchors; of: (d: DerivedCore) => number }
+> = {
   SIK: {
     label: "Sikte",
+    description: "Andel av avlossade skott som träffar",
     anchors: [
       [0, 1],
       [0.1, 40],
@@ -50,6 +55,7 @@ const SPEC: Record<AttrKey, { label: string; anchors: Anchors; of: (d: DerivedCo
   },
   SKA: {
     label: "Skallar",
+    description: "Andel av hans kills som är headshots",
     anchors: [
       [0, 1],
       [0.15, 35],
@@ -61,6 +67,7 @@ const SPEC: Record<AttrKey, { label: string; anchors: Anchors; of: (d: DerivedCo
   },
   FRA: {
     label: "Frag",
+    description: "Kills per spelad runda",
     anchors: [
       [0, 1],
       [0.4, 40],
@@ -72,6 +79,7 @@ const SPEC: Record<AttrKey, { label: string; anchors: Anchors; of: (d: DerivedCo
   },
   TÅL: {
     label: "Tålighet",
+    description: "Hur ofta han överlever rundan",
     anchors: [
       [0, 1],
       [0.25, 40],
@@ -83,6 +91,7 @@ const SPEC: Record<AttrKey, { label: string; anchors: Anchors; of: (d: DerivedCo
   },
   NYT: {
     label: "Nytta",
+    description: "Planterade och desarmerade bomber plus MVP:er, per runda",
     anchors: [
       [0, 1],
       [0.05, 40],
@@ -94,6 +103,7 @@ const SPEC: Record<AttrKey, { label: string; anchors: Anchors; of: (d: DerivedCo
   },
   TID: {
     label: "Tid",
+    description: "Total speltid i CS2",
     anchors: [
       [0, 1],
       [50, 30],
@@ -206,19 +216,26 @@ function derive(m: MemberStats): DerivedCore {
   };
 }
 
-export function buildCard(m: MemberStats): PlayerCard {
+type RatedCard = Omit<PlayerCard, "comments">;
+
+// Betygsättningen är helt oberoende av kommentarerna. De hålls isär eftersom
+// kommentarerna måste väljas med hela laget i åtanke medan betygen bara beror
+// på gubben själv.
+function rateCard(m: MemberStats): { card: RatedCard; derived: DerivedCore } {
   const d = derive(m);
 
   if (!d.hasStats) {
     return {
-      steamid64: m.steamid64,
-      personaName: m.personaName,
-      hasStats: false,
-      overall: 0,
-      tier: "okänd",
-      position: "OKÄND",
-      attributes: [],
-      comments: buildQuips(d, m.steamid64).map((q) => q.text),
+      derived: d,
+      card: {
+        steamid64: m.steamid64,
+        personaName: m.personaName,
+        hasStats: false,
+        overall: 0,
+        tier: "okänd",
+        position: "OKÄND",
+        attributes: [],
+      },
     };
   }
 
@@ -229,6 +246,7 @@ export function buildCard(m: MemberStats): PlayerCard {
   const attributes = ATTR_ORDER.map((key) => ({
     key,
     label: SPEC[key].label,
+    description: SPEC[key].description,
     rating: d.ratings[key],
   }));
 
@@ -241,22 +259,41 @@ export function buildCard(m: MemberStats): PlayerCard {
   const top = ATTR_ORDER.reduce((best, key) => (d.ratings[key] > d.ratings[best] ? key : best));
 
   return {
-    steamid64: m.steamid64,
-    personaName: m.personaName,
-    hasStats: true,
-    overall,
-    tier: tierFor(overall),
-    position: POSITIONS[top],
-    attributes,
-    comments: buildQuips(d, m.steamid64).map((q) => q.text),
+    derived: d,
+    card: {
+      steamid64: m.steamid64,
+      personaName: m.personaName,
+      hasStats: true,
+      overall,
+      tier: tierFor(overall),
+      position: POSITIONS[top],
+      attributes,
+    },
   };
+}
+
+// En ensam gubbe, utan lag att ta hänsyn till.
+export function buildCard(m: MemberStats): PlayerCard {
+  const { card, derived } = rateCard(m);
+  return { ...card, comments: buildQuips(derived, m.steamid64).map((q) => q.text) };
 }
 
 // Bäst först. Gubbar utan statistik hamnar sist oavsett var de kom in i listan,
 // och lika betyg sorteras på namn så raden inte kastar om sig mellan laddningar.
+//
+// Kommentarerna tilldelas över hela laget innan korten sätts ihop, så att inga
+// två gubbar får samma rad.
 export function buildCards(members: MemberStats[]): PlayerCard[] {
-  return members
-    .map(buildCard)
+  const rated = members.map(rateCard);
+  const quips = assignQuips(
+    rated.map(({ card, derived }) => ({ id: card.steamid64, derived }))
+  );
+
+  return rated
+    .map(({ card }) => ({
+      ...card,
+      comments: (quips.get(card.steamid64) ?? []).map((q) => q.text),
+    }))
     .sort(
       (a, b) =>
         Number(b.hasStats) - Number(a.hasStats) ||

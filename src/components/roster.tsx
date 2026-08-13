@@ -11,6 +11,7 @@ import {
   type PresenceMap,
   type RosterMember,
 } from '../api'
+import { compareAttribute } from '../cardStats'
 import { members } from '../data/clan'
 import { BvsMark } from './BvsMark'
 
@@ -100,8 +101,26 @@ function placeholderLineup(): LineupEntry[] {
   }))
 }
 
-function PlayerCardView({ entry }: { entry: LineupEntry }) {
+// Platshållarna som kort, så jämförelsen fungerar även innan någon loggat in.
+function placeholderCards(): PlayerCard[] {
+  return members.map((m) => ({
+    steamid64: m.nick,
+    personaName: m.nick,
+    hasStats: true,
+    overall: m.overall,
+    tier: m.tier,
+    position: m.position,
+    attributes: m.attributes,
+    comments: [m.flavor],
+  }))
+}
+
+function PlayerCardView({ entry, crew }: { entry: LineupEntry; crew: PlayerCard[] }) {
+  const [open, setOpen] = useState<string | null>(null)
   const p = entry.presence
+
+  const openAttr = entry.attributes.find((a) => a.key === open) ?? null
+  const comparison = openAttr ? compareAttribute(crew, entry.id, openAttr.key) : null
 
   return (
     <article className="player-card" data-tier={entry.tier}>
@@ -129,14 +148,46 @@ function PlayerCardView({ entry }: { entry: LineupEntry }) {
 
       {entry.attributes.length > 0 && (
         <ul className="card-attrs">
-          {entry.attributes.map((a) => (
-            <li key={a.key} className="attr" title={a.label}>
-              <span className="attr-key">{a.key}</span>
-              <span className="attr-rating">{a.rating}</span>
-              <span className="attr-bar" style={{ '--pct': `${a.rating}%` } as CSSProperties} />
-            </li>
-          ))}
+          {entry.attributes.map((a) => {
+            const isOpen = open === a.key
+            return (
+              <li key={a.key} className="attr">
+                {/* Knapp, inte bara hover: sidan har lika mycket mobiltrafik
+                    som desktop, och på touch finns ingen hover att sväva med. */}
+                <button
+                  type="button"
+                  className="attr-toggle"
+                  aria-expanded={isOpen}
+                  onClick={() => setOpen(isOpen ? null : a.key)}
+                >
+                  <span className="attr-key">{a.key}</span>
+                  <span className="attr-rating">{a.rating}</span>
+                  {/* Förkortningen säger inget uppläst. Förklaringen står i
+                      panelen nedanför och i listan under raden, så här räcker
+                      det utskrivna namnet. */}
+                  <span className="sr-only">{a.label}</span>
+                </button>
+                <span className="attr-bar" style={{ '--pct': `${a.rating}%` } as CSSProperties} />
+              </li>
+            )
+          })}
         </ul>
+      )}
+
+      {openAttr && (
+        <div className="attr-detail">
+          <p className="attr-detail-name">
+            {openAttr.label} · {openAttr.rating}
+          </p>
+          <p className="attr-detail-what">{openAttr.description}</p>
+          {comparison && (
+            <p className="attr-detail-rank">
+              {comparison.of > 1
+                ? `${comparison.rank} av ${comparison.of} i klanen · bäst ${comparison.best} · snitt ${comparison.average}`
+                : 'Ingen att jämföra med än'}
+            </p>
+          )}
+        </div>
       )}
 
       {entry.comments.map((c) => (
@@ -173,6 +224,13 @@ export function Roster() {
 
   const isLive = live.length > 0
   const lineup = isLive ? buildLineup(live, cards, presence) : placeholderLineup()
+  // Jämförelsen räknas mot samma uppsättning som visas, så platshållarkorten
+  // går att klicka på precis som de riktiga.
+  const crew = isLive ? cards : placeholderCards()
+
+  // Förklaringarna kommer från API:et tillsammans med betygen, så koden här
+  // slipper hålla en egen kopia som kan glida isär från uträkningen.
+  const legend = lineup.find((e) => e.attributes.length > 0)?.attributes ?? []
 
   return (
     <section id="gubbarna">
@@ -187,13 +245,27 @@ export function Roster() {
       <div className="lineup-wrap">
         <div className="lineup" role="group" aria-label="Gubbarna i BVS" tabIndex={0}>
           {lineup.map((entry) => (
-            <PlayerCardView key={entry.id} entry={entry} />
+            <PlayerCardView key={entry.id} entry={entry} crew={crew} />
           ))}
         </div>
       </div>
 
       <div className="container">
         {lineup.length > 1 && <span className="lineup-hint">◀ dra i sidled ▶</span>}
+
+        {legend.length > 0 && (
+          <dl className="attr-legend">
+            {legend.map((a) => (
+              <div key={a.key}>
+                <dt>
+                  <span className="attr-legend-key">{a.key}</span> {a.label}
+                </dt>
+                <dd>{a.description}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+
         <p className="roster-note">
           {isLive
             ? 'Betygen räknas fram ur gubbarnas riktiga CS2-statistik från Steam. Kommentarerna skriver sig själva.'

@@ -203,3 +203,37 @@ describe("buildCards", () => {
     expect(buildCards([b, a]).map((c) => c.personaName)).toEqual(["Anna", "Bertil"]);
   });
 });
+
+describe("comments across the lineup", () => {
+  // Samma statistik för allihop: utan tilldelning över laget hade de fått
+  // identiska kommentarer, vilket är precis vad som inte får hända.
+  function clones(count: number, stats: Record<string, number>): MemberStats[] {
+    return Array.from({ length: count }, (_, i) => ({
+      steamid64: `7656119800000${String(i).padStart(4, "0")}`,
+      personaName: `Gubbe ${i}`,
+      stats,
+    }));
+  }
+
+  it("gives no two gubbar the same comment", () => {
+    const cards = buildCards(clones(10, SHARPSHOOTER.stats));
+    const comments = cards.flatMap((c) => c.comments);
+
+    expect(comments.length).toBeGreaterThan(0);
+    expect(comments).toHaveLength(new Set(comments).size);
+  });
+
+  it("gives no two locked profiles the same comment", () => {
+    const cards = buildCards(clones(6, { total_rounds_played: 0 }));
+    const comments = cards.flatMap((c) => c.comments);
+
+    expect(comments).toHaveLength(6);
+    expect(comments).toHaveLength(new Set(comments).size);
+  });
+
+  it("still gives every gubbe a comment", () => {
+    for (const card of buildCards(clones(10, SHARPSHOOTER.stats))) {
+      expect(card.comments.length).toBeGreaterThan(0);
+    }
+  });
+});
