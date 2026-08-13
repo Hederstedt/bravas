@@ -1,6 +1,9 @@
+import http from "node:http";
 import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "./app.ts";
+import { broadcast, closeAllSubscribers, subscriberCount } from "./events.ts";
+import { resetPresenceSnapshot } from "./presencePoller.ts";
 import { db } from "./db.ts";
 import { createSessionCookieValue } from "./session.ts";
 import { sessionCookie } from "./session.ts";
@@ -15,6 +18,10 @@ function sessionFor(steamid64: string) {
 }
 
 beforeEach(() => {
+  // Pollerns ögonblicksbild och de öppna strömmarna är modultillstånd som
+  // annars läcker mellan fall.
+  resetPresenceSnapshot();
+  closeAllSubscribers();
   db.exec("DELETE FROM members; DELETE FROM allowlist; DELETE FROM cs2_stats;");
   db.prepare("INSERT INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(ALLOWED, "[BVS] #Mag", Date.now());
 });
@@ -233,7 +240,7 @@ describe("GET /api/presence", () => {
   });
 
   // Presence is decoration: if Steam is down the roster must still render.
-  it("degrades to an empty map when Steam fails", async () => {
+  it("degrades to an empty map when Steam fails and nothing was known yet", async () => {
     db.prepare(
       "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
     ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
@@ -241,6 +248,21 @@ describe("GET /api/presence", () => {
 
     const res = await request(app).get("/api/presence").expect(200);
     expect(res.body).toEqual({ presence: {} });
+  });
+
+  it("keeps serving the last known presence when Steam goes down mid-session", async () => {
+    // Pollern äger ögonblicksbilden nu, så ett avbrott mot Steam behöver inte
+    // längre tömma rostern — den blir bara en stund gammal.
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+    stubSteam([{ steamid: ALLOWED, personastate: 1, gameextrainfo: "Valheim" }]);
+    await request(app).get("/api/presence").expect(200);
+
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("steam is down"));
+
+    const res = await request(app).get("/api/presence").expect(200);
+    expect(res.body.presence[ALLOWED]).toEqual({ status: "in-game", game: "Valheim" });
   });
 
   it("never reports presence for someone who is not a member", async () => {
@@ -411,5 +433,85 @@ describe("GET /api/stats/:steamId", () => {
 
   it("404s for a malformed steamid without calling Steam", async () => {
     await request(app).get("/api/stats/not-a-steamid").expect(404);
+  });
+});
+
+describe("GET /api/events", () => {
+  // Supertest väntar på att svaret ska ta slut, vilket en ström aldrig gör.
+  // Därför öppnas den mot en riktig lyssnande server och läses bit för bit.
+  function openStream(server: import("node:http").Server) {
+    const { port } = server.address() as import("node:net").AddressInfo;
+    return new Promise<{
+      status: number;
+      headers: Record<string, string | string[] | undefined>;
+      chunks: string[];
+      close: () => void;
+    }>((resolve, reject) => {
+      const req = http.get({ host: "127.0.0.1", port, path: "/api/events" }, (res) => {
+        const chunks: string[] = [];
+        res.setEncoding("utf8");
+        res.on("data", (c: string) => chunks.push(c));
+        resolve({
+          status: res.statusCode ?? 0,
+          headers: res.headers,
+          chunks,
+          close: () => req.destroy(),
+        });
+      });
+      req.on("error", reject);
+    });
+  }
+
+  const tick = () => new Promise((r) => setTimeout(r, 30));
+
+  let server: import("node:http").Server;
+
+  beforeEach(async () => {
+    server = await new Promise<import("node:http").Server>((resolve) => {
+      const s = app.listen(0, () => resolve(s));
+    });
+  });
+
+  afterEach(async () => {
+    closeAllSubscribers();
+    await new Promise((r) => server.close(r));
+  });
+
+  it("answers as an event stream that proxies must not buffer", async () => {
+    const stream = await openStream(server);
+    await tick();
+
+    expect(stream.status).toBe(200);
+    expect(stream.headers["content-type"]).toContain("text/event-stream");
+    // Utan de här två buffrar nginx och Cloudflare strömmen till tystnad.
+    expect(stream.headers["cache-control"]).toContain("no-transform");
+    expect(stream.headers["x-accel-buffering"]).toBe("no");
+
+    stream.close();
+  });
+
+  it("delivers a broadcast to a connected client", async () => {
+    const stream = await openStream(server);
+    await tick();
+
+    broadcast("quote", { reason: "added" });
+    await tick();
+
+    const body = stream.chunks.join("");
+    expect(body).toContain("event: quote");
+    expect(body).toContain('"reason":"added"');
+
+    stream.close();
+  });
+
+  it("forgets the client once it disconnects", async () => {
+    const stream = await openStream(server);
+    await tick();
+    expect(subscriberCount()).toBe(1);
+
+    stream.close();
+    await tick();
+
+    expect(subscriberCount()).toBe(0);
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   addQuote,
   fetchQuotes,
@@ -8,6 +8,7 @@ import {
   MAX_SAID_BY_LENGTH,
   type Quote,
 } from '../api'
+import { useLiveEvent } from '../useLiveEvents'
 import { TrophyIcon } from './icons'
 
 export function Quotes() {
@@ -30,6 +31,13 @@ export function Quotes() {
       cancelled = true
     }
   }, [])
+
+  // Någon annan har skrivit, röstat eller raderat. Hämta om väggen så att den
+  // som redan har sidan öppen ser det utan att ladda om.
+  const reload = useCallback(() => {
+    void fetchQuotes().then(setQuotes)
+  }, [])
+  useLiveEvent('quote', reload)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()

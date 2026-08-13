@@ -1,32 +1,26 @@
 import { Router } from "express";
 import { listMembers } from "../db.ts";
 import { readLimiter } from "../middleware/rateLimit.ts";
-import { fetchPresence, type Presence } from "../presence.ts";
+import { currentPresence, refreshPresence } from "../presencePoller.ts";
 
 export const presenceRouter = Router();
 
+// Numera bara en avläsning av pollerns ögonblicksbild. Tidigare utlöste varje
+// sidladdning ett eget anrop mot Steam; nu frågar pollern en gång och alla
+// besökare läser samma svar.
+//
+// Endpointen finns kvar även med händelseströmmen på plats: den är det första
+// som hämtas vid sidladdning, och reservvägen när EventSource inte går att
+// öppna.
 presenceRouter.get("/", readLimiter, async (_req, res) => {
-  const steamids = listMembers().map((m) => m.steamid64);
-  if (steamids.length === 0) {
+  if (listMembers().length === 0) {
     res.json({ presence: {} });
     return;
   }
 
-  let byId = new Map<string, Presence>();
-  try {
-    byId = await fetchPresence(steamids);
-  } catch {
-    // Presence is decoration — a Steam outage must not take the roster with it.
-    res.json({ presence: {} });
-    return;
-  }
+  // Kallstart: första besökaren efter en omstart hinner före pollerns första
+  // varv och ska inte mötas av en tom roster.
+  if (Object.keys(currentPresence()).length === 0) await refreshPresence();
 
-  // Drive the response from our own member list so Steam can never inject
-  // someone who isn't on the roster.
-  const presence: Record<string, Presence> = {};
-  for (const id of steamids) {
-    const p = byId.get(id);
-    if (p) presence[id] = p;
-  }
-  res.json({ presence });
+  res.json({ presence: currentPresence() });
 });

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { db } from "../db.ts";
+import { broadcast } from "../events.ts";
 import { mutationLimiter, readLimiter } from "../middleware/rateLimit.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
 import { parseQuoteInput } from "../quotes.ts";
@@ -50,6 +51,9 @@ quotesRouter.post("/", mutationLimiter, requireAuth, (req, res) => {
     .prepare("INSERT INTO quotes (text, said_by, submitted_by, created_at) VALUES (?, ?, ?, ?)")
     .run(parsed.value.text, parsed.value.saidBy, req.member!.steamid64, Date.now());
 
+  // Väggen uppdaterar sig själv hos alla som har sidan öppen.
+  broadcast("quote", { reason: "added" });
+
   res.status(201).json({
     id: Number(info.lastInsertRowid),
     text: parsed.value.text,
@@ -98,6 +102,8 @@ quotesRouter.post("/:id/vote", mutationLimiter, requireAuth, (req, res) => {
     .prepare("SELECT COUNT(*) AS votes FROM quote_votes WHERE quote_id = ?")
     .get(id) as { votes: number };
 
+  broadcast("quote", { reason: "voted", id });
+
   res.json({ id, votes, voted: removed.changes === 0 });
 });
 
@@ -118,5 +124,6 @@ quotesRouter.delete("/:id", mutationLimiter, requireAuth, (req, res) => {
     res.status(404).json({ error: "not_found" });
     return;
   }
+  broadcast("quote", { reason: "removed", id });
   res.status(204).end();
 });

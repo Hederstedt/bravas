@@ -1,6 +1,10 @@
 import { createApp } from "./app.ts";
 import { config } from "./config.ts";
+import { startPresencePolling } from "./presencePoller.ts";
 
 createApp().listen(config.port, () => {
   console.log(`bravas-api listening on :${config.port}`);
+  // Startas här och inte i createApp: annars hade varje testfil som bygger en
+  // app dragit igång en bakgrundstimer och anrop mot Steam.
+  startPresencePolling();
 });

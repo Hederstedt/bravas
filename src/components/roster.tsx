@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import {
   fetchCards,
@@ -12,6 +12,7 @@ import {
   type RosterMember,
 } from '../api'
 import { compareAttribute } from '../cardStats'
+import { useLiveEvent } from '../useLiveEvents'
 import { members } from '../data/clan'
 import { BvsMark } from './BvsMark'
 
@@ -221,6 +222,14 @@ export function Roster() {
       cancelled = true
     }
   }, [])
+
+  // Pollern på servern säger till när någon loggat in i ett spel. Bara
+  // prickarna byts — korten och betygen rörs inte, så raden hoppar inte till.
+  const onPresence = useCallback((data: unknown) => {
+    const next = (data as { presence?: PresenceMap } | null)?.presence
+    if (next) setPresence(next)
+  }, [])
+  useLiveEvent('presence', onPresence)
 
   const isLive = live.length > 0
   const lineup = isLive ? buildLineup(live, cards, presence) : placeholderLineup()
