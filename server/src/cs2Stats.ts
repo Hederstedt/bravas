@@ -4,6 +4,11 @@ export interface MemberStats {
   stats: Record<string, number>;
 }
 
+export interface Standing {
+  name: string;
+  value: string;
+}
+
 export interface StatHighlight {
   gameId: string;
   gameTitle: string;
@@ -11,6 +16,9 @@ export interface StatHighlight {
   value: string;
   holder: string;
   detail: string;
+  // Hela listan bakom rekordet, ledaren först. Frontenden fäller ut den på
+  // klick så man ser var man själv ligger, inte bara vem som vann.
+  standings: Standing[];
 }
 
 const GAME = { gameId: "cs2", gameTitle: "Counter-Strike 2" };
@@ -98,14 +106,26 @@ interface Leader {
   value: number;
 }
 
-function leaderBy(members: MemberStats[], score: (m: MemberStats) => number | null): Leader | null {
-  let best: Leader | null = null;
-  for (const member of members) {
-    const value = score(member);
-    if (value === null || !Number.isFinite(value) || value <= 0) continue;
-    if (!best || value > best.value) best = { member, value };
-  }
-  return best;
+// Alla som kvalar in, bäst först. Lika värden avgörs på namn så listan står
+// still mellan anrop i stället för att kastas om av sorteringen.
+function rank(members: MemberStats[], score: (m: MemberStats) => number | null): Leader[] {
+  return members
+    .map((member) => ({ member, value: score(member) }))
+    .filter((x): x is Leader => x.value !== null && Number.isFinite(x.value) && x.value > 0)
+    .sort((a, b) => b.value - a.value || a.member.personaName.localeCompare(b.member.personaName, "sv"));
+}
+
+// Hela listan bakom ett rekord, så man ser vem som ligger tvåa och inte bara
+// vem som vann.
+function standingsFrom(ranked: Leader[], format: (value: number, m: MemberStats) => string): Standing[] {
+  return ranked.map((r) => ({ name: r.member.personaName, value: format(r.value, r.member) }));
+}
+
+function standingsFromTotals(totals: Map<string, number>, name: (key: string) => string): Standing[] {
+  return [...totals]
+    .filter(([, value]) => value > 0)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([key, value]) => ({ name: name(key), value: `${formatInt(value)} kills` }));
 }
 
 function sumBySuffix(members: MemberStats[], prefix: string): Map<string, number> {
@@ -136,7 +156,8 @@ function topEntry(totals: Map<string, number>): { key: string; value: number } |
 export function computeHighlights(members: MemberStats[]): StatHighlight[] {
   const highlights: StatHighlight[] = [];
 
-  const kills = leaderBy(members, (m) => m.stats.total_kills ?? null);
+  const killRanking = rank(members, (m) => m.stats.total_kills ?? null);
+  const kills = killRanking[0];
   if (kills) {
     highlights.push({
       ...GAME,
@@ -144,10 +165,12 @@ export function computeHighlights(members: MemberStats[]): StatHighlight[] {
       value: formatInt(kills.value),
       holder: kills.member.personaName,
       detail: `${formatInt(kills.member.stats.total_deaths ?? 0)} dödsfall på vägen`,
+      standings: standingsFrom(killRanking, (v) => formatInt(v)),
     });
   }
 
-  const wins = leaderBy(members, (m) => m.stats.total_wins ?? null);
+  const winRanking = rank(members, (m) => m.stats.total_wins ?? null);
+  const wins = winRanking[0];
   if (wins) {
     const rounds = wins.member.stats.total_rounds_played ?? 0;
     highlights.push({
@@ -156,15 +179,17 @@ export function computeHighlights(members: MemberStats[]): StatHighlight[] {
       value: formatInt(wins.value),
       holder: wins.member.personaName,
       detail: rounds > 0 ? `av ${formatInt(rounds)} spelade rundor` : "sedan CS:GO-tiden",
+      standings: standingsFrom(winRanking, (v) => formatInt(v)),
     });
   }
 
-  const headshots = leaderBy(members, (m) => {
+  const headshotRanking = rank(members, (m) => {
     const total = m.stats.total_kills ?? 0;
     const hs = m.stats.total_kills_headshot ?? 0;
     if (total < MIN_KILLS_FOR_RATE || hs <= 0) return null;
     return (hs / total) * 100;
   });
+  const headshots = headshotRanking[0];
   if (headshots) {
     const hs = headshots.member.stats.total_kills_headshot ?? 0;
     highlights.push({
@@ -173,10 +198,12 @@ export function computeHighlights(members: MemberStats[]): StatHighlight[] {
       value: `${headshots.value.toFixed(1).replace(".", ",")} %`,
       holder: headshots.member.personaName,
       detail: `${formatInt(hs)} skallar totalt`,
+      standings: standingsFrom(headshotRanking, (v) => `${v.toFixed(1).replace(".", ",")} %`),
     });
   }
 
-  const played = leaderBy(members, (m) => m.stats.total_time_played ?? null);
+  const playedRanking = rank(members, (m) => m.stats.total_time_played ?? null);
+  const played = playedRanking[0];
   if (played) {
     const hours = played.value / 3600;
     highlights.push({
@@ -185,6 +212,7 @@ export function computeHighlights(members: MemberStats[]): StatHighlight[] {
       value: `${formatInt(hours)} h`,
       holder: played.member.personaName,
       detail: `ungefär ${formatInt(hours / 24)} dygn framför skärmen`,
+      standings: standingsFrom(playedRanking, (v) => `${formatInt(v / 3600)} h`),
     });
   }
 
@@ -201,10 +229,12 @@ export function computeHighlights(members: MemberStats[]): StatHighlight[] {
       value: WEAPON_NAMES[weapon.key] ?? weapon.key,
       holder: "Hela BVS",
       detail: `${formatInt(weapon.value)} kills tillsammans`,
+      standings: standingsFromTotals(weapons, (k) => WEAPON_NAMES[k] ?? k),
     });
   }
 
-  const map = topEntry(sumBySuffix(members, "total_wins_map_"));
+  const maps = sumBySuffix(members, "total_wins_map_");
+  const map = topEntry(maps);
   if (map) {
     highlights.push({
       ...GAME,
@@ -212,6 +242,10 @@ export function computeHighlights(members: MemberStats[]): StatHighlight[] {
       value: MAP_NAMES[map.key] ?? map.key,
       holder: "Hela BVS",
       detail: `${formatInt(map.value)} vinster tillsammans`,
+      standings: standingsFromTotals(maps, (k) => MAP_NAMES[k] ?? k).map((st) => ({
+        ...st,
+        value: st.value.replace("kills", "vinster"),
+      })),
     });
   }
 

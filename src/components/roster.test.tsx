@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import * as api from '../api'
 import type { PlayerCard, RosterMember } from '../api'
 import { members } from '../data/clan'
@@ -31,12 +32,12 @@ const MAG_CARD: PlayerCard = {
   tier: 'guld',
   position: 'SMYGARE',
   attributes: [
-    { key: 'SIK', label: 'Sikte', rating: 80 },
-    { key: 'SKA', label: 'Skallar', rating: 71 },
-    { key: 'FRA', label: 'Frag', rating: 55 },
-    { key: 'TÅL', label: 'Tålighet', rating: 92 },
-    { key: 'NYT', label: 'Nytta', rating: 64 },
-    { key: 'TID', label: 'Tid', rating: 88 },
+    { key: 'SIK', label: 'Sikte', description: 'Andel av avlossade skott som träffar', rating: 80 },
+    { key: 'SKA', label: 'Skallar', description: 'Andel av hans kills som är headshots', rating: 71 },
+    { key: 'FRA', label: 'Frag', description: 'Kills per spelad runda', rating: 55 },
+    { key: 'TÅL', label: 'Tålighet', description: 'Hur ofta han överlever rundan', rating: 92 },
+    { key: 'NYT', label: 'Nytta', description: 'Bomber och MVP:er per runda', rating: 64 },
+    { key: 'TID', label: 'Tid', description: 'Total speltid i CS2', rating: 88 },
   ],
   comments: ['Smyger runt mest. Dyker upp när röken lagt sig.'],
 }
@@ -172,5 +173,75 @@ describe('the lineup row', () => {
 
     const lineup = await screen.findByRole('group', { name: /gubbarna/i })
     expect(lineup).toHaveAttribute('tabindex', '0')
+  })
+})
+
+describe('comparing an attribute', () => {
+  const RIVAL: RosterMember = {
+    steamid64: '76561198000000003',
+    personaName: '[BVS] Rival',
+    avatarUrl: null,
+    discordName: null,
+  }
+
+  const RIVAL_CARD: PlayerCard = {
+    ...MAG_CARD,
+    steamid64: RIVAL.steamid64,
+    personaName: RIVAL.personaName,
+    overall: 60,
+    attributes: MAG_CARD.attributes.map((a) => ({ ...a, rating: a.key === 'SIK' ? 40 : a.rating })),
+  }
+
+  it('explains the attribute and places him against the crew on click', async () => {
+    const user = userEvent.setup()
+    stubApi({ members: [MAG, RIVAL], cards: [MAG_CARD, RIVAL_CARD] })
+    render(<Roster />)
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    await user.click(within(card).getByRole('button', { name: /SIK/ }))
+
+    expect(within(card).getByText(/Andel av avlossade skott som träffar/)).toBeInTheDocument()
+    // SIK: han 80, rivalen 40 → etta av två, bäst 80, snitt 60.
+    expect(within(card).getByText(/1 av 2 i klanen/)).toBeInTheDocument()
+    expect(within(card).getByText(/snitt 60/)).toBeInTheDocument()
+  })
+
+  it('closes again when the same attribute is clicked twice', async () => {
+    const user = userEvent.setup()
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    render(<Roster />)
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    const toggle = within(card).getByRole('button', { name: /SIK/ })
+
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(within(card).queryByText(/Andel av avlossade skott/)).not.toBeInTheDocument()
+  })
+
+  it('works on the placeholder lineup too', async () => {
+    const user = userEvent.setup()
+    stubApi()
+    render(<Roster />)
+
+    await waitFor(() => cardFor(members[0].nick))
+    const card = cardFor(members[0].nick)
+    await user.click(within(card).getByRole('button', { name: /TÅL/ }))
+
+    expect(within(card).getByText(/Hur ofta han överlever rundan/)).toBeInTheDocument()
+  })
+})
+
+describe('the attribute legend', () => {
+  it('spells out what every code means, without needing a hover', async () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    render(<Roster />)
+
+    await waitFor(() => cardFor(MAG.personaName))
+    for (const attr of MAG_CARD.attributes) {
+      expect(screen.getByText(attr.description)).toBeInTheDocument()
+    }
   })
 })

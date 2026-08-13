@@ -30,6 +30,7 @@ export type CardTier = 'ikon' | 'guld' | 'silver' | 'brons' | 'okänd'
 export interface CardAttribute {
   key: string
   label: string
+  description: string
   rating: number
 }
 
@@ -71,6 +72,11 @@ export async function fetchSession(): Promise<Session | null> {
   return { steamid64: data.steamid64 }
 }
 
+export interface Standing {
+  name: string
+  value: string
+}
+
 export interface StatHighlight {
   gameId: string
   gameTitle: string
@@ -78,6 +84,7 @@ export interface StatHighlight {
   value: string
   holder: string
   detail: string
+  standings: Standing[]
 }
 
 export interface Highlights {

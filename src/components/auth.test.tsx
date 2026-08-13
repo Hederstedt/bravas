@@ -60,6 +60,10 @@ describe('Stats section', () => {
     value: '87 021',
     holder: '[BVS] ⛟',
     detail: '52 000 dödsfall på vägen',
+    standings: [
+      { name: '[BVS] ⛟', value: '87 021' },
+      { name: '[BVS] #Mag', value: '47 821' },
+    ],
   }
 
   it('shows real numbers and drops the demo badge once the API delivers', async () => {

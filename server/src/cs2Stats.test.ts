@@ -101,3 +101,45 @@ describe("computeHighlights", () => {
     expect(computeHighlights(flukes).map((h) => h.label)).not.toContain("Bästa headshot-andel");
   });
 });
+
+describe("standings behind each record", () => {
+  it("ranks every member who qualifies, leader first", () => {
+    const h = find(computeHighlights(CREW), "Flest kills");
+    expect(h.standings).toEqual([
+      { name: "⛟", value: `87${NBSP}021` },
+      { name: "#Mag", value: `47${NBSP}821` },
+    ]);
+  });
+
+  it("formats the standings the same way as the headline value", () => {
+    const h = find(computeHighlights(CREW), "Bästa headshot-andel");
+    expect(h.standings[0]).toEqual({ name: "⛟", value: "43,9 %" });
+    expect(h.standings[1]!.value).toMatch(/^\d+,\d %$/);
+  });
+
+  it("leaves out members the record does not apply to", () => {
+    // Ingen speltid alls betyder ingen placering, inte en nolla i listan.
+    const withGap = [...CREW, member("Nykomling", { total_kills: 5 })];
+    const h = find(computeHighlights(withGap), "Mest tid i CS2");
+    expect(h.standings.map((s) => s.name)).toEqual(["⛟", "#Mag"]);
+  });
+
+  it("ranks the weapons behind the clan favourite", () => {
+    const h = find(computeHighlights(CREW), "Klanens favoritvapen");
+    expect(h.standings[0]).toEqual({ name: "AK-47", value: `29${NBSP}947 kills` });
+    expect(h.standings[1]).toEqual({ name: "AWP", value: `14${NBSP}000 kills` });
+  });
+
+  it("counts map standings in wins, not kills", () => {
+    const h = find(computeHighlights(CREW), "Klanens favoritkarta");
+    expect(h.standings[0]!.name).toBe("Inferno");
+    expect(h.standings[0]!.value).toContain("vinster");
+  });
+
+  it("always has the headline holder at the top of its own standings", () => {
+    for (const h of computeHighlights(CREW)) {
+      expect(h.standings.length).toBeGreaterThan(0);
+      if (h.holder !== "Hela BVS") expect(h.standings[0]!.name).toBe(h.holder);
+    }
+  });
+});

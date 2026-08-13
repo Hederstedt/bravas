@@ -153,6 +153,7 @@ export function Games() {
 
 export function Stats() {
   const [live, setLive] = useState<Highlights | null>(null)
+  const [openRecord, setOpenRecord] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -178,18 +179,50 @@ export function Stats() {
           {!real && statsIsMock && <span className="demo-badge">Demo-data</span>}
         </div>
         <div className="stats-grid">
-          {cards.map((s) => (
-            <article key={`${s.gameId}-${s.label}`} className="stat-card">
-              <div className="stat-card-head">
-                <TrophyIcon />
-                <span className="stat-game">{s.gameTitle}</span>
-              </div>
-              <p className="stat-label">{s.label}</p>
-              <p className="stat-value">{s.value}</p>
-              <p className="stat-holder">{s.holder}</p>
-              <p className="stat-detail">{s.detail}</p>
-            </article>
-          ))}
+          {cards.map((s) => {
+            const id = `${s.gameId}-${s.label}`
+            const standings = s.standings ?? []
+            const isOpen = openRecord === id
+            return (
+              <article key={id} className="stat-card">
+                <div className="stat-card-head">
+                  <TrophyIcon />
+                  <span className="stat-game">{s.gameTitle}</span>
+                </div>
+                <p className="stat-label">{s.label}</p>
+                <p className="stat-value">{s.value}</p>
+                <p className="stat-holder">{s.holder}</p>
+                <p className="stat-detail">{s.detail}</p>
+
+                {/* Bara rekordhållaren syns i vila. Vill man veta vem som ligger
+                    tvåa fäller man ut listan — på klick, inte hover, så det
+                    fungerar lika bra med tumme som med mus. */}
+                {standings.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      className="stat-expand"
+                      aria-expanded={isOpen}
+                      onClick={() => setOpenRecord(isOpen ? null : id)}
+                    >
+                      {isOpen ? 'Dölj listan' : `Visa alla ${standings.length}`}
+                    </button>
+                    {isOpen && (
+                      <ol className="stat-standings">
+                        {standings.map((row, i) => (
+                          <li key={row.name}>
+                            <span className="rank">{i + 1}</span>
+                            <span className="who">{row.name}</span>
+                            <span className="what">{row.value}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                  </>
+                )}
+              </article>
+            )
+          })}
         </div>
         <p className="roster-note">
           {real
