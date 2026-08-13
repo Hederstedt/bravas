@@ -38,4 +38,4 @@ npm run test:e2e   # E2E (Playwright, kräver: npx playwright install chromium)
 npm run build      # produktion
 ```
 
-Serverrelaterade åtgärder som väntar finns i [TODO.md](TODO.md).
+Deployen sköter sig själv: grön CI på `main` bygger, rullar ut frontend och API atomiskt, startar om API-tjänsten och verifierar att den svarar innan jobbet räknas som lyckat.

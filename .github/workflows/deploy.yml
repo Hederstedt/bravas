@@ -56,7 +56,9 @@ jobs:
         run: |
           rel="/srv/bravas-api/releases/$(date +%Y%m%d%H%M%S)-$(git rev-parse --short HEAD)"
           mkdir -p "$rel/server"
-          cp -r server/dist server/node_modules server/package.json "$rel/server/"
+          # deploy/ följer med så att unit-fil, nginx-snutt och sudoers-regel
+          # finns att läsa på servern — de refereras från dokumentationen.
+          cp -r server/dist server/node_modules server/package.json server/deploy "$rel/server/"
           ln -sfn "$rel" /srv/bravas-api/current
 
       - name: Restart API
