@@ -9,6 +9,11 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/config', (route) =>
     route.fulfill({ json: { discordServerId: '', discordInviteUrl: '' } }),
   )
+  await page.route('**/api/presence', (route) => route.fulfill({ json: { presence: {} } }))
+  await page.route('**/api/stats/highlights', (route) =>
+    route.fulfill({ json: { highlights: [], memberCount: 0, withStats: 0 } }),
+  )
+  await page.route('**/api/quotes', (route) => route.fulfill({ json: { quotes: [] } }))
 })
 
 test('landing page loads without console errors', async ({ page }) => {
@@ -26,7 +31,14 @@ test('landing page loads without console errors', async ({ page }) => {
 
 test('all sections are present', async ({ page }) => {
   await page.goto('/')
-  for (const heading of ['Vad vi lirar', 'Gubbarna', 'Siffrorna', 'Om BVS', 'Häng med i Discorden']) {
+  for (const heading of [
+    'Vad vi lirar',
+    'Gubbarna',
+    'Siffrorna',
+    'Citatväggen',
+    'Om BVS',
+    'Häng med i Discorden',
+  ]) {
     await expect(page.getByRole('heading', { name: heading })).toBeAttached()
   }
   await expect(page.getByRole('heading', { name: 'World of Tanks' })).toBeAttached()
@@ -83,6 +95,26 @@ test('signed-in members replace the placeholder roster', async ({ page, isMobile
 
   if (isMobile) await page.getByRole('button', { name: 'Öppna menyn' }).click()
   await expect(page.getByRole('link', { name: /Logga in med Steam/ })).toHaveCount(0)
+})
+
+test('the quote wall asks anonymous visitors to log in', async ({ page }) => {
+  await page.route('**/api/quotes', (route) =>
+    route.fulfill({
+      json: {
+        quotes: [
+          { id: 1, text: 'Jag hade ju träklubban', saidBy: 'Gubbe #6', createdAt: 1, votes: 3 },
+        ],
+      },
+    }),
+  )
+
+  await page.goto('/')
+
+  // Demo-statistiken råkar citera samma replik, så sökningen hålls inom sektionen.
+  const wall = page.locator('#citat')
+  await expect(wall.getByRole('blockquote')).toHaveText('Jag hade ju träklubban')
+  await expect(wall.getByRole('button', { name: 'Rösta' })).toHaveCount(0)
+  await expect(wall.getByText(/Logga in med Steam för att lägga till/)).toBeAttached()
 })
 
 test('no horizontal overflow', async ({ page }) => {

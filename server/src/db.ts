@@ -7,6 +7,9 @@ mkdirSync(dirname(config.dbPath), { recursive: true });
 
 export const db = new Database(config.dbPath);
 db.pragma("journal_mode = WAL");
+// Utan detta ignorerar SQLite ON DELETE CASCADE och röster blir kvar som skräp
+// när ett citat tas bort.
+db.pragma("foreign_keys = ON");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS allowlist (
@@ -30,6 +33,23 @@ db.exec(`
     steamid64 TEXT PRIMARY KEY,
     stats_json TEXT NOT NULL,
     fetched_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS quotes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text TEXT NOT NULL,
+    said_by TEXT NOT NULL,
+    submitted_by TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+
+  -- Primärnyckeln är (citat, medlem): en röst per person och citat, upprätthållet
+  -- av databasen i stället för av applikationslogik som kan tappas bort.
+  CREATE TABLE IF NOT EXISTS quote_votes (
+    quote_id INTEGER NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
+    steamid64 TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (quote_id, steamid64)
   );
 `);
 

@@ -1,4 +1,5 @@
 import './App.css'
+import { Quotes } from './components/quotes'
 import { Nav, Hero, Games, Roster, Stats, About, DiscordCta, Footer } from './components/sections'
 
 function App() {
@@ -10,6 +11,7 @@ function App() {
         <Games />
         <Roster />
         <Stats />
+        <Quotes />
         <About />
         <DiscordCta />
       </main>
