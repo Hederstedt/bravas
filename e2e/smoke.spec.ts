@@ -13,6 +13,9 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/stats/highlights', (route) =>
     route.fulfill({ json: { highlights: [], memberCount: 0, withStats: 0 } }),
   )
+  await page.route('**/api/stats/cards', (route) =>
+    route.fulfill({ json: { cards: [], memberCount: 0, withStats: 0 } }),
+  )
   await page.route('**/api/quotes', (route) => route.fulfill({ json: { quotes: [] } }))
 })
 
@@ -29,20 +32,27 @@ test('landing page loads without console errors', async ({ page }) => {
   expect(errors).toEqual([])
 })
 
-test('all sections are present', async ({ page }) => {
+test('all sections are present, with the crew first', async ({ page }) => {
   await page.goto('/')
-  for (const heading of [
-    'Vad vi lirar',
+  const sections = [
     'Gubbarna',
+    'Vad vi lirar',
     'Siffrorna',
     'Citatväggen',
     'Om BVS',
     'Häng med i Discorden',
-  ]) {
+  ]
+  for (const heading of sections) {
     await expect(page.getByRole('heading', { name: heading })).toBeAttached()
   }
   await expect(page.getByRole('heading', { name: 'World of Tanks' })).toBeAttached()
   await expect(page.getByText('Demo-data')).toBeAttached()
+
+  // Gubbarna är sidans huvudnummer och ska ligga före spelen, inte efter.
+  const order = await page.evaluate(() =>
+    [...document.querySelectorAll('main section')].map((s) => s.id),
+  )
+  expect(order.indexOf('gubbarna')).toBeLessThan(order.indexOf('spel'))
 })
 
 test('navigation scrolls to roster section', async ({ page, isMobile }) => {
@@ -117,10 +127,25 @@ test('the quote wall asks anonymous visitors to log in', async ({ page }) => {
   await expect(wall.getByText(/Logga in med Steam för att lägga till/)).toBeAttached()
 })
 
+// Laguppställningen scrollar avsiktligt i sidled, men den scrollen ska stanna
+// inne i raden. Sidan som helhet får aldrig gå att dra i sidled.
 test('no horizontal overflow', async ({ page }) => {
   await page.goto('/')
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
   )
   expect(overflow).toBe(false)
+})
+
+test('the lineup scrolls sideways without dragging the page with it', async ({ page }) => {
+  await page.goto('/')
+  const lineup = page.getByRole('group', { name: 'Gubbarna i BVS' })
+  await expect(lineup).toBeVisible()
+
+  const scrollable = await lineup.evaluate((el) => el.scrollWidth > el.clientWidth)
+  expect(scrollable).toBe(true)
+
+  await lineup.evaluate((el) => el.scrollBy(300, 0))
+  const pageScrolledSideways = await page.evaluate(() => window.scrollX > 0)
+  expect(pageScrolledSideways).toBe(false)
 })

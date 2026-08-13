@@ -1,12 +1,19 @@
 import { config } from "./config.ts";
 import { listMembers, readCs2Stats, saveCs2Stats } from "./db.ts";
 import { computeHighlights, type MemberStats, type StatHighlight } from "./cs2Stats.ts";
+import { buildCards, type PlayerCard } from "./cs2Cards.ts";
 
 const CS2_APP_ID = 730;
 const TTL_MS = 30 * 60 * 1000;
 
 export interface HighlightsResult {
   highlights: StatHighlight[];
+  memberCount: number;
+  withStats: number;
+}
+
+export interface CardsResult {
+  cards: PlayerCard[];
   memberCount: number;
   withStats: number;
 }
@@ -50,9 +57,17 @@ async function refreshStale(steamids: string[]): Promise<void> {
   }
 }
 
-export async function getHighlights(): Promise<HighlightsResult> {
+interface CrewStats {
+  memberCount: number;
+  withStats: MemberStats[];
+}
+
+// Delad av både klanrekorden och spelarkorten. Utan den skulle de två
+// endpointerna dra igång var sin runda mot Steam trots att de vill åt exakt
+// samma cache.
+async function getCrewStats(): Promise<CrewStats> {
   const members = listMembers();
-  if (members.length === 0) return { highlights: [], memberCount: 0, withStats: 0 };
+  if (members.length === 0) return { memberCount: 0, withStats: [] };
 
   refreshing ??= refreshStale(members.map((m) => m.steamid64)).finally(() => {
     refreshing = null;
@@ -68,9 +83,23 @@ export async function getHighlights(): Promise<HighlightsResult> {
       stats: statsById.get(m.steamid64)!,
     }));
 
+  return { memberCount: members.length, withStats };
+}
+
+export async function getHighlights(): Promise<HighlightsResult> {
+  const { memberCount, withStats } = await getCrewStats();
   return {
     highlights: computeHighlights(withStats),
-    memberCount: members.length,
+    memberCount,
+    withStats: withStats.length,
+  };
+}
+
+export async function getCards(): Promise<CardsResult> {
+  const { memberCount, withStats } = await getCrewStats();
+  return {
+    cards: buildCards(withStats),
+    memberCount,
     withStats: withStats.length,
   };
 }

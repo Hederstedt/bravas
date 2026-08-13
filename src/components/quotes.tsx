@@ -61,7 +61,7 @@ export function Quotes() {
     <section id="citat">
       <div className="container">
         <div className="section-head">
-          <span className="index">05</span>
+          <span className="index">04</span>
           <h2>Citatväggen</h2>
         </div>
 

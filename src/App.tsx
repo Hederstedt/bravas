@@ -8,8 +8,8 @@ function App() {
       <Nav />
       <Hero />
       <main>
-        <Games />
         <Roster />
+        <Games />
         <Stats />
         <Quotes />
         <About />

@@ -191,7 +191,7 @@ a.steam-login:hover {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  color: var(--fg);
+  color: var(--text);
   text-transform: none;
   letter-spacing: 0.5px;
 }
@@ -203,7 +203,7 @@ a.steam-login:hover {
   border: 1px solid var(--accent-line);
 }
 
-.member-card .avatar img {
+.player-card .avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -234,8 +234,8 @@ a.steam-login:hover {
 .quote-form input {
   padding: 11px 13px;
   background: #10151b;
-  border: 1px solid var(--line);
-  color: var(--fg);
+  border: 1px solid var(--panel-edge);
+  color: var(--text);
   font-family: inherit;
   font-size: 15px;
   letter-spacing: 0;
@@ -265,7 +265,7 @@ a.steam-login:hover {
   gap: 12px;
   padding: 22px;
   background: linear-gradient(160deg, #171d25, #10141a);
-  border: 1px solid var(--line);
+  border: 1px solid var(--panel-edge);
   border-left: 3px solid var(--accent);
 }
 
@@ -296,7 +296,7 @@ a.steam-login:hover {
   gap: 12px;
   margin-top: auto;
   padding-top: 8px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--panel-edge);
 }
 
 .quote-votes {
@@ -337,16 +337,18 @@ a.steam-login:hover {
 }
 
 /* ---------- Närvaro ---------- */
-.member-card .avatar {
+.player-card .avatar {
   position: relative;
 }
 
+/* Sitter innanför hexagonens nedre högra kant — bounding-boxens hörn är tomt,
+   så en prick där hade svävat utanför porträttet. */
 .presence {
   position: absolute;
-  right: 4px;
-  bottom: 6px;
-  width: 13px;
-  height: 13px;
+  right: 10px;
+  bottom: 16px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   border: 2px solid #151a21;
 }
@@ -364,13 +366,15 @@ a.steam-login:hover {
   box-shadow: 0 0 9px rgba(255, 122, 26, 0.85);
 }
 
-.member-card .playing {
+.card-playing {
   color: var(--accent);
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   letter-spacing: 1px;
   text-transform: uppercase;
+  text-align: center;
+  margin-top: 2px;
 }
 
 @media (max-width: 720px) {
@@ -630,16 +634,26 @@ a.steam-login:hover {
 .game-card {
   background: var(--panel);
   border: 1px solid var(--panel-edge);
-  clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);
+  clip-path: polygon(24px 0, 100% 0, 100% calc(100% - 24px), calc(100% - 24px) 100%, 0 100%, 0 24px);
   padding: 24px;
   position: relative;
   overflow: hidden;
-  transition: transform 0.15s, border-color 0.15s;
+  transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s;
 }
 
 .game-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--accent-line);
+  transform: translateY(-6px);
+  border-color: var(--game-tint, var(--accent));
+  box-shadow: 0 12px 34px -18px var(--game-tint, var(--accent));
+}
+
+/* Samma diagonala glans som spelarkorten, så sektionerna talar samma språk. */
+.game-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.05) 50%, transparent 60%);
+  pointer-events: none;
 }
 
 .game-card::before {
@@ -651,18 +665,19 @@ a.steam-login:hover {
 }
 
 .game-card .art {
-  height: 110px;
+  height: 150px;
   margin: -24px -24px 18px;
   background:
     linear-gradient(160deg, transparent 40%, rgba(10, 12, 15, 0.9)),
     var(--game-art, linear-gradient(135deg, #333, #111));
   display: grid;
   place-items: center;
+  position: relative;
 }
 
 .game-card .art svg {
-  width: 52px;
-  height: 52px;
+  width: 68px;
+  height: 68px;
   fill: rgba(255, 255, 255, 0.9);
   filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.6));
 }
@@ -702,60 +717,239 @@ a.steam-login:hover {
   color: #94a3b8;
 }
 
-/* ---------- Roster ---------- */
-.roster-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 18px;
+/* "Säsong" saknade egen regel och föll igenom till standardstilen, så den såg
+   ut som ett spel utan status. */
+.status.säsong {
+  background: rgba(125, 211, 252, 0.12);
+  color: #7dd3fc;
 }
 
-.member-card {
-  background: var(--panel);
+/* ---------- Laguppställningen ---------- */
+/* Raden bryter medvetet ut ur .container så korten kan scrolla ända ut i
+   kanten. Insidan får containerns marginal tillbaka som scroll-padding, annars
+   hade första kortet klistrat i skärmkanten. */
+.lineup-wrap {
+  margin-bottom: 8px;
+}
+
+.lineup {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  padding: 10px max(20px, calc((100% - 1140px) / 2)) 24px;
+  scroll-padding-inline: max(20px, calc((100% - 1140px) / 2));
+}
+
+.lineup:focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: -6px;
+}
+
+.lineup::-webkit-scrollbar {
+  height: 8px;
+}
+
+.lineup::-webkit-scrollbar-thumb {
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-line);
+}
+
+.player-card {
+  flex: 0 0 clamp(248px, 24vw, 288px);
+  scroll-snap-align: center;
+  position: relative;
+  isolation: isolate;
+  padding: 20px 22px 24px;
+  clip-path: polygon(24px 0, 100% 0, 100% calc(100% - 24px), calc(100% - 24px) 100%, 0 100%, 0 24px);
+  background: linear-gradient(168deg, var(--tier-a) -10%, var(--tier-b) 42%, #0f1319 100%);
   border: 1px solid var(--panel-edge);
-  padding: 22px 20px;
-  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
-  text-align: center;
-  transition: transform 0.15s, border-color 0.15s;
+  transition: transform 0.18s, filter 0.18s;
 }
 
-.member-card:hover {
-  transform: translateY(-4px);
+.player-card:hover {
+  transform: translateY(-6px);
+  filter: brightness(1.06);
+}
+
+/* Diagonal glansstrimma över kortet, samma trick som spelkorten använder. */
+.player-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.07) 50%, transparent 62%);
+  pointer-events: none;
+}
+
+.player-card[data-tier='ikon'] {
+  --tier-a: #ff7a1a;
+  --tier-b: #3d1c05;
   border-color: var(--accent-line);
 }
 
-.member-card .avatar {
-  width: 74px;
-  height: 74px;
-  margin: 0 auto 14px;
+.player-card[data-tier='guld'] {
+  --tier-a: #e0b352;
+  --tier-b: #6b4f18;
+}
+
+.player-card[data-tier='silver'] {
+  --tier-a: #aab4bf;
+  --tier-b: #4c545d;
+}
+
+.player-card[data-tier='brons'] {
+  --tier-a: #8a5a2b;
+  --tier-b: #4a2f16;
+}
+
+.player-card[data-tier='okänd'] {
+  --tier-a: #4a5563;
+  --tier-b: #20262e;
+  border-style: dashed;
+  border-color: #39414c;
+}
+
+.card-top {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.card-top .overall {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+}
+
+.card-top .position {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.82);
+  justify-self: start;
+}
+
+.card-top .card-mark {
+  width: 22px;
+  height: 22px;
+  opacity: 0.65;
+}
+
+.card-portrait {
+  display: grid;
+  place-items: center;
+  margin: 4px 0 12px;
+}
+
+.player-card .avatar {
+  width: 116px;
+  height: 116px;
   clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
   background: linear-gradient(160deg, #2a3340, #151a21);
   display: grid;
   place-items: center;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 26px;
+  font-size: 42px;
   color: var(--accent);
 }
 
-.member-card h3 {
-  font-size: 20px;
+.card-name {
+  font-size: 19px;
   letter-spacing: 1px;
+  text-align: center;
+  color: #fff;
+  overflow-wrap: anywhere;
 }
 
-.member-card .role {
-  color: var(--accent-soft);
+/* Två kolumner à tre attribut, som baksidan på ett fotbollskort. */
+.card-attrs {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 18px;
+  margin: 16px 0 0;
+  padding: 14px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.attr {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 13px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin-top: 4px;
 }
 
-.member-card .flavor {
+.attr-key {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.attr-rating {
+  font-size: 16px;
+  color: #fff;
+  justify-self: start;
+}
+
+.attr-bar {
+  grid-column: 1 / -1;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.attr-bar::before {
+  content: '';
+  display: block;
+  height: 100%;
+  width: var(--pct, 0%);
+  background: var(--accent);
+}
+
+.card-quip {
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.78);
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+}
+
+.lineup-hint {
+  display: block;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
   color: var(--muted);
-  font-size: 13.5px;
-  margin-top: 10px;
+}
+
+@media (max-width: 720px) {
+  /* Nästa kort tittar fram i kanten — signalen att raden går att dra. */
+  .player-card {
+    flex: 0 0 78vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lineup {
+    scroll-behavior: auto;
+  }
+
+  .player-card:hover {
+    transform: none;
+  }
 }
 
 .roster-note {

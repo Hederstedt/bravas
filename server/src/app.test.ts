@@ -55,27 +55,29 @@ describe("GET /api/members", () => {
   });
 });
 
+// Delas av highlights- och cards-testerna: båda hänger på samma cache och
+// samma Steam-svar.
+function steamStats(stats: Record<string, number>) {
+  return new Response(
+    JSON.stringify({
+      playerstats: { stats: Object.entries(stats).map(([name, value]) => ({ name, value })) },
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
+}
+
+function addMember(steamid64: string, personaName: string) {
+  db.prepare("INSERT OR IGNORE INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(
+    steamid64,
+    personaName,
+    Date.now()
+  );
+  db.prepare(
+    "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
+  ).run(steamid64, personaName, null, Date.now(), Date.now());
+}
+
 describe("GET /api/stats/highlights", () => {
-  function steamStats(stats: Record<string, number>) {
-    return new Response(
-      JSON.stringify({
-        playerstats: { stats: Object.entries(stats).map(([name, value]) => ({ name, value })) },
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
-  }
-
-  function addMember(steamid64: string, personaName: string) {
-    db.prepare("INSERT OR IGNORE INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(
-      steamid64,
-      personaName,
-      Date.now()
-    );
-    db.prepare(
-      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
-    ).run(steamid64, personaName, null, Date.now(), Date.now());
-  }
-
   it("returns no highlights before anyone has logged in", async () => {
     const res = await request(app).get("/api/stats/highlights").expect(200);
     expect(res.body).toEqual({ highlights: [], memberCount: 0, withStats: 0 });
@@ -127,6 +129,77 @@ describe("GET /api/stats/highlights", () => {
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("steam is down"));
 
     const res = await request(app).get("/api/stats/highlights").expect(200);
+    expect(res.body.withStats).toBe(1);
+  });
+});
+
+describe("GET /api/stats/cards", () => {
+  // En full uppsättning räknare så kortet får riktiga attribut att visa.
+  const FULL_STATS = {
+    total_rounds_played: 10000,
+    total_shots_fired: 400000,
+    total_shots_hit: 96000,
+    total_kills: 7500,
+    total_kills_headshot: 3375,
+    total_deaths: 6500,
+    total_mvps: 800,
+    total_planted_bombs: 250,
+    total_defused_bombs: 150,
+    total_time_played: 3600000,
+  };
+
+  it("is not swallowed by the /:steamId route", async () => {
+    // "cards" är ingen steamid — utan den egna routen först hade den här
+    // förfrågan svarat 404 från allowlist-kontrollen.
+    const res = await request(app).get("/api/stats/cards").expect(200);
+    expect(res.body).toHaveProperty("cards");
+  });
+
+  it("returns no cards before anyone has logged in", async () => {
+    const res = await request(app).get("/api/stats/cards").expect(200);
+    expect(res.body).toEqual({ cards: [], memberCount: 0, withStats: 0 });
+  });
+
+  it("builds a rated card from a member's Steam stats", async () => {
+    addMember(ALLOWED, "[BVS] #Mag");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(steamStats(FULL_STATS));
+
+    const res = await request(app).get("/api/stats/cards").expect(200);
+
+    expect(res.body).toMatchObject({ memberCount: 1, withStats: 1 });
+    expect(res.body.cards).toHaveLength(1);
+    expect(res.body.cards[0]).toMatchObject({
+      steamid64: ALLOWED,
+      personaName: "[BVS] #Mag",
+      hasStats: true,
+      overall: 74,
+      tier: "silver",
+      position: "AWP",
+    });
+    expect(res.body.cards[0].attributes).toHaveLength(6);
+    expect(res.body.cards[0].comments.length).toBeGreaterThan(0);
+  });
+
+  it("still returns a card for a member whose profile Steam won't share", async () => {
+    // Sektionen får inte tappa en gubbe bara för att profilen är stängd.
+    addMember(ALLOWED, "[BVS] #Mag");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("{}", { status: 403, headers: { "Content-Type": "application/json" } })
+    );
+
+    const res = await request(app).get("/api/stats/cards").expect(200);
+    expect(res.body).toMatchObject({ memberCount: 1, withStats: 0, cards: [] });
+  });
+
+  it("shares the cache with the highlights endpoint instead of refetching", async () => {
+    addMember(ALLOWED, "[BVS] #Mag");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(steamStats(FULL_STATS));
+
+    await request(app).get("/api/stats/highlights").expect(200);
+    const callsAfterHighlights = fetchSpy.mock.calls.length;
+    const res = await request(app).get("/api/stats/cards").expect(200);
+
+    expect(fetchSpy.mock.calls.length).toBe(callsAfterHighlights);
     expect(res.body.withStats).toBe(1);
   });
 });

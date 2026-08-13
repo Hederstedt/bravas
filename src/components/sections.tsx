@@ -1,19 +1,15 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import {
-  fetchHighlights,
-  fetchMembers,
-  fetchPresence,
-  type Highlights,
-  type Presence,
-  type PresenceMap,
-  type RosterMember,
-} from '../api'
+import { fetchHighlights, type Highlights } from '../api'
 import { members, games, statHighlights, statsIsMock } from '../data/clan'
 import { useSiteConfig } from '../useSiteConfig'
 import { SteamLogin } from './auth'
 import { BvsMark } from './BvsMark'
 import { DiscordIcon, CrosshairIcon, AxeIcon, FactoryIcon, TankIcon, TrophyIcon } from './icons'
+
+// Rostern bor i egen fil — den bär hela kortmodellen och gjorde den här filen
+// dubbelt så lång. Re-exporteras här så importerna ser likadana ut som förut.
+export { Roster } from './roster'
 
 const gameArt: Record<string, { tint: string; art: string; icon: ReactNode }> = {
   cs2: {
@@ -38,14 +34,9 @@ const gameArt: Record<string, { tint: string; art: string; icon: ReactNode }> = 
   },
 }
 
-function presenceLabel(p: Presence): string {
-  if (p.status === 'in-game') return `Spelar ${p.game}`
-  return p.status === 'online' ? 'Online' : 'Offline'
-}
-
 const navLinks = [
-  { href: '#spel', label: 'Spel' },
   { href: '#gubbarna', label: 'Gubbarna' },
+  { href: '#spel', label: 'Spel' },
   { href: '#siffrorna', label: 'Siffrorna' },
   { href: '#citat', label: 'Citat' },
   { href: '#om', label: 'Om oss' },
@@ -133,7 +124,7 @@ export function Games() {
     <section id="spel">
       <div className="container">
         <div className="section-head">
-          <span className="index">01</span>
+          <span className="index">02</span>
           <h2>Vad vi lirar</h2>
         </div>
         <div className="games-grid">
@@ -155,77 +146,6 @@ export function Games() {
             )
           })}
         </div>
-      </div>
-    </section>
-  )
-}
-
-export function Roster() {
-  // Gubbarna dyker upp här först när de loggat in med Steam. Tills dess (och om
-  // API:et är nere) visas platshållarna, så sektionen aldrig står tom.
-  const [live, setLive] = useState<RosterMember[]>([])
-  const [presence, setPresence] = useState<PresenceMap>({})
-
-  useEffect(() => {
-    let cancelled = false
-    void fetchMembers().then((m) => {
-      if (!cancelled) setLive(m)
-    })
-    void fetchPresence().then((p) => {
-      if (!cancelled) setPresence(p)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  return (
-    <section id="gubbarna">
-      <div className="container">
-        <div className="section-head">
-          <span className="index">02</span>
-          <h2>Gubbarna</h2>
-        </div>
-        <div className="roster-grid">
-          {live.length > 0
-            ? live.map((m) => {
-                const p = presence[m.steamid64]
-                return (
-                  <article key={m.steamid64} className="member-card">
-                    <div className="avatar">
-                      {m.avatarUrl ? (
-                        <img src={m.avatarUrl} alt={m.personaName} />
-                      ) : (
-                        m.personaName.replace(/^\[BVS\]\s*/, '').charAt(0).toUpperCase()
-                      )}
-                      {p && (
-                        <span
-                          className={`presence ${p.status}`}
-                          role="status"
-                          aria-label={presenceLabel(p)}
-                        />
-                      )}
-                    </div>
-                    <h3>{m.personaName}</h3>
-                    {p?.game && <p className="playing">{p.game}</p>}
-                    {m.discordName && <p className="role">{m.discordName}</p>}
-                  </article>
-                )
-              })
-            : members.map((m) => (
-                <article key={m.nick} className="member-card">
-                  <div className="avatar">{m.nick.replace('Gubbe #', '')}</div>
-                  <h3>{m.nick}</h3>
-                  <p className="role">{m.role}</p>
-                  <p className="flavor">{m.flavor}</p>
-                </article>
-              ))}
-        </div>
-        <p className="roster-note">
-          {live.length > 0
-            ? 'Gubbarna som loggat in med Steam. Fler dyker upp allt eftersom.'
-            : 'Rostern fylls på med riktiga nick och Steam-avatarer — logga in med Steam för att synas här.'}
-        </p>
       </div>
     </section>
   )
@@ -287,7 +207,7 @@ export function About() {
       <div className="container about-grid">
         <div>
           <div className="section-head">
-            <span className="index">04</span>
+            <span className="index">05</span>
             <h2>Om BVS</h2>
           </div>
           <p>

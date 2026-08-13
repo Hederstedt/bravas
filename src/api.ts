@@ -25,6 +25,27 @@ export interface SiteConfig {
   discordInviteUrl: string
 }
 
+export type CardTier = 'ikon' | 'guld' | 'silver' | 'brons' | 'okänd'
+
+export interface CardAttribute {
+  key: string
+  label: string
+  rating: number
+}
+
+// Speglar server/src/cs2Cards.ts. Betygen är redan uträknade där — frontenden
+// räknar inte om något, den ritar bara kortet.
+export interface PlayerCard {
+  steamid64: string
+  personaName: string
+  hasStats: boolean
+  overall: number
+  tier: CardTier
+  position: string
+  attributes: CardAttribute[]
+  comments: string[]
+}
+
 // The site is a static page that stays up even if the API is down, so every
 // call degrades to a sensible empty value rather than throwing at the caller.
 async function getJson<T>(path: string): Promise<T | null> {
@@ -68,6 +89,11 @@ export interface Highlights {
 export async function fetchHighlights(): Promise<Highlights> {
   const data = await getJson<Highlights>('/api/stats/highlights')
   return data ?? { highlights: [], memberCount: 0, withStats: 0 }
+}
+
+export async function fetchCards(): Promise<PlayerCard[]> {
+  const data = await getJson<{ cards: PlayerCard[] }>('/api/stats/cards')
+  return data?.cards ?? []
 }
 
 // Speglar serverns gränser så formuläret stoppar för lång text direkt i stället
