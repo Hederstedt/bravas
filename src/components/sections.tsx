@@ -47,6 +47,7 @@ const navLinks = [
   { href: '#spel', label: 'Spel' },
   { href: '#gubbarna', label: 'Gubbarna' },
   { href: '#siffrorna', label: 'Siffrorna' },
+  { href: '#citat', label: 'Citat' },
   { href: '#om', label: 'Om oss' },
   { href: '#discord', label: 'Discord' },
 ]

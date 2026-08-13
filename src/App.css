@@ -136,8 +136,14 @@ section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* Centrering skulle låta innehållet svämma över åt båda håll när menyn
+     växer — då hamnar de yttersta länkarna utanför skärmen och går inte att
+     scrolla fram. Toppjusterat plus scroll klarar hur många poster som helst. */
+  justify-content: flex-start;
   gap: 8px;
+  padding: 24px 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .nav-overlay a {
@@ -201,6 +207,133 @@ a.steam-login:hover {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* ---------- Citatväggen ---------- */
+.quote-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-end;
+  margin-bottom: 34px;
+}
+
+.quote-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 220px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.quote-form input {
+  padding: 11px 13px;
+  background: #10151b;
+  border: 1px solid var(--line);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 15px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.quote-form input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.quote-error {
+  flex: 1 0 100%;
+  color: #ff6b6b;
+  font-size: 14px;
+}
+
+.quote-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.quote-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px;
+  background: linear-gradient(160deg, #171d25, #10141a);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+}
+
+.quote-card blockquote {
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.quote-card blockquote::before {
+  content: '”';
+  color: var(--accent);
+  font-size: 26px;
+  line-height: 0;
+  margin-right: 3px;
+}
+
+.quote-said-by {
+  color: var(--accent-soft);
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.quote-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.quote-votes {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--accent);
+}
+
+.quote-votes svg {
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
+}
+
+.quote-vote {
+  padding: 6px 14px;
+  border: 1px solid var(--accent-line);
+  background: none;
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.quote-vote:hover {
+  background: var(--accent);
+  color: #12100d;
 }
 
 /* ---------- Närvaro ---------- */
