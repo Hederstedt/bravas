@@ -4,7 +4,12 @@ import { generateCsrfToken } from "../csrf.ts";
 import { isAllowlisted, upsertMemberLogin } from "../db.ts";
 import { authLimiter } from "../middleware/rateLimit.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
-import { sessionCookie, createSessionCookieValue, verifySessionCookieValue } from "../session.ts";
+import {
+  sessionCookie,
+  createSessionCookieValue,
+  needsRenewal,
+  readSessionCookieValue,
+} from "../session.ts";
 import { buildLoginRedirectUrl, fetchPlayerSummaries, verifyCallback } from "../steamAuth.ts";
 
 export const authRouter = Router();
@@ -37,13 +42,7 @@ authRouter.get("/steam/callback", async (req, res) => {
     avatarUrl: summary?.avatarfull ?? null,
   });
 
-  res.cookie(sessionCookie.name, createSessionCookieValue(steamid64), {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    maxAge: sessionCookie.maxAgeMs,
-    path: "/",
-  });
+  res.cookie(sessionCookie.name, createSessionCookieValue(steamid64), sessionCookie.options);
   res.redirect(`${config.publicOrigin}/`);
 });
 
@@ -56,12 +55,24 @@ authRouter.post("/logout", (_req, res) => {
 // answer, so it returns 200 either way. A 401 here would log a console error
 // on every anonymous page load. Protected endpoints still use requireAuth.
 authRouter.get("/me", (req, res) => {
-  const steamid64 = verifySessionCookieValue(req.cookies?.[sessionCookie.name]);
-  if (!steamid64) {
+  const session = readSessionCookieValue(req.cookies?.[sessionCookie.name]);
+  if (!session) {
     res.json({ authenticated: false });
     return;
   }
-  res.json({ authenticated: true, steamid64 });
+
+  // Frontenden anropar den här vid varje sidladdning, så det är här den
+  // glidande sessionen får sin förlängning: den som besöker sidan då och då
+  // loggas aldrig ut, medan den som varit borta i en månad får logga in igen.
+  if (needsRenewal(session)) {
+    res.cookie(
+      sessionCookie.name,
+      createSessionCookieValue(session.steamid64),
+      sessionCookie.options
+    );
+  }
+
+  res.json({ authenticated: true, steamid64: session.steamid64 });
 });
 
 // Frontend calls this once logged in to obtain a token for subsequent
