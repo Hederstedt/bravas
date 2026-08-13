@@ -8,6 +8,7 @@ import { sessionCookie } from "./session.ts";
 const app = createApp();
 const ALLOWED = "76561198053832683";
 const NOT_ALLOWED = "76561190000000000";
+const DAY = 24 * 60 * 60 * 1000;
 
 function sessionFor(steamid64: string) {
   return `${sessionCookie.name}=${createSessionCookieValue(steamid64)}`;
@@ -259,6 +260,21 @@ describe("GET /api/presence", () => {
 // The frontend probes this on every page load to decide whether to show the
 // login button. Anonymous visitors are the normal case, not an error — a 401
 // here would put a red entry in every visitor's console.
+describe("GET /api/auth/steam/login", () => {
+  // Steam skickar tillbaka besökaren till den här adressen, så den måste peka
+  // dit webbläsaren faktiskt står. Är den hårdkodad till driften kan man aldrig
+  // bli inloggad lokalt — kakan hamnar på fel värd.
+  it("sends the visitor back to the origin they came from", async () => {
+    const res = await request(app).get("/api/auth/steam/login").expect(302);
+    const target = new URL(res.headers.location as string);
+
+    expect(target.searchParams.get("openid.return_to")).toBe(
+      "https://bravas.test/api/auth/steam/callback"
+    );
+    expect(target.searchParams.get("openid.realm")).toBe("https://bravas.test");
+  });
+});
+
 describe("GET /api/auth/me", () => {
   it("reports an anonymous visitor without erroring", async () => {
     const res = await request(app).get("/api/auth/me").expect(200);
@@ -283,6 +299,45 @@ describe("GET /api/auth/me", () => {
       .set("Cookie", `${sessionCookie.name}=not-a-valid-signed-value`)
       .expect(200);
     expect(res.body).toEqual({ authenticated: false });
+  });
+
+  // Glidande session: så länge man tittar förbi då och då ska man aldrig
+  // behöva logga in igen.
+  it("extends a session that is past halfway to expiry", async () => {
+    const issuedAt = Date.now() - 20 * DAY;
+    const res = await request(app)
+      .get("/api/auth/me")
+      .set("Cookie", `${sessionCookie.name}=${createSessionCookieValue(ALLOWED, issuedAt)}`)
+      .expect(200);
+
+    const setCookie = res.headers["set-cookie"] as unknown as string[] | undefined;
+    const renewed = setCookie?.find((c) => c.startsWith(`${sessionCookie.name}=`));
+    expect(renewed).toBeDefined();
+    expect(renewed).toContain("HttpOnly");
+    expect(renewed).toContain("Max-Age=2592000");
+    expect(res.body).toEqual({ authenticated: true, steamid64: ALLOWED });
+  });
+
+  it("leaves a fresh session alone instead of setting a cookie every page load", async () => {
+    const res = await request(app)
+      .get("/api/auth/me")
+      .set("Cookie", sessionFor(ALLOWED))
+      .expect(200);
+
+    const setCookie = res.headers["set-cookie"] as unknown as string[] | undefined;
+    expect(setCookie?.some((c) => c.startsWith(`${sessionCookie.name}=`))).not.toBe(true);
+  });
+
+  it("does not revive a session that already ran out", async () => {
+    const issuedAt = Date.now() - 40 * DAY;
+    const res = await request(app)
+      .get("/api/auth/me")
+      .set("Cookie", `${sessionCookie.name}=${createSessionCookieValue(ALLOWED, issuedAt)}`)
+      .expect(200);
+
+    expect(res.body).toEqual({ authenticated: false });
+    const setCookie = res.headers["set-cookie"] as unknown as string[] | undefined;
+    expect(setCookie?.some((c) => c.startsWith(`${sessionCookie.name}=`))).not.toBe(true);
   });
 });
 
