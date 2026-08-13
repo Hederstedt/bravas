@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fetchMembers, fetchSession, fetchSiteConfig, STEAM_LOGIN_URL } from './api'
+import { fetchMembers, fetchPresence, fetchSession, fetchSiteConfig, STEAM_LOGIN_URL } from './api'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -77,6 +77,27 @@ describe('fetchSession', () => {
   it('returns null on a server error', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'boom' }, 500))
     await expect(fetchSession()).resolves.toBeNull()
+  })
+})
+
+describe('fetchPresence', () => {
+  it('returns the presence map from the API', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        presence: {
+          '76561198053832683': { status: 'in-game', game: 'Counter-Strike 2' },
+        },
+      }),
+    )
+
+    await expect(fetchPresence()).resolves.toEqual({
+      '76561198053832683': { status: 'in-game', game: 'Counter-Strike 2' },
+    })
+  })
+
+  it('returns an empty map when the API is unreachable', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'))
+    await expect(fetchPresence()).resolves.toEqual({})
   })
 })
 

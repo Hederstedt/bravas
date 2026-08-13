@@ -3,6 +3,7 @@ import cookieParser from "cookie-parser";
 import { doubleCsrfProtection } from "./csrf.ts";
 import { authRouter } from "./routes/auth.ts";
 import { membersRouter } from "./routes/members.ts";
+import { presenceRouter } from "./routes/presence.ts";
 import { statsRouter } from "./routes/stats.ts";
 import { configRouter } from "./routes/config.ts";
 
@@ -19,6 +20,7 @@ export function createApp(): Express {
 
   app.use("/api/auth", authRouter);
   app.use("/api/members", membersRouter);
+  app.use("/api/presence", presenceRouter);
   app.use("/api/stats", statsRouter);
   app.use("/api/config", configRouter);
 

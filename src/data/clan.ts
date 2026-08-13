@@ -119,5 +119,5 @@ export const statHighlights: StatHighlight[] = [
   },
 ]
 
-// Fylls i när Discord-widgeten aktiveras (server-ID) — tills dess bara invite.
-export const discordInvite = '#'
+// Discord-inbjudan kommer från backendens /api/config, inte härifrån — se
+// useSiteConfig. Så kan den bytas utan att bygga om frontenden.

@@ -1,5 +1,5 @@
 import request from "supertest";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "./app.ts";
 import { db } from "./db.ts";
 import { createSessionCookieValue } from "./session.ts";
@@ -16,6 +16,10 @@ function sessionFor(steamid64: string) {
 beforeEach(() => {
   db.exec("DELETE FROM members; DELETE FROM allowlist;");
   db.prepare("INSERT INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(ALLOWED, "[BVS] #Mag", Date.now());
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("GET /api/config", () => {
@@ -48,6 +52,58 @@ describe("GET /api/members", () => {
     const res = await request(app).get("/api/members").expect(200);
     expect(res.body.members).toHaveLength(1);
     expect(res.body.members[0]).toMatchObject({ steamid64: ALLOWED, personaName: "[BVS] #Mag" });
+  });
+});
+
+describe("GET /api/presence", () => {
+  function stubSteam(players: unknown[]) {
+    return vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ response: { players } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+  }
+
+  it("returns an empty map before anyone has logged in, without calling Steam", async () => {
+    const fetchSpy = stubSteam([]);
+    const res = await request(app).get("/api/presence").expect(200);
+    expect(res.body).toEqual({ presence: {} });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("reports presence for members that have logged in", async () => {
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+    stubSteam([{ steamid: ALLOWED, personastate: 1, gameextrainfo: "Counter-Strike 2" }]);
+
+    const res = await request(app).get("/api/presence").expect(200);
+    expect(res.body.presence[ALLOWED]).toEqual({ status: "in-game", game: "Counter-Strike 2" });
+  });
+
+  // Presence is decoration: if Steam is down the roster must still render.
+  it("degrades to an empty map when Steam fails", async () => {
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("steam is down"));
+
+    const res = await request(app).get("/api/presence").expect(200);
+    expect(res.body).toEqual({ presence: {} });
+  });
+
+  it("never reports presence for someone who is not a member", async () => {
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+    stubSteam([
+      { steamid: ALLOWED, personastate: 1 },
+      { steamid: NOT_ALLOWED, personastate: 1 },
+    ]);
+
+    const res = await request(app).get("/api/presence").expect(200);
+    expect(Object.keys(res.body.presence)).toEqual([ALLOWED]);
   });
 });
 

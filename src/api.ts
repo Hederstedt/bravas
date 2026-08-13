@@ -11,6 +11,15 @@ export interface Session {
   steamid64: string
 }
 
+export type PresenceStatus = 'offline' | 'online' | 'in-game'
+
+export interface Presence {
+  status: PresenceStatus
+  game: string | null
+}
+
+export type PresenceMap = Record<string, Presence>
+
 export interface SiteConfig {
   discordServerId: string
   discordInviteUrl: string
@@ -39,6 +48,11 @@ export async function fetchSession(): Promise<Session | null> {
   const data = await getJson<{ authenticated: boolean; steamid64?: string }>('/api/auth/me')
   if (!data?.authenticated || !data.steamid64) return null
   return { steamid64: data.steamid64 }
+}
+
+export async function fetchPresence(): Promise<PresenceMap> {
+  const data = await getJson<{ presence: PresenceMap }>('/api/presence')
+  return data?.presence ?? {}
 }
 
 export async function fetchSiteConfig(): Promise<SiteConfig> {

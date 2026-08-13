@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { fetchMembers, type RosterMember } from '../api'
-import { members, games, statHighlights, statsIsMock, discordInvite } from '../data/clan'
+import { fetchMembers, fetchPresence, type Presence, type PresenceMap, type RosterMember } from '../api'
+import { members, games, statHighlights, statsIsMock } from '../data/clan'
+import { useSiteConfig } from '../useSiteConfig'
 import { SteamLogin } from './auth'
 import { BvsMark } from './BvsMark'
 import { DiscordIcon, CrosshairIcon, AxeIcon, FactoryIcon, TankIcon, TrophyIcon } from './icons'
@@ -27,6 +28,11 @@ const gameArt: Record<string, { tint: string; art: string; icon: ReactNode }> = 
     art: 'linear-gradient(135deg, #3d3210, #14120b 70%)',
     icon: <FactoryIcon />,
   },
+}
+
+function presenceLabel(p: Presence): string {
+  if (p.status === 'in-game') return `Spelar ${p.game}`
+  return p.status === 'online' ? 'Online' : 'Offline'
 }
 
 const navLinks = [
@@ -81,6 +87,8 @@ export function Nav() {
 }
 
 export function Hero() {
+  const { discordInviteUrl } = useSiteConfig()
+
   return (
     <header className="hero" id="top">
       <div className="embers" aria-hidden="true">
@@ -96,9 +104,11 @@ export function Hero() {
           troll — på egen server, i eget garage.
         </p>
         <div className="hero-actions">
-          <a className="btn btn-primary" href={discordInvite}>
-            <DiscordIcon /> Joina Discorden
-          </a>
+          {discordInviteUrl && (
+            <a className="btn btn-primary" href={discordInviteUrl}>
+              <DiscordIcon /> Joina Discorden
+            </a>
+          )}
           <a className="btn btn-ghost" href="#gubbarna">
             Möt gubbarna
           </a>
@@ -145,11 +155,15 @@ export function Roster() {
   // Gubbarna dyker upp här först när de loggat in med Steam. Tills dess (och om
   // API:et är nere) visas platshållarna, så sektionen aldrig står tom.
   const [live, setLive] = useState<RosterMember[]>([])
+  const [presence, setPresence] = useState<PresenceMap>({})
 
   useEffect(() => {
     let cancelled = false
     void fetchMembers().then((m) => {
       if (!cancelled) setLive(m)
+    })
+    void fetchPresence().then((p) => {
+      if (!cancelled) setPresence(p)
     })
     return () => {
       cancelled = true
@@ -165,19 +179,30 @@ export function Roster() {
         </div>
         <div className="roster-grid">
           {live.length > 0
-            ? live.map((m) => (
-                <article key={m.steamid64} className="member-card">
-                  <div className="avatar">
-                    {m.avatarUrl ? (
-                      <img src={m.avatarUrl} alt={m.personaName} />
-                    ) : (
-                      m.personaName.replace(/^\[BVS\]\s*/, '').charAt(0).toUpperCase()
-                    )}
-                  </div>
-                  <h3>{m.personaName}</h3>
-                  {m.discordName && <p className="role">{m.discordName}</p>}
-                </article>
-              ))
+            ? live.map((m) => {
+                const p = presence[m.steamid64]
+                return (
+                  <article key={m.steamid64} className="member-card">
+                    <div className="avatar">
+                      {m.avatarUrl ? (
+                        <img src={m.avatarUrl} alt={m.personaName} />
+                      ) : (
+                        m.personaName.replace(/^\[BVS\]\s*/, '').charAt(0).toUpperCase()
+                      )}
+                      {p && (
+                        <span
+                          className={`presence ${p.status}`}
+                          role="status"
+                          aria-label={presenceLabel(p)}
+                        />
+                      )}
+                    </div>
+                    <h3>{m.personaName}</h3>
+                    {p?.game && <p className="playing">{p.game}</p>}
+                    {m.discordName && <p className="role">{m.discordName}</p>}
+                  </article>
+                )
+              })
             : members.map((m) => (
                 <article key={m.nick} className="member-card">
                   <div className="avatar">{m.nick.replace('Gubbe #', '')}</div>
@@ -273,14 +298,18 @@ export function About() {
 }
 
 export function DiscordCta() {
+  const { discordInviteUrl } = useSiteConfig()
+
   return (
     <section id="discord" className="discord-cta">
       <div className="container">
         <h2>Häng med i Discorden</h2>
         <p>Där händer allt: kvällens lineup, serverstatus och diskussioner om rush B ändå.</p>
-        <a className="btn btn-primary" href={discordInvite}>
-          <DiscordIcon /> Joina BVS
-        </a>
+        {discordInviteUrl && (
+          <a className="btn btn-primary" href={discordInviteUrl}>
+            <DiscordIcon /> Joina BVS
+          </a>
+        )}
       </div>
     </section>
   )
