@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fetchMembers, fetchPresence, fetchSession, fetchSiteConfig, STEAM_LOGIN_URL } from './api'
+import {
+  fetchCards,
+  fetchMembers,
+  fetchPresence,
+  fetchSession,
+  fetchSiteConfig,
+  STEAM_LOGIN_URL,
+} from './api'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -115,5 +122,33 @@ describe('fetchSiteConfig', () => {
   it('falls back to empty config when the API is unreachable', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'))
     await expect(fetchSiteConfig()).resolves.toEqual({ discordServerId: '', discordInviteUrl: '' })
+  })
+})
+
+describe('fetchCards', () => {
+  const card = {
+    steamid64: '76561198053832683',
+    personaName: '[BVS] #Mag',
+    hasStats: true,
+    overall: 74,
+    tier: 'silver',
+    position: 'AWP',
+    attributes: [{ key: 'SIK', label: 'Sikte', rating: 80 }],
+    comments: ['Smyger runt mest.'],
+  }
+
+  it('returns the lineup from the API', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ cards: [card] }))
+    await expect(fetchCards()).resolves.toEqual([card])
+  })
+
+  it('returns an empty lineup when the API is unreachable', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'))
+    await expect(fetchCards()).resolves.toEqual([])
+  })
+
+  it('returns an empty lineup when the response has no cards', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ memberCount: 0 }))
+    await expect(fetchCards()).resolves.toEqual([])
   })
 })

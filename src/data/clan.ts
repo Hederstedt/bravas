@@ -1,7 +1,26 @@
+import type { CardAttribute, CardTier } from '../api'
+
+// Platshållarna ritas med exakt samma kortkomponent som de riktiga gubbarna, så
+// de bär samma fält. En utloggad besökare ska möta en färdig laguppställning,
+// inte tomma rutor som väntar på data.
 export interface Member {
   nick: string
-  role: string
+  position: string
   flavor: string
+  overall: number
+  tier: CardTier
+  attributes: CardAttribute[]
+}
+
+function attrs(sik: number, ska: number, fra: number, tal: number, nyt: number, tid: number) {
+  return [
+    { key: 'SIK', label: 'Sikte', rating: sik },
+    { key: 'SKA', label: 'Skallar', rating: ska },
+    { key: 'FRA', label: 'Frag', rating: fra },
+    { key: 'TÅL', label: 'Tålighet', rating: tal },
+    { key: 'NYT', label: 'Nytta', rating: nyt },
+    { key: 'TID', label: 'Tid', rating: tid },
+  ]
 }
 
 export interface Game {
@@ -11,14 +30,56 @@ export interface Game {
   blurb: string
 }
 
-// Placeholder-roster tills Steam-syncen kopplas på.
+// Placeholder-roster tills gubbarna loggat in med Steam.
 export const members: Member[] = [
-  { nick: 'Gubbe #1', role: 'IGL / Serverhusse', flavor: 'Ropar strats, hostar allt' },
-  { nick: 'Gubbe #2', role: 'AWP', flavor: 'Ett skott, en ursäkt' },
-  { nick: 'Gubbe #3', role: 'Entry', flavor: 'Först in, först ner' },
-  { nick: 'Gubbe #4', role: 'Support', flavor: 'Flashar lagkamraterna' },
-  { nick: 'Gubbe #5', role: 'Lurker', flavor: 'Hörs aldrig, syns aldrig' },
-  { nick: 'Gubbe #6', role: 'Valheim-bonde', flavor: 'Vaktar kolmilan' },
+  {
+    nick: 'Gubbe #1',
+    position: 'IGL',
+    flavor: 'Ropar strats, hostar allt. Serverhusse på fritiden.',
+    overall: 79,
+    tier: 'guld',
+    attributes: attrs(68, 62, 66, 74, 91, 84),
+  },
+  {
+    nick: 'Gubbe #2',
+    position: 'AWP',
+    flavor: 'Ett skott, en ursäkt till den som stod bakom.',
+    overall: 84,
+    tier: 'guld',
+    attributes: attrs(93, 71, 82, 79, 63, 88),
+  },
+  {
+    nick: 'Gubbe #3',
+    position: 'ENTRY',
+    flavor: 'Först in, först ner. Men aldrig ensam.',
+    overall: 71,
+    tier: 'silver',
+    attributes: attrs(66, 78, 88, 41, 58, 72),
+  },
+  {
+    nick: 'Gubbe #4',
+    position: 'SUPPORT',
+    flavor: 'Flashar lagkamraterna med imponerande precision.',
+    overall: 64,
+    tier: 'silver',
+    attributes: attrs(58, 52, 55, 68, 81, 66),
+  },
+  {
+    nick: 'Gubbe #5',
+    position: 'SMYGARE',
+    flavor: 'Hörs aldrig, syns aldrig, lever längst av alla.',
+    overall: 88,
+    tier: 'ikon',
+    attributes: attrs(84, 80, 76, 96, 82, 94),
+  },
+  {
+    nick: 'Gubbe #6',
+    position: 'BONDE',
+    flavor: 'Vaktar kolmilan. Har inte startat CS på ett halvår.',
+    overall: 52,
+    tier: 'brons',
+    attributes: attrs(44, 38, 47, 61, 55, 49),
+  },
 ]
 
 export const games: Game[] = [

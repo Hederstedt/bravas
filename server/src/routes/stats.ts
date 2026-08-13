@@ -2,7 +2,7 @@ import { Router } from "express";
 import { config } from "../config.ts";
 import { isAllowlisted } from "../db.ts";
 import { readLimiter } from "../middleware/rateLimit.ts";
-import { getHighlights } from "../statsService.ts";
+import { getCards, getHighlights } from "../statsService.ts";
 
 export const statsRouter = Router();
 
@@ -12,6 +12,11 @@ const STEAMID64_RE = /^\d{17}$/;
 // Måste stå före "/:steamId", annars fångas "highlights" som ett steam-id.
 statsRouter.get("/highlights", readLimiter, async (_req, res) => {
   res.json(await getHighlights());
+});
+
+// Samma sak här — "cards" är inget steam-id och får inte hamna i den routen.
+statsRouter.get("/cards", readLimiter, async (_req, res) => {
+  res.json(await getCards());
 });
 
 statsRouter.get("/:steamId", readLimiter, async (req, res) => {

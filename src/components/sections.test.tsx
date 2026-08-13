@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Nav, Games, Roster, Stats } from './sections'
-import { games, members, statHighlights } from '../data/clan'
+import { Nav, Games, Stats } from './sections'
+import { games, statHighlights } from '../data/clan'
 
 describe('Games', () => {
   it('renders one card per game with title and status', () => {
@@ -10,16 +10,6 @@ describe('Games', () => {
     for (const g of games) {
       const card = screen.getByRole('heading', { name: g.title }).closest('article')!
       expect(within(card).getByText(g.status)).toBeInTheDocument()
-    }
-  })
-})
-
-describe('Roster', () => {
-  it('renders every member with nick and role', () => {
-    render(<Roster />)
-    for (const m of members) {
-      expect(screen.getByRole('heading', { name: m.nick })).toBeInTheDocument()
-      expect(screen.getByText(m.role)).toBeInTheDocument()
     }
   })
 })
