@@ -1,7 +1,12 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { SteamLogin } from './auth'
 import * as api from '../api'
+import { resetSiteConfigCache } from '../useSiteConfig'
+
+beforeEach(() => {
+  resetSiteConfigCache()
+})
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -47,6 +52,36 @@ describe('SteamLogin', () => {
   })
 })
 
+describe('Discord links', () => {
+  it('uses the invite the API hands out', async () => {
+    vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({
+      discordServerId: '323523542312419348',
+      discordInviteUrl: 'https://discord.gg/R7BTunRvjb',
+    })
+
+    const { DiscordCta } = await import('./sections')
+    render(<DiscordCta />)
+
+    const link = await screen.findByRole('link', { name: /Joina BVS/ })
+    expect(link).toHaveAttribute('href', 'https://discord.gg/R7BTunRvjb')
+  })
+
+  // Utan invite är en död "#"-länk sämre än ingen knapp alls.
+  it('hides the button when no invite is configured', async () => {
+    vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({
+      discordServerId: '',
+      discordInviteUrl: '',
+    })
+
+    const { DiscordCta } = await import('./sections')
+    render(<DiscordCta />)
+
+    await waitFor(() => {
+      expect(screen.queryByRole('link', { name: /Joina BVS/ })).not.toBeInTheDocument()
+    })
+  })
+})
+
 describe('Roster with live data', () => {
   it('shows real members once the API returns them', async () => {
     vi.spyOn(api, 'fetchMembers').mockResolvedValue([
@@ -81,6 +116,45 @@ describe('Roster with live data', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'Gubbe #1' })).toBeInTheDocument()
     })
+  })
+
+  it('marks who is online and what they are playing', async () => {
+    vi.spyOn(api, 'fetchMembers').mockResolvedValue([
+      { steamid64: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null },
+      { steamid64: '2', personaName: 'Vaken', avatarUrl: null, discordName: null },
+      { steamid64: '3', personaName: 'Borta', avatarUrl: null, discordName: null },
+    ])
+    vi.spyOn(api, 'fetchPresence').mockResolvedValue({
+      '1': { status: 'in-game', game: 'Counter-Strike 2' },
+      '2': { status: 'online', game: null },
+      '3': { status: 'offline', game: null },
+    })
+
+    const { Roster } = await import('./sections')
+    render(<Roster />)
+
+    const playing = (await screen.findByRole('heading', { name: 'Spelaren' })).closest('article')!
+    expect(within(playing).getByText('Counter-Strike 2')).toBeInTheDocument()
+    expect(within(playing).getByLabelText('Spelar Counter-Strike 2')).toBeInTheDocument()
+
+    const awake = screen.getByRole('heading', { name: 'Vaken' }).closest('article')!
+    expect(within(awake).getByLabelText('Online')).toBeInTheDocument()
+
+    const away = screen.getByRole('heading', { name: 'Borta' }).closest('article')!
+    expect(within(away).getByLabelText('Offline')).toBeInTheDocument()
+  })
+
+  it('renders the roster even when presence is unavailable', async () => {
+    vi.spyOn(api, 'fetchMembers').mockResolvedValue([
+      { steamid64: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null },
+    ])
+    vi.spyOn(api, 'fetchPresence').mockResolvedValue({})
+
+    const { Roster } = await import('./sections')
+    render(<Roster />)
+
+    expect(await screen.findByRole('heading', { name: 'Spelaren' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Online')).not.toBeInTheDocument()
   })
 
   it('shows an avatar image when Steam provides one', async () => {
