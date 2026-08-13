@@ -52,6 +52,62 @@ describe('SteamLogin', () => {
   })
 })
 
+describe('Stats section', () => {
+  const realHighlight = {
+    gameId: 'cs2',
+    gameTitle: 'Counter-Strike 2',
+    label: 'Flest kills',
+    value: '87 021',
+    holder: '[BVS] ⛟',
+    detail: '52 000 dödsfall på vägen',
+  }
+
+  it('shows real numbers and drops the demo badge once the API delivers', async () => {
+    vi.spyOn(api, 'fetchHighlights').mockResolvedValue({
+      highlights: [realHighlight],
+      memberCount: 10,
+      withStats: 4,
+    })
+
+    const { Stats } = await import('./sections')
+    render(<Stats />)
+
+    expect(await screen.findByText('Flest kills')).toBeInTheDocument()
+    expect(screen.getByText('[BVS] ⛟')).toBeInTheDocument()
+    expect(screen.queryByText('Demo-data')).not.toBeInTheDocument()
+  })
+
+  it('says how many profiles are still closed', async () => {
+    vi.spyOn(api, 'fetchHighlights').mockResolvedValue({
+      highlights: [realHighlight],
+      memberCount: 10,
+      withStats: 4,
+    })
+
+    const { Stats } = await import('./sections')
+    render(<Stats />)
+
+    expect(await screen.findByText(/4 av 10/)).toBeInTheDocument()
+  })
+
+  // Innan någon öppnat sin profil finns inga riktiga siffror — då är demo-datan
+  // ärligare än en tom sektion, så länge den är märkt.
+  it('falls back to clearly marked demo data when no real stats exist', async () => {
+    vi.spyOn(api, 'fetchHighlights').mockResolvedValue({
+      highlights: [],
+      memberCount: 10,
+      withStats: 0,
+    })
+
+    const { Stats } = await import('./sections')
+    render(<Stats />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Demo-data')).toBeInTheDocument()
+    })
+  })
+})
+
 describe('Discord links', () => {
   it('uses the invite the API hands out', async () => {
     vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({

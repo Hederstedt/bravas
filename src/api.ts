@@ -50,6 +50,26 @@ export async function fetchSession(): Promise<Session | null> {
   return { steamid64: data.steamid64 }
 }
 
+export interface StatHighlight {
+  gameId: string
+  gameTitle: string
+  label: string
+  value: string
+  holder: string
+  detail: string
+}
+
+export interface Highlights {
+  highlights: StatHighlight[]
+  memberCount: number
+  withStats: number
+}
+
+export async function fetchHighlights(): Promise<Highlights> {
+  const data = await getJson<Highlights>('/api/stats/highlights')
+  return data ?? { highlights: [], memberCount: 0, withStats: 0 }
+}
+
 export async function fetchPresence(): Promise<PresenceMap> {
   const data = await getJson<{ presence: PresenceMap }>('/api/presence')
   return data?.presence ?? {}
