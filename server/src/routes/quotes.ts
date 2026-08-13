@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "../db.ts";
-import { mutationLimiter } from "../middleware/rateLimit.ts";
+import { mutationLimiter, readLimiter } from "../middleware/rateLimit.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
 import { parseQuoteInput } from "../quotes.ts";
 
@@ -33,7 +33,7 @@ const LIST_SQL = `
   ORDER BY votes DESC, q.created_at DESC
 `;
 
-quotesRouter.get("/", (_req, res) => {
+quotesRouter.get("/", readLimiter, (_req, res) => {
   const rows = db.prepare(LIST_SQL).all() as QuoteRow[];
   res.json({ quotes: rows.map(publicQuote) });
 });

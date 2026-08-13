@@ -67,6 +67,12 @@ describe("GET /api/quotes", () => {
     expect(res.body).toEqual({ quotes: [] });
   });
 
+  // Publik, oautentiserad och slår mot databasen — den ska inte gå att hamra.
+  it("is rate limited", async () => {
+    const res = await request(app).get("/api/quotes").expect(200);
+    expect(res.headers["ratelimit-limit"]).toBeDefined();
+  });
+
   it("shows quotes with their vote counts, most voted first", async () => {
     const quiet = (await postQuote(MAG, { text: "Tyst citat", saidBy: "Gubbe" })).body.id;
     const loud = (await postQuote(MAG, { text: "Populärt citat", saidBy: "Gubbe" })).body.id;

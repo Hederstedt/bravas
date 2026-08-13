@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { config } from "../config.ts";
 import { isAllowlisted } from "../db.ts";
+import { readLimiter } from "../middleware/rateLimit.ts";
 import { getHighlights } from "../statsService.ts";
 
 export const statsRouter = Router();
@@ -9,13 +10,15 @@ const CS2_APP_ID = 730;
 const STEAMID64_RE = /^\d{17}$/;
 
 // Måste stå före "/:steamId", annars fångas "highlights" som ett steam-id.
-statsRouter.get("/highlights", async (_req, res) => {
+statsRouter.get("/highlights", readLimiter, async (_req, res) => {
   res.json(await getHighlights());
 });
 
-statsRouter.get("/:steamId", async (req, res) => {
+statsRouter.get("/:steamId", readLimiter, async (req, res) => {
+  // Express typar route-parametrar som string | string[]; bara en enkel sträng
+  // som ser ut som ett SteamID64 och står på allowlistan släpps vidare till Steam.
   const { steamId } = req.params;
-  if (!STEAMID64_RE.test(steamId) || !isAllowlisted(steamId)) {
+  if (typeof steamId !== "string" || !STEAMID64_RE.test(steamId) || !isAllowlisted(steamId)) {
     res.status(404).json({ error: "not_found" });
     return;
   }

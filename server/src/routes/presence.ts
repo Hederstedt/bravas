@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { listMembers } from "../db.ts";
+import { readLimiter } from "../middleware/rateLimit.ts";
 import { fetchPresence, type Presence } from "../presence.ts";
 
 export const presenceRouter = Router();
 
-presenceRouter.get("/", async (_req, res) => {
+presenceRouter.get("/", readLimiter, async (_req, res) => {
   const steamids = listMembers().map((m) => m.steamid64);
   if (steamids.length === 0) {
     res.json({ presence: {} });

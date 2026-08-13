@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { listMembers, setDiscordName } from "../db.ts";
-import { mutationLimiter } from "../middleware/rateLimit.ts";
+import { mutationLimiter, readLimiter } from "../middleware/rateLimit.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
 
 export const membersRouter = Router();
 
-membersRouter.get("/", (_req, res) => {
+membersRouter.get("/", readLimiter, (_req, res) => {
   const members = listMembers().map((m) => ({
     steamid64: m.steamid64,
     personaName: m.persona_name,
