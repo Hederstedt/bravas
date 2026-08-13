@@ -1,35 +1,33 @@
 # TODO — åtgärder på servern (körs hemifrån)
 
-## Nginx: peka om till atomiska deployen
+## Sudoers: låt deployen starta om API:et
 
-Deploy-workflown lägger nu varje release i `/srv/bravas/releases/<tidsstämpel>-<sha>` och pekar symlänken `/srv/bravas/current` på senaste. Nginx serverar dock fortfarande gamla `/srv/bravas`-roten tills detta körs (sajten fortsätter fungera under tiden — noll stress):
+Deploy-workflowet bygger och rullar ut API:et atomiskt, men **`Restart API`-steget failar** (`sudo: I'm sorry ghrunner`) tills runnern fått rätt att starta om just den tjänsten. Regeln är utan wildcards — den tillåter exakt ett kommando och ingenting annat.
 
-1. Kontrollera att minst en ny deploy har kört (mappen finns):
-
-```bash
-ls -l /srv/bravas/current
-```
-
-2. Hitta nginx-configen som pekar på `/srv/bravas`:
+Frontend-deployen påverkas inte. Tills detta är gjort måste API:et startas om manuellt efter varje deploy som rör `server/`:
 
 ```bash
-grep -rn "srv/bravas" /etc/nginx/
+sudo systemctl restart bravas-api.service
 ```
 
-3. Ändra `root /srv/bravas;` till `root /srv/bravas/current;` i den config-filen (t.ex. med `sudo nano <fil>`).
-
-4. Testa och ladda om:
+Installera regeln:
 
 ```bash
-sudo nginx -t && sudo systemctl reload nginx
+sudo install -m 440 -o root -g root /srv/bravas-api/current/server/deploy/sudoers-ghrunner-api /etc/sudoers.d/ghrunner-bravas-api && sudo visudo -c
 ```
 
-5. Verifiera att sajten svarar (nya versionen med Siffrorna-sektionen ska synas) och städa sen bort gamla filer ur roten:
+Verifiera att den biter (ska svara utan lösenordsprompt):
 
 ```bash
-cd /srv/bravas && ls | grep -v -E "^(releases|current)$" | xargs -r rm -rf --
+sudo -u ghrunner sudo -n /usr/bin/systemctl is-active bravas-api.service
 ```
 
-När detta är gjort: bocka av här, committa och pusha — då vet båda datorernas Claude att det är klart.
+- [ ] Sudoers-regel installerad och verifierad
 
-- [x] Nginx-flip utförd och gamla root-filer städade
+---
+
+## Klart
+
+- [x] Nginx-flip till atomisk deploy utförd och gamla root-filer städade
+- [x] API i drift som systemd-tjänst bakom nginx (`/api/` → `127.0.0.1:3001`)
+- [x] Allowlist seedad (10 st) och Steam-inloggning verifierad end-to-end
