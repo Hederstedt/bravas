@@ -14,7 +14,7 @@ function sessionFor(steamid64: string) {
 }
 
 beforeEach(() => {
-  db.exec("DELETE FROM members; DELETE FROM allowlist;");
+  db.exec("DELETE FROM members; DELETE FROM allowlist; DELETE FROM cs2_stats;");
   db.prepare("INSERT INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(ALLOWED, "[BVS] #Mag", Date.now());
 });
 
@@ -52,6 +52,82 @@ describe("GET /api/members", () => {
     const res = await request(app).get("/api/members").expect(200);
     expect(res.body.members).toHaveLength(1);
     expect(res.body.members[0]).toMatchObject({ steamid64: ALLOWED, personaName: "[BVS] #Mag" });
+  });
+});
+
+describe("GET /api/stats/highlights", () => {
+  function steamStats(stats: Record<string, number>) {
+    return new Response(
+      JSON.stringify({
+        playerstats: { stats: Object.entries(stats).map(([name, value]) => ({ name, value })) },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  function addMember(steamid64: string, personaName: string) {
+    db.prepare("INSERT OR IGNORE INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(
+      steamid64,
+      personaName,
+      Date.now()
+    );
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
+    ).run(steamid64, personaName, null, Date.now(), Date.now());
+  }
+
+  it("returns no highlights before anyone has logged in", async () => {
+    const res = await request(app).get("/api/stats/highlights").expect(200);
+    expect(res.body).toEqual({ highlights: [], memberCount: 0, withStats: 0 });
+  });
+
+  it("builds highlights from members' Steam stats", async () => {
+    addMember(ALLOWED, "[BVS] #Mag");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      steamStats({ total_kills: 47821, total_wins: 21379, total_time_played: 3410035 })
+    );
+
+    const res = await request(app).get("/api/stats/highlights").expect(200);
+    const kills = res.body.highlights.find((h: { label: string }) => h.label === "Flest kills");
+    expect(kills.holder).toBe("[BVS] #Mag");
+    expect(res.body).toMatchObject({ memberCount: 1, withStats: 1 });
+  });
+
+  // Six of ten profiles are closed; those members simply don't contribute.
+  it("counts members whose stats Steam refuses to share", async () => {
+    addMember(ALLOWED, "[BVS] #Mag");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("{}", { status: 403, headers: { "Content-Type": "application/json" } })
+    );
+
+    const res = await request(app).get("/api/stats/highlights").expect(200);
+    expect(res.body).toMatchObject({ memberCount: 1, withStats: 0, highlights: [] });
+  });
+
+  it("serves cached stats instead of calling Steam again", async () => {
+    addMember(ALLOWED, "[BVS] #Mag");
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(steamStats({ total_kills: 47821 }));
+
+    await request(app).get("/api/stats/highlights").expect(200);
+    const callsAfterFirst = fetchSpy.mock.calls.length;
+    const res = await request(app).get("/api/stats/highlights").expect(200);
+
+    expect(fetchSpy.mock.calls.length).toBe(callsAfterFirst);
+    expect(res.body.withStats).toBe(1);
+  });
+
+  it("keeps serving the cached numbers when Steam goes down", async () => {
+    addMember(ALLOWED, "[BVS] #Mag");
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(steamStats({ total_kills: 47821 }));
+    await request(app).get("/api/stats/highlights").expect(200);
+
+    db.prepare("UPDATE cs2_stats SET fetched_at = 0").run();
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("steam is down"));
+
+    const res = await request(app).get("/api/stats/highlights").expect(200);
+    expect(res.body.withStats).toBe(1);
   });
 });
 

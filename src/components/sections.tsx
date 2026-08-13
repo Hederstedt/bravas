@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { fetchMembers, fetchPresence, type Presence, type PresenceMap, type RosterMember } from '../api'
+import {
+  fetchHighlights,
+  fetchMembers,
+  fetchPresence,
+  type Highlights,
+  type Presence,
+  type PresenceMap,
+  type RosterMember,
+} from '../api'
 import { members, games, statHighlights, statsIsMock } from '../data/clan'
 import { useSiteConfig } from '../useSiteConfig'
 import { SteamLogin } from './auth'
@@ -223,16 +231,33 @@ export function Roster() {
 }
 
 export function Stats() {
+  const [live, setLive] = useState<Highlights | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchHighlights().then((h) => {
+      if (!cancelled) setLive(h)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Steam lämnar bara ut statistik för den som har öppen profil. Tills någon
+  // gjort det är märkt demo-data ärligare än en tom sektion.
+  const real = live && live.highlights.length > 0
+  const cards = real ? live.highlights : statHighlights
+
   return (
     <section id="siffrorna">
       <div className="container">
         <div className="section-head">
           <span className="index">03</span>
           <h2>Siffrorna</h2>
-          {statsIsMock && <span className="demo-badge">Demo-data</span>}
+          {!real && statsIsMock && <span className="demo-badge">Demo-data</span>}
         </div>
         <div className="stats-grid">
-          {statHighlights.map((s) => (
+          {cards.map((s) => (
             <article key={`${s.gameId}-${s.label}`} className="stat-card">
               <div className="stat-card-head">
                 <TrophyIcon />
@@ -246,8 +271,9 @@ export function Stats() {
           ))}
         </div>
         <p className="roster-note">
-          Placeholder-siffror så länge — riktig statistik hämtas från Steam och Wargaming när
-          Steam-kopplingen är live.
+          {real
+            ? `Hämtat live från Steam för ${live.withStats} av ${live.memberCount} gubbar — resten har stängd spelinformation på sin profil.`
+            : 'Placeholder-siffror så länge — riktig statistik hämtas från Steam så fort någon har öppen spelinformation.'}
         </p>
       </div>
     </section>

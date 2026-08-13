@@ -1,11 +1,17 @@
 import { Router } from "express";
 import { config } from "../config.ts";
 import { isAllowlisted } from "../db.ts";
+import { getHighlights } from "../statsService.ts";
 
 export const statsRouter = Router();
 
 const CS2_APP_ID = 730;
 const STEAMID64_RE = /^\d{17}$/;
+
+// Måste stå före "/:steamId", annars fångas "highlights" som ett steam-id.
+statsRouter.get("/highlights", async (_req, res) => {
+  res.json(await getHighlights());
+});
 
 statsRouter.get("/:steamId", async (req, res) => {
   const { steamId } = req.params;
