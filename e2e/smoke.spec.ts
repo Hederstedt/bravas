@@ -79,6 +79,30 @@ test('navigation scrolls to roster section', async ({ page, isMobile }) => {
   await expect(page.locator('#gubbarna')).toBeInViewport()
 })
 
+test('the manager page is reachable from the nav and by direct address', async ({
+  page,
+  isMobile,
+}) => {
+  await page.goto('/')
+
+  if (isMobile) {
+    await page.getByRole('button', { name: 'Öppna menyn' }).click()
+    await page.getByRole('dialog', { name: 'Meny' }).getByRole('link', { name: 'Manager' }).click()
+  } else {
+    await page.locator('.nav-links').getByRole('link', { name: 'Manager' }).click()
+  }
+  await expect(page.getByRole('heading', { name: 'Manager' })).toBeVisible()
+
+  // En delad länk ska fungera utan att gå via startsidan. Vites preview har
+  // SPA-fallback inbyggd — i drift kräver detta try_files i nginx.
+  await page.goto('/manager')
+  await expect(page.getByRole('heading', { name: 'Manager' })).toBeVisible()
+
+  // Och logotypen leder hem igen.
+  await page.getByRole('link', { name: /BVS/ }).click()
+  await expect(page.getByRole('heading', { name: 'Bravas' })).toBeVisible()
+})
+
 test('anonymous visitors are offered Steam login', async ({ page, isMobile }) => {
   await page.goto('/')
 

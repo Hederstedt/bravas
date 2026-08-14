@@ -1,20 +1,19 @@
 import './App.css'
-import { Quotes } from './components/quotes'
-import { Nav, Hero, Games, Roster, Stats, About, DiscordCta, Footer } from './components/sections'
+import { Navigate, Route, Routes } from 'react-router'
+import { HomePage } from './components/home'
+import { ManagerPage } from './components/manager/managerPage'
+import { Nav, Footer } from './components/sections'
 
+// Nav och Footer ligger utanför Routes — de är desamma på alla sidor.
 function App() {
   return (
     <>
       <Nav />
-      <Hero />
-      <main>
-        <Roster />
-        <Games />
-        <Stats />
-        <Quotes />
-        <About />
-        <DiscordCta />
-      </main>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/manager" element={<ManagerPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
       <Footer />
     </>
   )

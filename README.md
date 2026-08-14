@@ -75,6 +75,10 @@ sudoers-regel ligger i `server/deploy/`.
 Hemligheterna bor i `/srv/bravas-api/.env` på servern, utanför release-mapparna,
 och rörs inte av en deploy.
 
+Sajten har riktiga adresser (`/manager`), så nginx behöver SPA-fallbacken i
+`server/deploy/nginx-spa-location.conf` — den appliceras för hand på servern,
+som API-snutten. Utan den svarar en direktladdad route-adress 404 i drift.
+
 ## Dokumentation
 
 All dokumentation ligger i [`docs/`](docs/):

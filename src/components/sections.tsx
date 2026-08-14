@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+import { Link } from 'react-router'
 import { fetchHighlights, type Highlights } from '../api'
 import { members, games, statHighlights, statsIsMock } from '../data/clan'
 import { useSiteConfig } from '../useSiteConfig'
@@ -34,13 +35,16 @@ const gameArt: Record<string, { tint: string; art: string; icon: ReactNode }> = 
   },
 }
 
+// Sektionslänkarna pekar på /#ankare så att de fungerar även från /manager —
+// Link ger SPA-navigering hem och HomePage scrollar sedan till rätt sektion.
 const navLinks = [
-  { href: '#gubbarna', label: 'Gubbarna' },
-  { href: '#spel', label: 'Spel' },
-  { href: '#siffrorna', label: 'Siffrorna' },
-  { href: '#citat', label: 'Citat' },
-  { href: '#om', label: 'Om oss' },
-  { href: '#discord', label: 'Discord' },
+  { to: '/#gubbarna', label: 'Gubbarna' },
+  { to: '/#spel', label: 'Spel' },
+  { to: '/#siffrorna', label: 'Siffrorna' },
+  { to: '/#citat', label: 'Citat' },
+  { to: '/manager', label: 'Manager' },
+  { to: '/#om', label: 'Om oss' },
+  { to: '/#discord', label: 'Discord' },
 ]
 
 export function Nav() {
@@ -49,14 +53,14 @@ export function Nav() {
   return (
     <nav className="nav">
       <div className="container nav-inner">
-        <a href="#top" className="nav-brand" onClick={() => setOpen(false)}>
+        <Link to="/#top" className="nav-brand" onClick={() => setOpen(false)}>
           <BvsMark className="mark" /> BVS
-        </a>
+        </Link>
         <div className="nav-links">
           {navLinks.map((l) => (
-            <a key={l.href} href={l.href}>
+            <Link key={l.to} to={l.to}>
               {l.label}
-            </a>
+            </Link>
           ))}
           <SteamLogin />
         </div>
@@ -75,9 +79,9 @@ export function Nav() {
       {open && (
         <div className="nav-overlay" role="dialog" aria-label="Meny">
           {navLinks.map((l) => (
-            <a key={l.href} href={l.href} onClick={() => setOpen(false)}>
+            <Link key={l.to} to={l.to} onClick={() => setOpen(false)}>
               {l.label}
-            </a>
+            </Link>
           ))}
           <SteamLogin />
         </div>
