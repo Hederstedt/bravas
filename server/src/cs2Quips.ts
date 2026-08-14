@@ -1,4 +1,5 @@
 import type { AttrKey } from "./cs2Cards.ts";
+import { hashSeed } from "./rng.ts";
 
 // Allt en regel får titta på. Råsiffrorna är redan omvandlade till kvoter här,
 // så reglerna slipper dividera och blir läsbara som villkor.
@@ -196,18 +197,6 @@ export const QUIP_RULES: QuipRule[] = [
   },
 ];
 
-// FNV-1a. Vilken variant en gubbe får ska stå still mellan sidladdningar — med
-// Math.random hade raden hoppat varje gång sidan uppdaterades, och testerna
-// hade inte gått att skriva.
-function hash(input: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return h;
-}
-
 function fill(line: string, d: Derived): string {
   return line
     .replaceAll("{timmar}", nf.format(Math.round(d.hours)))
@@ -234,7 +223,7 @@ function matchingRules(d: Derived): QuipRule[] {
 // texten: annars hade två veteraner kunnat få samma mening med olika siffror i
 // och läst som en upprepning.
 function takeUnused(rule: QuipRule, d: Derived, seed: string, used: Set<string>): Quip | null {
-  const start = hash(`${seed}:${rule.id}`) % rule.lines.length;
+  const start = hashSeed(`${seed}:${rule.id}`) % rule.lines.length;
   for (let step = 0; step < rule.lines.length; step++) {
     const index = (start + step) % rule.lines.length;
     const key = `${rule.id}#${index}`;
@@ -281,7 +270,7 @@ export function assignQuips(subjects: QuipSubject[]): Map<string, Quip[]> {
       const quip = takeUnused(FALLBACK_RULE, derived, id, used);
       // Är även den poolen slut får en rad återanvändas. Ett kort utan
       // kommentar vore sämre än en upprepning.
-      quips.push(quip ?? quipFrom(FALLBACK_RULE, hash(id) % FALLBACK_RULE.lines.length, derived));
+      quips.push(quip ?? quipFrom(FALLBACK_RULE, hashSeed(id) % FALLBACK_RULE.lines.length, derived));
     }
 
     assigned.set(id, quips);
