@@ -1,10 +1,16 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Quotes } from './quotes'
 import * as api from '../api'
+import { emitLiveEvent, installLiveEvents, teardownLiveEvents } from '../test/liveEvents'
+
+beforeEach(() => {
+  installLiveEvents()
+})
 
 afterEach(() => {
+  teardownLiveEvents()
   vi.restoreAllMocks()
 })
 
@@ -132,5 +138,36 @@ describe('Quotes', () => {
 
     expect(await screen.findByText(/<img src=x onerror=alert\(1\)>/)).toBeInTheDocument()
     expect(container.querySelector('img')).toBeNull()
+  })
+})
+
+describe('the wall keeping itself current', () => {
+  it('picks up a quote someone else added, without a reload', async () => {
+    const fetchQuotes = vi.spyOn(api, 'fetchQuotes').mockResolvedValue([QUOTE])
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+
+    render(<Quotes />)
+    await screen.findByText(/Jag hade ju träklubban/)
+
+    const added = { ...QUOTE, id: 2, text: 'Rush B, tänk inte', saidBy: 'Gubbe #1', votes: 0 }
+    fetchQuotes.mockResolvedValue([QUOTE, added])
+
+    act(() => emitLiveEvent('quote', { reason: 'added' }))
+
+    expect(await screen.findByText(/Rush B, tänk inte/)).toBeInTheDocument()
+  })
+
+  it('picks up a vote cast in another tab', async () => {
+    const fetchQuotes = vi.spyOn(api, 'fetchQuotes').mockResolvedValue([QUOTE])
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+
+    render(<Quotes />)
+    const card = (await screen.findByText(/Jag hade ju träklubban/)).closest('article')!
+    expect(within(card).getByText('3')).toBeInTheDocument()
+
+    fetchQuotes.mockResolvedValue([{ ...QUOTE, votes: 4 }])
+    act(() => emitLiveEvent('quote', { reason: 'voted', id: 1 }))
+
+    await waitFor(() => expect(within(card).getByText('4')).toBeInTheDocument())
   })
 })

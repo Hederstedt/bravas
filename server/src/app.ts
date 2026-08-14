@@ -7,6 +7,7 @@ import { presenceRouter } from "./routes/presence.ts";
 import { quotesRouter } from "./routes/quotes.ts";
 import { statsRouter } from "./routes/stats.ts";
 import { configRouter } from "./routes/config.ts";
+import { eventsRouter } from "./routes/events.ts";
 
 export function createApp(): Express {
   const app = express();
@@ -25,6 +26,7 @@ export function createApp(): Express {
   app.use("/api/quotes", quotesRouter);
   app.use("/api/stats", statsRouter);
   app.use("/api/config", configRouter);
+  app.use("/api/events", eventsRouter);
 
   return app;
 }

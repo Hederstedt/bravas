@@ -1,12 +1,18 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import * as api from '../api'
 import type { PlayerCard, RosterMember } from '../api'
 import { members } from '../data/clan'
+import { emitLiveEvent, installLiveEvents, teardownLiveEvents } from '../test/liveEvents'
 import { Roster } from './roster'
 
+beforeEach(() => {
+  installLiveEvents()
+})
+
 afterEach(() => {
+  teardownLiveEvents()
   vi.restoreAllMocks()
 })
 
@@ -243,5 +249,53 @@ describe('the attribute legend', () => {
     for (const attr of MAG_CARD.attributes) {
       expect(screen.getByText(attr.description)).toBeInTheDocument()
     }
+  })
+})
+
+describe('live presence updates', () => {
+  it('moves the dot when the server says someone started a game', async () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    render(<Roster />)
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    expect(within(card).queryByRole('status')).not.toBeInTheDocument()
+
+    act(() => {
+      emitLiveEvent('presence', {
+        presence: { [MAG.steamid64]: { status: 'in-game', game: 'Valheim' } },
+      })
+    })
+
+    expect(within(card).getByRole('status')).toHaveAccessibleName('Spelar Valheim')
+    expect(within(card).getByText('Valheim')).toBeInTheDocument()
+  })
+
+  it('leaves the ratings alone so the lineup does not jump', async () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    render(<Roster />)
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    act(() => {
+      emitLiveEvent('presence', {
+        presence: { [MAG.steamid64]: { status: 'online', game: null } },
+      })
+    })
+
+    expect(within(card).getByText('84')).toBeInTheDocument()
+    expect(within(card).getByText('SMYGARE')).toBeInTheDocument()
+  })
+
+  it('ignores an event with nothing useful in it', async () => {
+    stubApi({
+      members: [MAG],
+      cards: [MAG_CARD],
+      presence: { [MAG.steamid64]: { status: 'online', game: null } },
+    })
+    render(<Roster />)
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    act(() => emitLiveEvent('presence', null))
+
+    expect(within(card).getByRole('status')).toHaveAccessibleName('Online')
   })
 })

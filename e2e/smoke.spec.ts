@@ -17,6 +17,16 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({ json: { cards: [], memberCount: 0, withStats: 0 } }),
   )
   await page.route('**/api/quotes', (route) => route.fulfill({ json: { quotes: [] } }))
+  // Händelseströmmen svarar 200 med rätt innehållstyp men inget innehåll. En
+  // 404 här hade fått EventSource att logga ett fel, vilket inte speglar
+  // driften — där finns endpointen.
+  await page.route('**/api/events', (route) =>
+    route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
+      body: ': ansluten\n\n',
+    }),
+  )
 })
 
 test('landing page loads without console errors', async ({ page }) => {
