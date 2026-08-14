@@ -169,6 +169,178 @@ export async function fetchPresence(): Promise<PresenceMap> {
   return data?.presence ?? {}
 }
 
+// ---------- CS Manager ----------
+
+// Speglar server/src/cs2Cards.ts och matchSim.ts.
+export type ManagerAttrKey = 'SIK' | 'SKA' | 'FRA' | 'TÅL' | 'NYT' | 'TID'
+export type ManagerRatings = Record<ManagerAttrKey, number>
+
+// Speglar server/src/seasonService.ts (PublicPlayer).
+export interface PoolPlayer {
+  key: string
+  source: string
+  name: string
+  ratings: ManagerRatings
+  value: number
+  takenBy: string | null
+}
+
+// Speglar server/src/db.ts (SeasonRow).
+export interface Season {
+  id: number
+  name: string
+  starts_at: number
+  ends_at: number
+  status: string
+}
+
+export interface ManagerTeam {
+  id: number
+  name: string
+  squad: PoolPlayer[]
+  spent: number
+}
+
+// Speglar server/src/league.ts.
+export interface TableRow {
+  teamId: number
+  name: string
+  played: number
+  won: number
+  drawn: number
+  lost: number
+  roundsFor: number
+  roundsAgainst: number
+  diff: number
+  points: number
+}
+
+// Speglar server/src/leagueService.ts.
+export interface PublicFixture {
+  id: number
+  matchday: number
+  home: { id: number; name: string }
+  away: { id: number; name: string }
+  played: boolean
+  homeScore: number | null
+  awayScore: number | null
+}
+
+// Speglar server/src/seasonService.ts (SeasonView). season: null är ett giltigt
+// svar — ingen säsong igång — och skiljer sig från att API:et är nere (null
+// från fetchManagerView).
+export interface ManagerView {
+  season: Season | null
+  budget: number
+  squadSize: number
+  pool: PoolPlayer[]
+  myTeam: ManagerTeam | null
+  teams: { id: number; name: string; manager: string }[]
+  table: TableRow[]
+  fixtures: PublicFixture[]
+}
+
+// Speglar server/src/matchSim.ts.
+export interface PlayerLine {
+  id: string
+  name: string
+  kills: number
+  deaths: number
+}
+
+export interface RoundResult {
+  round: number
+  winner: 'home' | 'away'
+  kills: { killerId: string; victimId: string }[]
+}
+
+// Speglar svaret från GET /api/manager/match/:id — rapporten sparades när
+// matchen spelades och simuleras aldrig om.
+export interface MatchReport {
+  id: number
+  matchday: number
+  homeScore: number | null
+  awayScore: number | null
+  report: {
+    homeScore: number
+    awayScore: number
+    winner: 'home' | 'away' | 'draw'
+    rounds: RoundResult[]
+    scoreboard: { home: PlayerLine[]; away: PlayerLine[] }
+    mvp: PlayerLine | null
+    walkover?: string
+  }
+}
+
+export interface MatchdayResult {
+  matchday: number
+  played: number
+}
+
+// Speglar serverns gräns för lag- och säsongsnamn.
+export const MAX_TEAM_NAME = 40
+
+export async function fetchManagerView(): Promise<ManagerView | null> {
+  return await getJson<ManagerView>('/api/manager')
+}
+
+export async function fetchMatchReport(id: number): Promise<MatchReport | null> {
+  return await getJson<MatchReport>(`/api/manager/match/${id}`)
+}
+
+// Managerspelets skrivningar skiljer sig från resten av sajten: servern svarar
+// med läsbara svenska felmeddelanden som ska rakt ut i gränssnittet, så här
+// räcker det inte att svälja felkroppen till null som send() gör.
+export type ApiResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: string; message: string | null }
+
+async function sendJson<T>(path: string, method: 'POST' | 'PUT', body?: object): Promise<ApiResult<T>> {
+  const token = await csrfToken()
+  if (!token) return { ok: false, error: 'no_csrf', message: null }
+  try {
+    const res = await fetch(path, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'x-csrf-token': token },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+    if (!res.ok) {
+      let error = `http_${res.status}`
+      let message: string | null = null
+      try {
+        const data = (await res.json()) as { error?: string; message?: string }
+        error = data.error ?? error
+        message = data.message ?? null
+      } catch {
+        // En felkropp utan JSON är fortfarande ett fel — statuskoden får tala.
+      }
+      return { ok: false, error, message }
+    }
+    return { ok: true, data: (await res.json()) as T }
+  } catch {
+    return { ok: false, error: 'network', message: null }
+  }
+}
+
+export async function startSeason(name: string): Promise<ApiResult<{ season: Season }>> {
+  return await sendJson<{ season: Season }>('/api/manager/season', 'POST', { name })
+}
+
+export async function createTeam(name: string): Promise<ApiResult<{ team: { id: number; name: string } }>> {
+  return await sendJson<{ team: { id: number; name: string } }>('/api/manager/team', 'POST', { name })
+}
+
+// Lyckat svar är hela den färska managervyn — den sätts rakt in i state, ingen
+// extra omhämtning behövs.
+export async function saveSquad(players: string[]): Promise<ApiResult<ManagerView>> {
+  return await sendJson<ManagerView>('/api/manager/squad', 'PUT', { players })
+}
+
+export async function playMatchday(): Promise<ApiResult<MatchdayResult>> {
+  return await sendJson<MatchdayResult>('/api/manager/matchday', 'POST')
+}
+
 export async function fetchSiteConfig(): Promise<SiteConfig> {
   const data = await getJson<SiteConfig>('/api/config')
   return data ?? { discordServerId: '', discordInviteUrl: '' }
