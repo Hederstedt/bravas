@@ -48,6 +48,14 @@ export function SteamIcon() {
   )
 }
 
+export function LockIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2a5 5 0 0 1 5 5v3h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5Zm0 2a3 3 0 0 0-3 3v3h6V7a3 3 0 0 0-3-3Zm0 8.5a1.8 1.8 0 0 1 .9 3.35V18a.9.9 0 1 1-1.8 0v-2.15A1.8 1.8 0 0 1 12 12.5Z" />
+    </svg>
+  )
+}
+
 export function TrophyIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">

@@ -7,7 +7,15 @@ import { useLiveEvent } from '../useLiveEvents'
 import { useSiteConfig } from '../useSiteConfig'
 import { SteamLogin } from './auth'
 import { BvsMark } from './BvsMark'
-import { DiscordIcon, CrosshairIcon, AxeIcon, FactoryIcon, TankIcon, TrophyIcon } from './icons'
+import {
+  DiscordIcon,
+  CrosshairIcon,
+  AxeIcon,
+  FactoryIcon,
+  LockIcon,
+  TankIcon,
+  TrophyIcon,
+} from './icons'
 
 // Rostern bor i egen fil — den bär hela kortmodellen och gjorde den här filen
 // dubbelt så lång. Re-exporteras här så importerna ser likadana ut som förut.
@@ -128,6 +136,131 @@ export function Hero() {
 // lösenord och adress är statisk konfig och ingår inte i själva livehändelsen.
 type ValheimLiveUpdate = Pick<ValheimStatus, 'online' | 'players' | 'maxPlayers'>
 
+// Adress och lösenord är till för att klistras in i Valheim, inte för att
+// skrivas av för hand från en mobilskärm. Klicket får inte bubbla vidare —
+// på flippkortet hade det vänt tillbaka kortet mitt i kopieringen.
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value)
+    } catch {
+      return
+    }
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <button
+      type="button"
+      className={`copy-btn${copied ? ' copied' : ''}`}
+      aria-label={label}
+      title={label}
+      onClick={(e) => {
+        e.stopPropagation()
+        void copy()
+      }}
+    >
+      {copied ? 'Kopierat ✓' : 'Kopiera'}
+    </button>
+  )
+}
+
+// Valheim-kortet lever: ramen pulserar grönt när servern är online, och för
+// inloggade flippar kortet på klick till en baksida med anslutningsuppgifterna.
+// Flip-knapparna finns för tangentbord och skärmläsare — musklick fungerar
+// var som helst på kortet via bubbling. Den bortvända sidan görs inert så att
+// tabb-ordningen inte snubblar in i osynliga knappar.
+function ValheimCard({
+  title,
+  blurb,
+  art,
+  status,
+}: {
+  title: string
+  blurb: string
+  art: { tint: string; art: string; icon: ReactNode }
+  status: ValheimStatus | null
+}) {
+  const [flipped, setFlipped] = useState(false)
+  const canFlip = Boolean(status?.serverName && status?.password)
+  const live = status?.online === true
+
+  return (
+    <article
+      className={`game-card${live ? ' live' : ''}${canFlip ? ' flippable' : ''}${flipped ? ' flipped' : ''}`}
+      style={{ '--game-tint': art.tint, '--game-art': art.art } as React.CSSProperties}
+      onClick={canFlip ? () => setFlipped((f) => !f) : undefined}
+    >
+      <div className="card-inner">
+        <div className="card-front" inert={flipped}>
+          <div className="art">{art.icon}</div>
+          <h3>{title}</h3>
+          <p>{blurb}</p>
+
+          {status && (
+            <p className={`live-row${live ? ' online' : ''}`}>
+              <span className="server-dot" aria-hidden="true" />
+              {live ? 'Online' : 'Offline'}
+              {live && status.players !== null && (
+                <span className="live-count">{`${status.players} / ${status.maxPlayers} inne`}</span>
+              )}
+            </p>
+          )}
+
+          {status && !canFlip && (
+            <p className="server-locked">
+              <LockIcon />
+              Logga in för att se serverns namn och lösenord
+            </p>
+          )}
+
+          {canFlip && (
+            <button type="button" className="flip-hint">
+              Visa namn &amp; lösenord ↻
+            </button>
+          )}
+        </div>
+
+        {canFlip && status && (
+          <div className="card-back" inert={!flipped}>
+            <h3>Anslut till servern</h3>
+            <dl className="server-details">
+              <div className="server-row">
+                <dt>Server</dt>
+                <dd>
+                  <strong>{status.serverName}</strong>
+                </dd>
+              </div>
+              {status.address && (
+                <div className="server-row">
+                  <dt>Adress</dt>
+                  <dd>
+                    <code>{status.address}</code>
+                    <CopyButton value={status.address} label="Kopiera adressen" />
+                  </dd>
+                </div>
+              )}
+              <div className="server-row">
+                <dt>Lösenord</dt>
+                <dd>
+                  <code>{status.password}</code>
+                  <CopyButton value={status.password!} label="Kopiera lösenordet" />
+                </dd>
+              </div>
+            </dl>
+            <button type="button" className="flip-hint">
+              Vänd tillbaka ↻
+            </button>
+          </div>
+        )}
+      </div>
+    </article>
+  )
+}
+
 export function Games() {
   const [valheim, setValheim] = useState<ValheimStatus | null>(null)
 
@@ -160,6 +293,13 @@ export function Games() {
         <div className="games-grid">
           {games.map((g) => {
             const art = gameArt[g.id]
+            // Valheim-kortet bär livestatusen i stället för en statisk pill —
+            // "Säsong" bredvid "Online" hade bara varit brus.
+            if (g.id === 'valheim') {
+              return (
+                <ValheimCard key={g.id} title={g.title} blurb={g.blurb} art={art} status={valheim} />
+              )
+            }
             return (
               <article
                 key={g.id}
@@ -172,22 +312,6 @@ export function Games() {
                 <span className={`status ${g.status.toLowerCase().replace(' ', '-')}`}>
                   {g.status}
                 </span>
-                {g.id === 'valheim' && valheim && (
-                  <div className="valheim-live">
-                    <span className={`status ${valheim.online ? 'aktivt' : 'på-is'}`}>
-                      {valheim.online ? `${valheim.players} / ${valheim.maxPlayers} online` : 'Offline'}
-                    </span>
-                    {valheim.serverName && valheim.password ? (
-                      <p className="valheim-connect">
-                        <strong>{valheim.serverName}</strong>
-                        <br />
-                        {valheim.address} · lösenord <code>{valheim.password}</code>
-                      </p>
-                    ) : (
-                      <p className="valheim-locked">Logga in för att se serverns namn och lösenord</p>
-                    )}
-                  </div>
-                )}
               </article>
             )
           })}

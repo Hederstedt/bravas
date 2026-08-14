@@ -724,32 +724,237 @@ a.steam-login:hover {
   color: #7dd3fc;
 }
 
-.valheim-live {
+/* ---------- Valheim-kortet: live-ram och flipp ---------- */
+/* Online signaleras av hela kortet: ramen pulserar grönt. Glowen ligger som
+   inset-skugga — clip-path klipper bort allt som målas utanför kortkanten. */
+.game-card.live {
+  border-color: rgba(74, 222, 128, 0.8);
+  animation: live-border 2.6s ease-in-out infinite;
+}
+
+.game-card.live:hover {
+  border-color: var(--green);
+}
+
+@keyframes live-border {
+  0%,
+  100% {
+    border-color: rgba(74, 222, 128, 0.85);
+    box-shadow: inset 0 0 26px -10px rgba(74, 222, 128, 0.45);
+  }
+  50% {
+    border-color: rgba(74, 222, 128, 0.3);
+    box-shadow: inset 0 0 12px -10px rgba(74, 222, 128, 0);
+  }
+}
+
+/* Flippen: fram- och baksidan delar samma grid-ruta, kortet roterar på klick.
+   Höjden sätts av den högsta sidan (framsidan, med sin art), så baksidan kan
+   centrera sitt innehåll utan att kortet ändrar storlek. */
+.game-card.flippable {
+  cursor: pointer;
+  perspective: 1200px;
+}
+
+.card-inner {
+  display: grid;
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.game-card.flipped .card-inner {
+  transform: rotateY(180deg);
+}
+
+.card-front,
+.card-back {
+  grid-area: 1 / 1;
+  min-width: 0;
+  backface-visibility: hidden;
+}
+
+.card-back {
+  transform: rotateY(180deg);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+}
+
+.card-back h3 {
+  font-size: 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-card.live {
+    animation: none;
+  }
+  .card-inner {
+    transition: none;
+  }
+}
+
+/* Statusraden på framsidan: prick, läge och antal inne. */
+.live-row {
   margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid var(--panel-edge);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #94a3b8;
 }
 
-.valheim-live .status {
-  margin-bottom: 8px;
+.live-row.online {
+  color: var(--green);
 }
 
-.valheim-connect,
-.valheim-locked {
-  font-size: 14px;
+.server-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #64748b;
+}
+
+.live-row.online .server-dot {
+  background: var(--green);
+  animation: server-pulse 2.4s ease-out infinite;
+}
+
+@keyframes server-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(74, 222, 128, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-row.online .server-dot {
+    animation: none;
+  }
+}
+
+.live-count {
+  margin-left: auto;
+  color: var(--text);
+  letter-spacing: 1px;
+}
+
+.flip-hint {
+  align-self: flex-start;
+  margin-top: 12px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 13px;
   color: var(--muted);
-  margin: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  transition: color 0.15s;
 }
 
-.valheim-connect strong {
+.flip-hint:hover {
   color: var(--text);
 }
 
-.valheim-connect code {
+.card-back .flip-hint {
+  margin-top: 0;
+}
+
+.server-details {
+  margin: 12px 0 0;
+  display: grid;
+  gap: 8px;
+}
+
+.server-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.server-row dt {
+  flex: none;
+  width: 76px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.server-row dd {
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.server-row strong {
+  color: var(--text);
+}
+
+.server-row code {
   font-family: var(--font-display);
   background: rgba(255, 255, 255, 0.08);
   padding: 2px 6px;
   border-radius: 3px;
+  overflow-wrap: anywhere;
+}
+
+.copy-btn {
+  flex: none;
+  padding: 2px 8px;
+  border: 1px solid var(--panel-edge);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.copy-btn:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+.copy-btn.copied {
+  color: var(--green);
+  border-color: currentColor;
+}
+
+.server-locked {
+  margin: 12px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.server-locked svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
 }
 
 /* ---------- Laguppställningen ---------- */
