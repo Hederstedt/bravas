@@ -14,6 +14,8 @@ import {
   type TeamRow,
 } from "./db.ts";
 import type { PlayerRatings } from "./matchSim.ts";
+import { publicFixtures, seasonTable, type PublicFixture } from "./leagueService.ts";
+import type { TableRow } from "./league.ts";
 import { getCards } from "./statsService.ts";
 import {
   buildPool,
@@ -94,12 +96,23 @@ export interface SeasonView {
   pool: PublicPlayer[];
   myTeam: { id: number; name: string; squad: PublicPlayer[]; spent: number } | null;
   teams: { id: number; name: string; manager: string }[];
+  table: TableRow[];
+  fixtures: PublicFixture[];
 }
 
 export function seasonView(steamid64: string | null): SeasonView {
   const season = activeSeason() ?? null;
   if (!season) {
-    return { season: null, budget: SEASON_BUDGET, squadSize: SQUAD_SIZE, pool: [], myTeam: null, teams: [] };
+    return {
+      season: null,
+      budget: SEASON_BUDGET,
+      squadSize: SQUAD_SIZE,
+      pool: [],
+      myTeam: null,
+      teams: [],
+      table: [],
+      fixtures: [],
+    };
   }
 
   const teams = listTeams(season.id);
@@ -122,6 +135,8 @@ export function seasonView(steamid64: string | null): SeasonView {
       ? { id: mine.id, name: mine.name, squad, spent: squad.reduce((s, p) => s + p.value, 0) }
       : null,
     teams: teams.map((t) => ({ id: t.id, name: t.name, manager: t.manager_steamid64 })),
+    table: seasonTable(season.id),
+    fixtures: publicFixtures(season.id),
   };
 }
 
