@@ -1328,3 +1328,232 @@ footer {
 footer .heart {
   color: var(--accent);
 }
+
+/* ---------- Manager ---------- */
+.manager-season {
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+
+.manager-block {
+  margin-bottom: 48px;
+}
+
+.manager-block h3 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+
+.league-table-wrap,
+.pool-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.pool-wrap {
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.league-table,
+.pool-table,
+.scoreboard table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.league-table th,
+.league-table td,
+.pool-table th,
+.pool-table td,
+.scoreboard th,
+.scoreboard td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--panel-edge);
+  white-space: nowrap;
+}
+
+.league-table tbody tr:last-child td,
+.pool-table tbody tr:last-child td,
+.scoreboard tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.league-table th,
+.pool-table th,
+.scoreboard th {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--muted);
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+}
+
+.league-table .num,
+.pool-table .num,
+.scoreboard .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.league-table .points {
+  color: var(--accent-soft);
+  font-weight: 700;
+}
+
+.pool-table tr.taken td {
+  color: var(--muted);
+}
+
+.squad-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  max-width: 480px;
+}
+
+.squad-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--panel-edge);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.squad-list .value {
+  color: var(--accent-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.manager-budget {
+  margin-top: 12px;
+  color: var(--muted);
+}
+
+.fixtures {
+  display: grid;
+  gap: 24px;
+}
+
+.matchday h4 {
+  font-family: var(--font-display);
+  color: var(--muted);
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.fixture-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.fixture {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 14px;
+  border: 1px solid var(--panel-edge);
+  border-radius: 8px;
+  background: var(--panel);
+  max-width: 560px;
+}
+
+.fixture-team.home {
+  text-align: right;
+}
+
+.fixture-score {
+  min-width: 48px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--accent-soft);
+  text-decoration: none;
+}
+
+a.fixture-score:hover {
+  color: var(--accent);
+}
+
+.fixture-score.unplayed {
+  color: var(--muted);
+}
+
+.report-score {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.report-score strong {
+  font-family: var(--font-display);
+  font-size: 40px;
+  color: var(--accent-soft);
+}
+
+.report-matchday,
+.report-draw {
+  color: var(--muted);
+}
+
+.report-mvp {
+  margin-bottom: 16px;
+}
+
+.report-rounds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 32px;
+}
+
+.round-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--panel-edge);
+}
+
+.round-dot.home {
+  background: var(--accent);
+}
+
+.round-dot.away {
+  background: var(--bg-raise);
+}
+
+.report-boards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.scoreboard {
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.scoreboard h4 {
+  font-family: var(--font-display);
+  letter-spacing: 1px;
+  color: var(--muted);
+  padding: 10px 14px 0;
+}
