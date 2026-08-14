@@ -1,9 +1,10 @@
 import { Router } from "express";
-import { activeSeason, getTeam } from "../db.ts";
+import { activeSeason, getFixture, getTeam } from "../db.ts";
 import { mutationLimiter, readLimiter } from "../middleware/rateLimit.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
 import { verifySessionCookieValue } from "../session.ts";
 import { sessionCookie } from "../session.ts";
+import { playNextMatchday } from "../leagueService.ts";
 import { claimTeam, saveSquad, seasonView, startSeason } from "../seasonService.ts";
 
 export const managerRouter = Router();
@@ -80,4 +81,42 @@ managerRouter.put("/squad", mutationLimiter, requireAuth, (req, res) => {
   }
 
   res.json(seasonView(req.member!.steamid64));
+});
+
+// Spelar nästa ospelade omgång. Vem som helst i klanen får trycka — det är en
+// gemensam serie, inte något som en enskild manager äger.
+managerRouter.post("/matchday", mutationLimiter, requireAuth, (_req, res) => {
+  const season = activeSeason();
+  if (!season) {
+    res.status(409).json({ error: "no_active_season" });
+    return;
+  }
+
+  const result = playNextMatchday(season);
+  if (!result) {
+    res.status(409).json({ error: "season_finished" });
+    return;
+  }
+  res.status(201).json(result);
+});
+
+// Referatet sparas när matchen spelas och läses tillbaka som det är — det
+// simuleras aldrig om, så en rapport kan inte säga något annat än resultatet.
+managerRouter.get("/match/:id", readLimiter, (req, res) => {
+  const raw = req.params.id;
+  const id = typeof raw === "string" && /^\d+$/.test(raw) ? Number(raw) : null;
+  const fixture = id === null ? undefined : getFixture(id);
+
+  if (!fixture || !fixture.report_json) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+
+  res.json({
+    id: fixture.id,
+    matchday: fixture.matchday,
+    homeScore: fixture.home_score,
+    awayScore: fixture.away_score,
+    report: JSON.parse(fixture.report_json) as unknown,
+  });
 });

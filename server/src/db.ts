@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { config } from "./config.ts";
+import type { Fixture } from "./league.ts";
 import type { PoolPlayer } from "./season.ts";
 
 mkdirSync(dirname(config.dbPath), { recursive: true });
@@ -97,6 +98,23 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_squads_team ON squads(team_id);
+
+  -- Spelschemat läggs en gång när säsongen drar igång. played_at null betyder
+  -- att matchen inte spelats än; rapporten är hela MatchResult som JSON så att
+  -- referatet kan läsas om utan att simuleras på nytt.
+  CREATE TABLE IF NOT EXISTS fixtures (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    season_id INTEGER NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
+    matchday INTEGER NOT NULL,
+    home_team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    away_team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    played_at INTEGER,
+    home_score INTEGER,
+    away_score INTEGER,
+    report_json TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_fixtures_season ON fixtures(season_id, matchday);
 `);
 
 export interface Member {
@@ -280,3 +298,61 @@ export const setSquad = db.transaction((seasonId: number, teamId: number, keys: 
     insert.run(row.id, teamId);
   }
 });
+
+export interface FixtureRow {
+  id: number;
+  season_id: number;
+  matchday: number;
+  home_team_id: number;
+  away_team_id: number;
+  played_at: number | null;
+  home_score: number | null;
+  away_score: number | null;
+  report_json: string | null;
+}
+
+// Schemat läggs i en transaktion: ett halvlagt spelschema vore värre än inget,
+// eftersom serien då startat med bara några av omgångarna.
+export const saveFixtures = db.transaction((seasonId: number, fixtures: readonly Fixture[]) => {
+  const insert = db.prepare(
+    "INSERT INTO fixtures (season_id, matchday, home_team_id, away_team_id) VALUES (?, ?, ?, ?)"
+  );
+  for (const f of fixtures) insert.run(seasonId, f.matchday, f.home, f.away);
+});
+
+export function listFixtures(seasonId: number): FixtureRow[] {
+  return db
+    .prepare("SELECT * FROM fixtures WHERE season_id = ? ORDER BY matchday, id")
+    .all(seasonId) as FixtureRow[];
+}
+
+export function getFixture(id: number): FixtureRow | undefined {
+  return db.prepare("SELECT * FROM fixtures WHERE id = ?").get(id) as FixtureRow | undefined;
+}
+
+// Nästa omgång som inte spelats. null när serien är färdigspelad.
+export function nextMatchday(seasonId: number): number | null {
+  const row = db
+    .prepare("SELECT MIN(matchday) AS day FROM fixtures WHERE season_id = ? AND played_at IS NULL")
+    .get(seasonId) as { day: number | null };
+  return row.day;
+}
+
+export function unplayedOnMatchday(seasonId: number, matchday: number): FixtureRow[] {
+  return db
+    .prepare(
+      "SELECT * FROM fixtures WHERE season_id = ? AND matchday = ? AND played_at IS NULL ORDER BY id"
+    )
+    .all(seasonId, matchday) as FixtureRow[];
+}
+
+export function saveResult(
+  fixtureId: number,
+  homeScore: number,
+  awayScore: number,
+  report: unknown
+): void {
+  db.prepare(
+    "UPDATE fixtures SET played_at = ?, home_score = ?, away_score = ?, report_json = ? WHERE id = ?"
+  ).run(Date.now(), homeScore, awayScore, JSON.stringify(report), fixtureId);
+}

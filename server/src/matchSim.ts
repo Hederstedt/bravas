@@ -51,6 +51,9 @@ export interface MatchResult {
   rounds: RoundResult[];
   scoreboard: { home: PlayerLine[]; away: PlayerLine[] };
   mvp: PlayerLine | null;
+  // Satt när matchen aldrig spelades — ett lag saknade trupp. Rapporten säger
+  // varför i stället för att visa en tom match.
+  walkover?: string;
 }
 
 // Hur hårt betygen slår igenom i en enskild duell. Ett rått styrkeförhållande
