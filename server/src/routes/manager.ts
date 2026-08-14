@@ -5,7 +5,8 @@ import { requireAuth } from "../middleware/requireAuth.ts";
 import { verifySessionCookieValue } from "../session.ts";
 import { sessionCookie } from "../session.ts";
 import { playNextMatchday } from "../leagueService.ts";
-import { claimTeam, saveSquad, seasonView, startSeason } from "../seasonService.ts";
+import { makeTransfer } from "../marketService.ts";
+import { claimTeam, saveSquad, seasonLocked, seasonView, startSeason } from "../seasonService.ts";
 
 export const managerRouter = Router();
 
@@ -61,6 +62,16 @@ managerRouter.put("/squad", mutationLimiter, requireAuth, (req, res) => {
     return;
   }
 
+  // Fri ombyggnad gäller bara i byggfasen. När serien är igång är truppen
+  // låst — annars vore transfermarknadens knapphet och kvot meningslösa.
+  if (seasonLocked(season.id)) {
+    res.status(409).json({
+      error: "squad_locked",
+      message: "Truppen är låst när serien är igång — byt gubbar via transfermarknaden.",
+    });
+    return;
+  }
+
   const team = getTeam(season.id, req.member!.steamid64);
   if (!team) {
     res.status(409).json({ error: "no_team" });
@@ -77,6 +88,47 @@ managerRouter.put("/squad", mutationLimiter, requireAuth, (req, res) => {
   if (!result.ok) {
     // Meddelandet är skrivet för managern och går rakt ut i gränssnittet.
     res.status(400).json({ error: "invalid_squad", message: result.error });
+    return;
+  }
+
+  res.json(seasonView(req.member!.steamid64));
+});
+
+// En affär: sälj en truppgubbe till poolen, köp en ledig. Bara i seriefasen —
+// i byggfasen byggs truppen om fritt med PUT /squad i stället.
+managerRouter.post("/transfer", mutationLimiter, requireAuth, (req, res) => {
+  const season = activeSeason();
+  if (!season) {
+    res.status(409).json({ error: "no_active_season" });
+    return;
+  }
+
+  if (!seasonLocked(season.id)) {
+    res.status(409).json({
+      error: "season_not_started",
+      message: "Serien har inte startat än — bygg om truppen fritt så länge.",
+    });
+    return;
+  }
+
+  const team = getTeam(season.id, req.member!.steamid64);
+  if (!team) {
+    res.status(409).json({ error: "no_team" });
+    return;
+  }
+
+  const body = req.body as { sell?: unknown; buy?: unknown };
+  const sell = typeof body?.sell === "string" ? body.sell : "";
+  const buy = typeof body?.buy === "string" ? body.buy : "";
+  if (!sell || !buy) {
+    res.status(400).json({ error: "invalid_transfer", message: "Välj en gubbe att sälja och en att köpa." });
+    return;
+  }
+
+  const result = makeTransfer(season, team, sell, buy);
+  if (!result.ok) {
+    const status = result.code === "invalid_transfer" ? 400 : 409;
+    res.status(status).json({ error: result.code, message: result.error });
     return;
   }
 

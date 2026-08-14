@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { config } from "./config.ts";
 import type { Fixture } from "./league.ts";
-import type { PoolPlayer } from "./season.ts";
+import { SEASON_BUDGET, type PoolPlayer } from "./season.ts";
 
 mkdirSync(dirname(config.dbPath), { recursive: true });
 
@@ -115,7 +115,40 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_fixtures_season ON fixtures(season_id, matchday);
+
+  -- Transferloggen är både historik och kvoträkning: en transfer per lag och
+  -- ospelad omgång räknas med COUNT på samma rader som berättar vad som hände,
+  -- i stället för en separat räknare som kan glida isär.
+  CREATE TABLE IF NOT EXISTS transfers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    season_id INTEGER NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
+    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    matchday INTEGER NOT NULL,
+    sold_player_id INTEGER NOT NULL REFERENCES season_players(id),
+    bought_player_id INTEGER NOT NULL REFERENCES season_players(id),
+    sold_for INTEGER NOT NULL,
+    bought_for INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_transfers_team_day ON transfers(team_id, matchday);
 `);
+
+// Lagkassan kom efter teams-tabellen och produktionen har redan lag, så
+// kolumnen läggs till guardat och fylls i från truppens värde: det som är
+// kvar av budgeten är budgeten minus det truppen kostade.
+const teamColumns = db.pragma("table_info(teams)") as { name: string }[];
+if (!teamColumns.some((c) => c.name === "funds")) {
+  db.exec("ALTER TABLE teams ADD COLUMN funds INTEGER NOT NULL DEFAULT 0");
+  db.exec(`
+    UPDATE teams SET funds = ${SEASON_BUDGET} - COALESCE(
+      (SELECT SUM(p.value) FROM squads s
+       JOIN season_players p ON p.id = s.season_player_id
+       WHERE s.team_id = teams.id),
+      0
+    )
+  `);
+}
 
 export interface Member {
   steamid64: string;
@@ -240,6 +273,11 @@ export interface TeamRow {
   manager_steamid64: string;
   name: string;
   created_at: number;
+  funds: number;
+}
+
+export function setFunds(teamId: number, funds: number): void {
+  db.prepare("UPDATE teams SET funds = ? WHERE id = ?").run(funds, teamId);
 }
 
 export function getTeam(seasonId: number, steamid64: string): TeamRow | undefined {
@@ -356,3 +394,61 @@ export function saveResult(
     "UPDATE fixtures SET played_at = ?, home_score = ?, away_score = ?, report_json = ? WHERE id = ?"
   ).run(Date.now(), homeScore, awayScore, JSON.stringify(report), fixtureId);
 }
+
+// Skiljer byggfasen från seriefasen: så fort en match är spelad låses trupperna
+// och all förändring går via transfermarknaden.
+export function anyFixturePlayed(seasonId: number): boolean {
+  return (
+    db
+      .prepare("SELECT 1 FROM fixtures WHERE season_id = ? AND played_at IS NOT NULL LIMIT 1")
+      .get(seasonId) !== undefined
+  );
+}
+
+export function transferCount(teamId: number, matchday: number): number {
+  const row = db
+    .prepare("SELECT COUNT(*) AS n FROM transfers WHERE team_id = ? AND matchday = ?")
+    .get(teamId, matchday) as { n: number };
+  return row.n;
+}
+
+// Sälj, köp, kassa och loggrad i en transaktion. INSERT:en in i squads är
+// racets sista ord: primärnyckeln ligger på spelaren, så två lag som köper
+// samma gubbe i samma ögonblick ger exakt en vinnare — förloraren kastar här
+// och anroparen översätter till ett läsbart besked.
+export const applyTransfer = db.transaction(
+  (input: {
+    seasonId: number;
+    teamId: number;
+    matchday: number;
+    soldPlayerId: number;
+    boughtPlayerId: number;
+    soldFor: number;
+    boughtFor: number;
+    newFunds: number;
+  }) => {
+    db.prepare("DELETE FROM squads WHERE season_player_id = ? AND team_id = ?").run(
+      input.soldPlayerId,
+      input.teamId
+    );
+    db.prepare("INSERT INTO squads (season_player_id, team_id) VALUES (?, ?)").run(
+      input.boughtPlayerId,
+      input.teamId
+    );
+    db.prepare("UPDATE teams SET funds = ? WHERE id = ?").run(input.newFunds, input.teamId);
+    db.prepare(
+      `INSERT INTO transfers
+         (season_id, team_id, matchday, sold_player_id, bought_player_id, sold_for, bought_for, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      input.seasonId,
+      input.teamId,
+      input.matchday,
+      input.soldPlayerId,
+      input.boughtPlayerId,
+      input.soldFor,
+      input.boughtFor,
+      Date.now()
+    );
+  }
+);

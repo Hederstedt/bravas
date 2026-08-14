@@ -29,8 +29,10 @@ function view(overrides: Partial<api.ManagerView> = {}): api.ManagerView {
     season: { id: 1, name: 'Höstserien', starts_at: 1, ends_at: 2, status: 'active' },
     budget: 20_000,
     squadSize: 5,
+    locked: false,
+    sellRate: 0.7,
     pool: POOL,
-    myTeam: { id: 2, name: 'FC Träklubban', squad: [], spent: 0 },
+    myTeam: { id: 2, name: 'FC Träklubban', squad: [], spent: 0, funds: 20_000, transfersLeft: 0 },
     teams: [],
     table: [],
     fixtures: [],
@@ -128,7 +130,7 @@ describe('SquadBuilder', () => {
     render(
       <SquadBuilder
         view={view({
-          myTeam: { id: 2, name: 'FC Träklubban', squad, spent: 11_000 },
+          myTeam: { id: 2, name: 'FC Träklubban', squad, spent: 11_000, funds: 9000, transfersLeft: 0 },
           pool: POOL.map((p) =>
             squad.some((s) => s.key === p.key) ? { ...p, takenBy: 'FC Träklubban' } : p,
           ),

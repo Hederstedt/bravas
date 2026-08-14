@@ -20,6 +20,8 @@ const VIEW: api.ManagerView = {
   season: { id: 1, name: 'Höstserien', starts_at: 1, ends_at: 2, status: 'active' },
   budget: 20_000,
   squadSize: 5,
+  locked: false,
+  sellRate: 0.7,
   pool: [
     {
       key: 'm:a',
@@ -197,6 +199,8 @@ describe('ManagerPage', () => {
         name: 'FC Gubbarna',
         squad: [VIEW.pool[0]],
         spent: 6200,
+        funds: 13_800,
+        transfersLeft: 0,
       },
     })
 
@@ -208,6 +212,44 @@ describe('ManagerPage', () => {
     expect(
       screen.getByText((t) => t.replace(/\s/g, ' ') === 'Trupp: 1/5 · 6 200 av 20 000'),
     ).toBeInTheDocument()
+  })
+
+  // Seriefas: truppen är låst — marknaden ersätter truppbyggaren.
+  it('shows the transfer desk instead of the builder once the series is running', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(SESSION)
+    vi.spyOn(api, 'fetchManagerView').mockResolvedValue({
+      ...VIEW,
+      locked: true,
+      myTeam: {
+        id: 1,
+        name: 'FC Gubbarna',
+        squad: [VIEW.pool[0]],
+        spent: 6200,
+        funds: 13_800,
+        transfersLeft: 1,
+      },
+    })
+
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: 'Genomför affären' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Skriv på truppen' })).not.toBeInTheDocument()
+  })
+
+  // Någon annan gör en affär → poolen och priserna ändras för alla.
+  it('refetches the view on a transfer event', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+    const spy = vi.spyOn(api, 'fetchManagerView').mockResolvedValue(VIEW)
+
+    renderPage()
+    await screen.findByText('Höstserien')
+    expect(spy).toHaveBeenCalledTimes(1)
+
+    emitLiveEvent('transfer', { seasonId: 1, teamId: 1, sold: 'm:a', bought: 'g:b' })
+
+    await waitFor(() => {
+      expect(spy).toHaveBeenCalledTimes(2)
+    })
   })
 
   // Någon annan spelar en omgång → vyn hämtas om utan omladdning.

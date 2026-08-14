@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 
-// Manager-flödet mot en statefull stub av API:et: en view-variabel i testet
+// Manager-flödet mot en statefull stub av API:et: en state-variabel i testet
 // muteras av POST/PUT-stubbarna, precis som databasen hade gjort. CI ska inte
 // bero på driften, och svaren blir förutsägbara.
 
@@ -8,7 +8,11 @@ interface StubState {
   seasonName: string | null
   teamName: string | null
   squad: string[]
-  played: boolean
+  // Antal spelade omgångar (0–2). Från första spelade omgången är truppen låst
+  // och transferfönstret öppet.
+  played: number
+  funds: number
+  transfersUsed: number
 }
 
 const POOL = [
@@ -18,10 +22,12 @@ const POOL = [
   { key: 'p:d', name: 'Dundret', value: 4000 },
   { key: 'p:e', name: 'Enstöringen', value: 3000 },
   { key: 'p:f', name: 'Fyllnadsgubben', value: 2000 },
+  { key: 'p:g', name: 'Gnällspiken', value: 1500 },
 ]
 
 const RATINGS = { SIK: 70, SKA: 65, FRA: 60, TÅL: 55, NYT: 50, TID: 45 }
 const BUDGET = 20_000
+const MATCHDAYS = 2
 
 function view(state: StubState) {
   if (!state.seasonName) {
@@ -29,6 +35,8 @@ function view(state: StubState) {
       season: null,
       budget: BUDGET,
       squadSize: 5,
+      locked: false,
+      sellRate: 0.7,
       pool: [],
       myTeam: null,
       teams: [],
@@ -46,45 +54,55 @@ function view(state: StubState) {
   const squad = pool.filter((p) => state.squad.includes(p.key))
   const spent = squad.reduce((s, p) => s + p.value, 0)
 
+  const windowOpen = state.played > 0 && state.played < MATCHDAYS
   const teams = [{ id: 1, name: 'Motståndarna', manager: '76561198000000009' }]
   if (state.teamName) teams.push({ id: 2, name: state.teamName, manager: '76561198000000001' })
 
   const tableRow = (id: number, name: string, won: boolean) => ({
     teamId: id,
     name,
-    played: state.played ? 1 : 0,
-    won: state.played && won ? 1 : 0,
+    played: state.played,
+    won: won ? state.played : 0,
     drawn: 0,
-    lost: state.played && !won ? 1 : 0,
-    roundsFor: state.played ? (won ? 13 : 5) : 0,
-    roundsAgainst: state.played ? (won ? 5 : 13) : 0,
-    diff: state.played ? (won ? 8 : -8) : 0,
-    points: state.played && won ? 3 : 0,
+    lost: won ? 0 : state.played,
+    roundsFor: won ? 13 * state.played : 5 * state.played,
+    roundsAgainst: won ? 5 * state.played : 13 * state.played,
+    diff: (won ? 8 : -8) * state.played,
+    points: won ? 3 * state.played : 0,
+  })
+
+  const fixture = (id: number, matchday: number) => ({
+    id,
+    matchday,
+    home: { id: 2, name: state.teamName ?? 'Motståndarna' },
+    away: { id: 1, name: 'Motståndarna' },
+    played: state.played >= matchday,
+    homeScore: state.played >= matchday ? 13 : null,
+    awayScore: state.played >= matchday ? 5 : null,
   })
 
   return {
     season: { id: 1, name: state.seasonName, starts_at: 1, ends_at: 2, status: 'active' },
     budget: BUDGET,
     squadSize: 5,
+    locked: state.played > 0,
+    sellRate: 0.7,
     pool,
-    myTeam: state.teamName ? { id: 2, name: state.teamName, squad, spent } : null,
+    myTeam: state.teamName
+      ? {
+          id: 2,
+          name: state.teamName,
+          squad,
+          spent,
+          funds: state.funds,
+          transfersLeft: windowOpen ? Math.max(0, 1 - state.transfersUsed) : 0,
+        }
+      : null,
     teams,
     table: state.teamName
       ? [tableRow(2, state.teamName, true), tableRow(1, 'Motståndarna', false)]
       : [tableRow(1, 'Motståndarna', false)],
-    fixtures: state.teamName
-      ? [
-          {
-            id: 1,
-            matchday: 1,
-            home: { id: 2, name: state.teamName },
-            away: { id: 1, name: 'Motståndarna' },
-            played: state.played,
-            homeScore: state.played ? 13 : null,
-            awayScore: state.played ? 5 : null,
-          },
-        ]
-      : [],
+    fixtures: state.teamName ? [fixture(1, 1), fixture(2, 2)] : [],
   }
 }
 
@@ -151,13 +169,35 @@ async function stubApi(page: Page, state: StubState, { signedIn = true } = {}) {
       })
     }
     state.squad = players
+    state.funds = BUDGET - cost
+    return route.fulfill({ json: view(state) })
+  })
+  await page.route('**/api/manager/transfer', (route) => {
+    const { sell, buy } = route.request().postDataJSON() as { sell: string; buy: string }
+    const selling = POOL.find((p) => p.key === sell)!
+    const buying = POOL.find((p) => p.key === buy)!
+    state.squad = [...state.squad.filter((k) => k !== sell), buy]
+    state.funds = state.funds + Math.floor(selling.value * 0.7) - buying.value
+    state.transfersUsed += 1
     return route.fulfill({ json: view(state) })
   })
   await page.route('**/api/manager/matchday', (route) => {
-    state.played = true
-    return route.fulfill({ status: 201, json: { matchday: 1, played: 1 } })
+    state.played += 1
+    return route.fulfill({ status: 201, json: { matchday: state.played, played: 1 } })
   })
   await page.route('**/api/manager/match/1', (route) => route.fulfill({ json: REPORT }))
+}
+
+function freshState(overrides: Partial<StubState> = {}): StubState {
+  return {
+    seasonName: null,
+    teamName: null,
+    squad: [],
+    played: 0,
+    funds: BUDGET,
+    transfersUsed: 0,
+    ...overrides,
+  }
 }
 
 async function pick(page: Page, name: string) {
@@ -165,7 +205,7 @@ async function pick(page: Page, name: string) {
 }
 
 test('a manager plays through the whole flow', async ({ page }) => {
-  const state: StubState = { seasonName: null, teamName: null, squad: [], played: false }
+  const state = freshState()
   await stubApi(page, state)
 
   await page.goto('/manager')
@@ -178,32 +218,43 @@ test('a manager plays through the whole flow', async ({ page }) => {
   await page.getByLabel('Lagnamn').fill('FC Träklubban')
   await page.getByRole('button', { name: 'Skapa laget' }).click()
 
-  // Bygg truppen: fem gubbar för exakt 20 000.
+  // Bygg truppen: fem gubbar för 19 500 — 500 kvar i kassan till marknaden.
   await expect(page.getByRole('heading', { name: 'FC Träklubban' })).toBeVisible()
-  for (const name of ['Bärarn', 'Cyklisten', 'Dundret', 'Enstöringen', 'Fyllnadsgubben']) {
+  for (const name of ['Bärarn', 'Cyklisten', 'Dundret', 'Enstöringen', 'Gnällspiken']) {
     await pick(page, name)
   }
   await page.getByRole('button', { name: 'Skriv på truppen' }).click()
   await expect(page.getByText(/Trupp: 5\/5/)).toBeVisible()
 
-  // Spela omgången och läs referatet.
+  // Spela omgången — truppen låses och marknaden öppnar.
   await page.getByRole('button', { name: 'Spela nästa omgång' }).click()
-  const scoreLink = page.getByRole('link', { name: '13–5' })
+  await expect(page.getByText(/Kassa:/)).toBeVisible()
+
+  // En affär: sälj Enstöringen (ger 2 100), köp Fyllnadsgubben (kostar 2 000).
+  await page
+    .getByText('Enstöringen')
+    .locator('xpath=ancestor::li')
+    .getByRole('button', { name: 'Sälj' })
+    .click()
+  await page
+    .getByRole('row', { name: /Fyllnadsgubben/ })
+    .getByRole('button', { name: 'Köp' })
+    .click()
+  await expect(page.getByText(/kassa efter/)).toBeVisible()
+  await page.getByRole('button', { name: 'Genomför affären' }).click()
+  await expect(page.getByText(/omgångens affär är gjord/)).toBeVisible()
+
+  // Läs referatet.
+  const scoreLink = page.getByRole('link', { name: '13–5' }).first()
   await expect(scoreLink).toBeVisible()
   await scoreLink.click()
 
   await expect(page.getByRole('heading', { name: 'Matchreferat' })).toBeVisible()
   await expect(page.getByText('Matchens gubbe:')).toBeVisible()
-  await expect(page.getByText('Bärarn').first()).toBeVisible()
 })
 
 test('anonymous visitors can look but not touch', async ({ page }) => {
-  const state: StubState = {
-    seasonName: 'Garageligan',
-    teamName: null,
-    squad: [],
-    played: false,
-  }
+  const state = freshState({ seasonName: 'Garageligan' })
   await stubApi(page, state, { signedIn: false })
 
   await page.goto('/manager')
@@ -219,12 +270,13 @@ test('anonymous visitors can look but not touch', async ({ page }) => {
 // En delad referatlänk ska fungera som direktladdning — det är den här vägen
 // som kräver try_files i nginx i drift.
 test('a match report deep link loads on its own', async ({ page }) => {
-  const state: StubState = {
+  const state = freshState({
     seasonName: 'Garageligan',
     teamName: 'FC Träklubban',
     squad: ['p:b', 'p:c', 'p:d', 'p:e', 'p:f'],
-    played: true,
-  }
+    played: 1,
+    funds: 0,
+  })
   await stubApi(page, state)
 
   await page.goto('/manager/match/1')
@@ -234,12 +286,7 @@ test('a match report deep link loads on its own', async ({ page }) => {
 })
 
 test("the server's verdict is shown when someone got there first", async ({ page }) => {
-  const state: StubState = {
-    seasonName: 'Garageligan',
-    teamName: 'FC Träklubban',
-    squad: [],
-    played: false,
-  }
+  const state = freshState({ seasonName: 'Garageligan', teamName: 'FC Träklubban' })
   await stubApi(page, state)
 
   // Stubben svarar som servern gör när en annan manager hann skriva på gubben

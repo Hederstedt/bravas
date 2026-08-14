@@ -6,6 +6,7 @@ import { LeagueTable } from './leagueTable'
 import { SeasonLobby } from './seasonLobby'
 import { SquadBuilder } from './squadBuilder'
 import { TeamForm } from './teamForm'
+import { TransferDesk } from './transferDesk'
 
 // Läsvyn är öppen — man ska kunna titta på tabellen och poolen utan att logga
 // in. Sessionen avgör vilka knappar som visas, servern avgör vad som får göras.
@@ -33,6 +34,8 @@ export function ManagerPage() {
     void fetchManagerView().then(setView)
   }, [])
   useLiveEvent('league', reload)
+  // En affär någon annanstans ändrar poolen och priserna för alla.
+  useLiveEvent('transfer', reload)
 
   return (
     <main>
@@ -83,7 +86,13 @@ function SeasonBody({
 
       {signedIn && view.myTeam === null && <TeamForm onCreated={onReload} />}
 
-      {view.myTeam !== null && <SquadBuilder view={view} onView={onView} />}
+      {/* Byggfas: fri ombyggnad. Seriefas: truppen är låst, marknaden gäller. */}
+      {view.myTeam !== null &&
+        (view.locked ? (
+          <TransferDesk view={view} onView={onView} />
+        ) : (
+          <SquadBuilder view={view} onView={onView} />
+        ))}
 
       <div className="manager-block">
         <h3>Tabellen</h3>

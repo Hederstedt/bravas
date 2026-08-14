@@ -92,16 +92,38 @@ Läsvyn är öppen — man ska kunna titta på tabellen utan att logga in.
 | POST | `/api/manager/matchday` | Spelar nästa ospelade omgång, 409 när serien är slut |
 | GET | `/api/manager/match/:id` | Sparat referat med protokoll och MVP |
 
+## Transfermarknad och lagkassa
+
+Säsongen har två faser. **Byggfasen** varar från säsongsstart tills första
+omgången spelats: truppen byggs om fritt och kassan sätts till budgeten minus
+truppens kostnad. **Seriefasen** börjar med första spelade omgången: truppen
+låses och all förändring går via marknaden.
+
+- **Byt-mot-poolen**, inte lag-till-lag: en truppgubbe säljs till poolen och en
+  ledig köps, atomiskt — truppen är alltid exakt fem. En såld gubbe är
+  omedelbart köpbar för andra lag, så lag-till-lag finns indirekt.
+- **Köp kostar fullt värde, försäljning ger 70 %.** Rabatten är invarianten mot
+  pengamaskiner: varje köp-sälj-rundtur förlorar pengar, och kassan kan aldrig
+  gå under noll. Ett test vaktar att kassa plus truppvärde aldrig ökar av en
+  affär.
+- **En affär per lag och ospelad omgång.** Omgångar spelas när någon trycker,
+  så kvoten är det som hindrar total trupp-churn — inte något tidsfönster.
+- **Racet avgörs av databasen:** primärnyckeln i `squads` ligger på spelaren,
+  så två lag som köper samma gubbe i samma ögonblick ger exakt en vinnare.
+- Affärer sänds som `transfer` på händelseströmmen — öppna sidor ser att
+  poolen ändrats.
+
+| Metod | Väg | |
+|---|---|---|
+| POST | `/api/manager/transfer` | `{ sell, buy }` — 409 i byggfasen, vid slut kvot och när serien är slut |
+
+`PUT /api/manager/squad` svarar 409 `squad_locked` i seriefasen.
+
 ## Planerat
 
-- **UI:** React Router med `/manager` och `/manager/match/:id`. Öppen läsvy;
-  knapparna kräver inloggning.
-- **Transfermarknad + lagkassa:** persistent kassa per lag (`funds`). Truppen låses
-  när första omgången spelats — därefter går all förändring via transfer:
-  byt-mot-poolen, köp till fullt värde, sälj till 70 % (rabatten är invarianten mot
-  pengamaskiner). En transfer per lag och ospelad omgång.
 - **Träning:** två pass per lag och ospelad omgång; ett pass höjer ett attribut på
   en egen spelare med deterministisk, avtagande kurva (cap 90) och räknar om
   spelarens värde. Ingen slump — ett managerbeslut ska vara förutsägbart.
+  Tränade spelare blir dyrare att köpa och ger mer vid försäljning.
 
 Uppdatera det här dokumentet när mekanikerna landar.
