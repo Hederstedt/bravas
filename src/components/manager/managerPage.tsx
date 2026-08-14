@@ -1,18 +1,25 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchManagerView, type ManagerView, type PoolPlayer } from '../../api'
+import { fetchManagerView, fetchSession, type ManagerView, type PoolPlayer } from '../../api'
 import { useLiveEvent } from '../../useLiveEvents'
 import { Fixtures } from './fixtures'
 import { LeagueTable } from './leagueTable'
+import { SeasonLobby } from './seasonLobby'
+import { SquadBuilder } from './squadBuilder'
+import { TeamForm } from './teamForm'
 
 // Läsvyn är öppen — man ska kunna titta på tabellen och poolen utan att logga
-// in. Knapparna (starta säsong, bygga trupp, spela omgång) kommer i nästa steg.
+// in. Sessionen avgör vilka knappar som visas, servern avgör vad som får göras.
 export function ManagerPage() {
   const [view, setView] = useState<ManagerView | null | 'loading'>('loading')
+  const [signedIn, setSignedIn] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     void fetchManagerView().then((v) => {
       if (!cancelled) setView(v)
+    })
+    void fetchSession().then((s) => {
+      if (!cancelled) setSignedIn(s !== null)
     })
     return () => {
       cancelled = true
@@ -20,7 +27,8 @@ export function ManagerPage() {
   }, [])
 
   // Någon annan har spelat en omgång — hämta om vyn så att tabellen och
-  // schemat uppdateras för den som redan har sidan öppen.
+  // schemat uppdateras för den som redan har sidan öppen. Samma omhämtning
+  // används efter egna handlingar som inte redan svarat med en färsk vy.
   const reload = useCallback(() => {
     void fetchManagerView().then(setView)
   }, [])
@@ -44,15 +52,11 @@ export function ManagerPage() {
           )}
 
           {view !== 'loading' && view !== null && view.season === null && (
-            <p className="roster-note">
-              Ingen säsong igång ännu. Här drar CS Manager igång: varje gubbe bygger ett lag av
-              klanens spelare, serien spelas omgång för omgång och tabellen skiljer agnarna från
-              vetet.
-            </p>
+            <SeasonLobby signedIn={signedIn} onStarted={reload} />
           )}
 
           {view !== 'loading' && view !== null && view.season !== null && (
-            <SeasonBody view={view} />
+            <SeasonBody view={view} signedIn={signedIn} onView={setView} onReload={reload} />
           )}
         </div>
       </section>
@@ -60,36 +64,26 @@ export function ManagerPage() {
   )
 }
 
-function SeasonBody({ view }: { view: ManagerView }) {
+function SeasonBody({
+  view,
+  signedIn,
+  onView,
+  onReload,
+}: {
+  view: ManagerView
+  signedIn: boolean
+  onView: (v: ManagerView) => void
+  onReload: () => void
+}) {
   return (
     <>
       <p className="manager-season">
         Säsong: <strong>{view.season!.name}</strong> · {view.teams.length} lag
       </p>
 
-      {view.myTeam && (
-        <div className="manager-block">
-          <h3>{view.myTeam.name}</h3>
-          {view.myTeam.squad.length === 0 ? (
-            <p className="roster-note">Truppen är tom — dags att skriva på några gubbar.</p>
-          ) : (
-            <>
-              <ul className="squad-list">
-                {view.myTeam.squad.map((p) => (
-                  <li key={p.key}>
-                    <span>{p.name}</span>
-                    <span className="value">{p.value.toLocaleString('sv-SE')}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="manager-budget">
-                {view.myTeam.spent.toLocaleString('sv-SE')} av {view.budget.toLocaleString('sv-SE')}{' '}
-                spenderat
-              </p>
-            </>
-          )}
-        </div>
-      )}
+      {signedIn && view.myTeam === null && <TeamForm onCreated={onReload} />}
+
+      {view.myTeam !== null && <SquadBuilder view={view} onView={onView} />}
 
       <div className="manager-block">
         <h3>Tabellen</h3>
@@ -98,17 +92,21 @@ function SeasonBody({ view }: { view: ManagerView }) {
 
       <div className="manager-block">
         <h3>Spelschemat</h3>
-        <Fixtures fixtures={view.fixtures} />
+        <Fixtures fixtures={view.fixtures} canPlay={signedIn} onPlayed={onReload} />
       </div>
 
-      <div className="manager-block">
-        <h3>Spelarpoolen</h3>
-        <Pool pool={view.pool} />
-      </div>
+      {view.myTeam === null && (
+        <div className="manager-block">
+          <h3>Spelarpoolen</h3>
+          <Pool pool={view.pool} />
+        </div>
+      )}
     </>
   )
 }
 
+// Poolen som ren läsning — den som har ett lag ser den i truppbyggaren i
+// stället, med knappar.
 function Pool({ pool }: { pool: PoolPlayer[] }) {
   if (pool.length === 0) {
     return <p className="roster-note">Poolen fryses när säsongen startar.</p>

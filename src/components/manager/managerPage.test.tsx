@@ -90,8 +90,11 @@ function renderPage() {
   )
 }
 
+const SESSION = { steamid64: '76561198000000001' }
+
 describe('ManagerPage', () => {
   it('pitches the game when no season is running', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
     vi.spyOn(api, 'fetchManagerView').mockResolvedValue({
       ...VIEW,
       season: null,
@@ -104,9 +107,29 @@ describe('ManagerPage', () => {
     renderPage()
 
     expect(await screen.findByText(/Ingen säsong igång ännu/)).toBeInTheDocument()
+    // Utloggad: ingen startknapp, bara inloggningsvägen.
+    expect(screen.queryByRole('button', { name: /Starta säsongen/ })).not.toBeInTheDocument()
+    expect(screen.getByText(/Logga in med Steam för att dra igång/)).toBeInTheDocument()
+  })
+
+  it('lets a signed-in visitor start the season', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(SESSION)
+    vi.spyOn(api, 'fetchManagerView').mockResolvedValue({
+      ...VIEW,
+      season: null,
+      pool: [],
+      teams: [],
+      table: [],
+      fixtures: [],
+    })
+
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: 'Starta säsongen' })).toBeInTheDocument()
   })
 
   it('says so when the API cannot be reached', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
     vi.spyOn(api, 'fetchManagerView').mockResolvedValue(null)
 
     renderPage()
@@ -114,8 +137,10 @@ describe('ManagerPage', () => {
     expect(await screen.findByText(/kunde inte nås just nu/)).toBeInTheDocument()
   })
 
-  // Läsvyn är öppen: tabell, schema och pool ska synas utan inloggning.
-  it('shows the season to anonymous visitors', async () => {
+  // Läsvyn är öppen: tabell, schema och pool ska synas utan inloggning — men
+  // inga knappar.
+  it('shows the season to anonymous visitors without any buttons', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
     vi.spyOn(api, 'fetchManagerView').mockResolvedValue(VIEW)
 
     renderPage()
@@ -134,9 +159,37 @@ describe('ManagerPage', () => {
     const pool = screen.getByRole('table', { name: 'Spelarpoolen' })
     expect(within(pool).getByText('Fria Agenten')).toBeInTheDocument()
     expect(within(pool).getByText('Ledig')).toBeInTheDocument()
+
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
-  it('shows the visitor their own squad and spend', async () => {
+  it('asks a signed-in visitor without a team to name one', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(SESSION)
+    vi.spyOn(api, 'fetchManagerView').mockResolvedValue({
+      ...VIEW,
+      // En ospelad omgång kvar — annars finns det inget att trycka på.
+      fixtures: [
+        ...VIEW.fixtures,
+        {
+          id: 12,
+          matchday: 2,
+          home: { id: 2, name: 'Träklubborna' },
+          away: { id: 1, name: 'FC Gubbarna' },
+          played: false,
+          homeScore: null,
+          awayScore: null,
+        },
+      ],
+    })
+
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: 'Döp ditt lag' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Spela nästa omgång' })).toBeInTheDocument()
+  })
+
+  it('shows the squad builder when the visitor has a team', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(SESSION)
     vi.spyOn(api, 'fetchManagerView').mockResolvedValue({
       ...VIEW,
       myTeam: {
@@ -149,16 +202,17 @@ describe('ManagerPage', () => {
 
     renderPage()
 
-    expect(await screen.findByRole('heading', { name: 'FC Gubbarna' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Skriv på truppen' })).toBeInTheDocument()
     // toLocaleString('sv-SE') avgränsar tusental med hårt mellanslag (vilket
     // exakt tecken beror på ICU-versionen) — normalisera innan jämförelsen.
     expect(
-      screen.getByText((t) => t.replace(/\s/g, ' ') === '6 200 av 20 000 spenderat'),
+      screen.getByText((t) => t.replace(/\s/g, ' ') === 'Trupp: 1/5 · 6 200 av 20 000'),
     ).toBeInTheDocument()
   })
 
   // Någon annan spelar en omgång → vyn hämtas om utan omladdning.
   it('refetches the view on a league event', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
     const spy = vi.spyOn(api, 'fetchManagerView').mockResolvedValue(VIEW)
 
     renderPage()

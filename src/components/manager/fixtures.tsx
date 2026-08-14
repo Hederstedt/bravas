@@ -1,17 +1,62 @@
+import { useState } from 'react'
 import { Link } from 'react-router'
-import type { PublicFixture } from '../../api'
+import { playMatchday, type PublicFixture } from '../../api'
 
 // Spelschemat grupperat per omgång. Ett spelat resultat länkar till referatet —
-// det sparades när matchen spelades och ser alltid likadant ut.
-export function Fixtures({ fixtures }: { fixtures: PublicFixture[] }) {
+// det sparades när matchen spelades och ser alltid likadant ut. Vem som helst
+// inloggad får spela nästa omgång: serien är gemensam, inte någons egen.
+export function Fixtures({
+  fixtures,
+  canPlay = false,
+  onPlayed,
+}: {
+  fixtures: PublicFixture[]
+  canPlay?: boolean
+  onPlayed?: () => void
+}) {
+  const [playing, setPlaying] = useState(false)
+  const [error, setError] = useState('')
+
   if (fixtures.length === 0) {
     return <p className="roster-note">Spelschemat läggs när serien startar.</p>
   }
 
+  async function play() {
+    if (playing) return
+    setPlaying(true)
+    setError('')
+    const result = await playMatchday()
+    setPlaying(false)
+
+    if (!result.ok) {
+      setError(
+        result.error === 'season_finished'
+          ? 'Serien är färdigspelad.'
+          : (result.message ?? 'Omgången kunde inte spelas. Försök igen.'),
+      )
+      return
+    }
+    onPlayed?.()
+  }
+
   const matchdays = [...new Set(fixtures.map((f) => f.matchday))].sort((a, b) => a - b)
+  const allPlayed = fixtures.every((f) => f.played)
 
   return (
     <div className="fixtures">
+      {canPlay && !allPlayed && (
+        <p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={playing}
+            onClick={() => void play()}
+          >
+            {playing ? 'Spelar…' : 'Spela nästa omgång'}
+          </button>
+        </p>
+      )}
+      {error && <p className="quote-error">{error}</p>}
       {matchdays.map((day) => (
         <section key={day} className="matchday" aria-label={`Omgång ${day}`}>
           <h4>Omgång {day}</h4>
