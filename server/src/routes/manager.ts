@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { activeSeason, getFixture, getTeam } from "../db.ts";
+import { activeSeason, getFixture, getTeam, listTeams } from "../db.ts";
 import { mutationLimiter, readLimiter } from "../middleware/rateLimit.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
 import { verifySessionCookieValue } from "../session.ts";
@@ -183,6 +183,16 @@ managerRouter.post("/matchday", mutationLimiter, requireAuth, (_req, res) => {
   const season = activeSeason();
   if (!season) {
     res.status(409).json({ error: "no_active_season" });
+    return;
+  }
+
+  // Ett ensamt lag har ingen att möta — utan den här kollen hade schemat
+  // blivit tomt och svaret "färdigspelad" om en serie som aldrig börjat.
+  if (listTeams(season.id).length < 2) {
+    res.status(409).json({
+      error: "too_few_teams",
+      message: "Serien behöver minst två lag — värva en gubbe till innan första omgången kan spelas.",
+    });
     return;
   }
 

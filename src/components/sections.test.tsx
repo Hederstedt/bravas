@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { Nav, Games, Stats } from './sections'
@@ -22,7 +22,12 @@ describe('Games', () => {
     render(<Games />)
     for (const g of games) {
       const card = screen.getByRole('heading', { name: g.title }).closest('article')!
-      expect(within(card).getByText(g.status)).toBeInTheDocument()
+      if (g.id === 'valheim') {
+        // Valheim-kortet bär livestatusen i stället för en statisk pill.
+        expect(within(card).queryByText(g.status)).not.toBeInTheDocument()
+      } else {
+        expect(within(card).getByText(g.status)).toBeInTheDocument()
+      }
     }
   })
 })
@@ -54,8 +59,8 @@ describe('Valheim server status', () => {
     vi.spyOn(api, 'fetchValheimStatus').mockResolvedValue(ONLINE_ANON)
     render(<Games />)
 
-    const card = await waitFor(() => valheimCard())
-    expect(within(card).getByText(/2\s*\/\s*10/)).toBeInTheDocument()
+    const card = valheimCard()
+    expect(await within(card).findByText(/2\s*\/\s*10/)).toBeInTheDocument()
   })
 
   it('shows offline instead of a player count when the server is down', async () => {
@@ -69,16 +74,16 @@ describe('Valheim server status', () => {
     })
     render(<Games />)
 
-    const card = await waitFor(() => valheimCard())
-    expect(within(card).getByText('Offline')).toBeInTheDocument()
+    const card = valheimCard()
+    expect(await within(card).findByText('Offline')).toBeInTheDocument()
   })
 
   it('invites an anonymous visitor to log in instead of showing name and password', async () => {
     vi.spyOn(api, 'fetchValheimStatus').mockResolvedValue(ONLINE_ANON)
     render(<Games />)
 
-    const card = await waitFor(() => valheimCard())
-    expect(within(card).getByText(/Logga in/)).toBeInTheDocument()
+    const card = valheimCard()
+    expect(await within(card).findByText(/Logga in/)).toBeInTheDocument()
     expect(within(card).queryByText('hemligt123')).not.toBeInTheDocument()
   })
 
@@ -90,17 +95,55 @@ describe('Valheim server status', () => {
     })
     render(<Games />)
 
-    const card = await waitFor(() => valheimCard())
-    expect(within(card).getByText('Bravas Valheim Server')).toBeInTheDocument()
+    const card = valheimCard()
+    expect(await within(card).findByText('Bravas Valheim Server')).toBeInTheDocument()
     expect(within(card).getByText('hemligt123')).toBeInTheDocument()
+  })
+
+  // Uppgifterna bor på kortets baksida — klicket vänder kortet, och ett klick
+  // till vänder tillbaka det.
+  it('flips the card to the connection details and back again', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(api, 'fetchValheimStatus').mockResolvedValue({
+      ...ONLINE_ANON,
+      serverName: 'Bravas Valheim Server',
+      password: 'hemligt123',
+    })
+    render(<Games />)
+
+    const card = valheimCard()
+    expect(card.className).not.toContain('flipped')
+
+    await user.click(await within(card).findByRole('button', { name: /Visa namn/ }))
+    expect(card.className).toContain('flipped')
+
+    await user.click(within(card).getByRole('button', { name: /Vänd tillbaka/ }))
+    expect(card.className).not.toContain('flipped')
+  })
+
+  it('copies the password to the clipboard without flipping the card back', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(api, 'fetchValheimStatus').mockResolvedValue({
+      ...ONLINE_ANON,
+      serverName: 'Bravas Valheim Server',
+      password: 'hemligt123',
+    })
+    render(<Games />)
+
+    const card = valheimCard()
+    await user.click(await within(card).findByRole('button', { name: /Visa namn/ }))
+    await user.click(within(card).getByRole('button', { name: 'Kopiera lösenordet' }))
+
+    expect(await window.navigator.clipboard.readText()).toBe('hemligt123')
+    expect(card.className).toContain('flipped')
   })
 
   it('updates live when the server status changes', async () => {
     vi.spyOn(api, 'fetchValheimStatus').mockResolvedValue(ONLINE_ANON)
     render(<Games />)
 
-    const card = await waitFor(() => valheimCard())
-    expect(within(card).getByText(/2\s*\/\s*10/)).toBeInTheDocument()
+    const card = valheimCard()
+    expect(await within(card).findByText(/2\s*\/\s*10/)).toBeInTheDocument()
 
     act(() => {
       emitLiveEvent('valheim', { online: true, players: 5, maxPlayers: 10 })
