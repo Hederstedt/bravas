@@ -68,6 +68,33 @@ describe('Fixtures', () => {
     expect(screen.getByText(/Spelschemat läggs/)).toBeInTheDocument()
   })
 
+  // Schemat läggs på servern först när första omgången spelas — knappen måste
+  // alltså finnas redan innan schemat finns, annars går serien inte att starta.
+  it('lets a signed-in manager play the first matchday before the schedule exists', async () => {
+    const user = userEvent.setup()
+    const played = vi.fn()
+    vi.spyOn(api, 'playMatchday').mockResolvedValue({ ok: true, data: { matchday: 1, played: 1 } })
+
+    renderFixtures([], { canPlay: true, onPlayed: played })
+
+    await user.click(screen.getByRole('button', { name: 'Spela första omgången' }))
+    expect(played).toHaveBeenCalled()
+  })
+
+  it('shows the server explanation when the league has too few teams', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(api, 'playMatchday').mockResolvedValue({
+      ok: false,
+      error: 'too_few_teams',
+      message: 'Serien behöver minst två lag — värva en gubbe till innan första omgången kan spelas.',
+    })
+
+    renderFixtures([], { canPlay: true })
+
+    await user.click(screen.getByRole('button', { name: 'Spela första omgången' }))
+    expect(await screen.findByText(/minst två lag/)).toBeInTheDocument()
+  })
+
   it('hides the play button from anonymous visitors', () => {
     renderFixtures(FIXTURES)
     expect(screen.queryByRole('button', { name: /Spela nästa omgång/ })).not.toBeInTheDocument()

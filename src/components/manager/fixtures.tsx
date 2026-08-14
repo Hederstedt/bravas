@@ -17,7 +17,12 @@ export function Fixtures({
   const [playing, setPlaying] = useState(false)
   const [error, setError] = useState('')
 
-  if (fixtures.length === 0) {
+  // Schemat läggs på servern först när första omgången spelas. Knappen måste
+  // alltså finnas redan när schemat är tomt — annars går serien inte att
+  // starta alls, och den som just skrivit på sin trupp står och stampar.
+  const hasSchedule = fixtures.length > 0
+
+  if (!hasSchedule && !canPlay) {
     return <p className="roster-note">Spelschemat läggs när serien startar.</p>
   }
 
@@ -40,10 +45,15 @@ export function Fixtures({
   }
 
   const matchdays = [...new Set(fixtures.map((f) => f.matchday))].sort((a, b) => a - b)
-  const allPlayed = fixtures.every((f) => f.played)
+  const allPlayed = hasSchedule && fixtures.every((f) => f.played)
 
   return (
     <div className="fixtures">
+      {!hasSchedule && (
+        <p className="roster-note">
+          Schemat läggs när första omgången spelas — då låses trupperna och serien är igång.
+        </p>
+      )}
       {canPlay && !allPlayed && (
         <p>
           <button
@@ -52,7 +62,7 @@ export function Fixtures({
             disabled={playing}
             onClick={() => void play()}
           >
-            {playing ? 'Spelar…' : 'Spela nästa omgång'}
+            {playing ? 'Spelar…' : hasSchedule ? 'Spela nästa omgång' : 'Spela första omgången'}
           </button>
         </p>
       )}

@@ -169,6 +169,18 @@ describe("POST /api/manager/matchday", () => {
     await request(app).post("/api/manager/matchday").expect(403);
   });
 
+  // En ensam manager som testar spelet ska få veta vad som saknas — inte
+  // "färdigspelad" om en serie som aldrig börjat.
+  it("explains that the league needs at least two teams", async () => {
+    const solo = await authed(MANAGERS[0][0]);
+    await solo.post("/api/manager/season", { name: "Säsong 1" }).expect(201);
+    await solo.post("/api/manager/team", { name: "Ensamma Gubben" }).expect(201);
+
+    const res = await solo.post("/api/manager/matchday").expect(409);
+    expect(res.body.error).toBe("too_few_teams");
+    expect(res.body.message).toMatch(/minst två lag/);
+  });
+
   it("gives a team with no squad a walkover loss instead of taking the round down", async () => {
     // Ett lag utan trupp får inte kunna stoppa hela omgången.
     const mag = await league(false);
