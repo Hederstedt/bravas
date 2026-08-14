@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router'
 import { Nav, Games, Stats } from './sections'
 import { games, statHighlights } from '../data/clan'
+
+// Nav använder Link och behöver en router omkring sig.
+function renderNav() {
+  render(
+    <MemoryRouter>
+      <Nav />
+    </MemoryRouter>,
+  )
+}
 
 describe('Games', () => {
   it('renders one card per game with title and status', () => {
@@ -27,7 +37,7 @@ describe('Stats', () => {
 describe('Nav mobile menu', () => {
   it('opens and closes via the burger button', async () => {
     const user = userEvent.setup()
-    render(<Nav />)
+    renderNav()
 
     const burger = screen.getByRole('button', { name: 'Öppna menyn' })
     expect(screen.queryByRole('dialog', { name: 'Meny' })).not.toBeInTheDocument()
@@ -41,7 +51,7 @@ describe('Nav mobile menu', () => {
 
   it('closes when a menu link is clicked', async () => {
     const user = userEvent.setup()
-    render(<Nav />)
+    renderNav()
 
     await user.click(screen.getByRole('button', { name: 'Öppna menyn' }))
     const overlay = screen.getByRole('dialog', { name: 'Meny' })
