@@ -199,6 +199,10 @@ export interface ManagerTeam {
   name: string
   squad: PoolPlayer[]
   spent: number
+  // Lagkassan: det som blev över av budgeten i byggfasen, sedan rör den sig
+  // bara genom transfermarknaden.
+  funds: number
+  transfersLeft: number
 }
 
 // Speglar server/src/league.ts.
@@ -233,6 +237,9 @@ export interface ManagerView {
   season: Season | null
   budget: number
   squadSize: number
+  // Seriefas: trupperna är låsta och all förändring går via transfer.
+  locked: boolean
+  sellRate: number
   pool: PoolPlayer[]
   myTeam: ManagerTeam | null
   teams: { id: number; name: string; manager: string }[]
@@ -339,6 +346,12 @@ export async function saveSquad(players: string[]): Promise<ApiResult<ManagerVie
 
 export async function playMatchday(): Promise<ApiResult<MatchdayResult>> {
   return await sendJson<MatchdayResult>('/api/manager/matchday', 'POST')
+}
+
+// En affär: sälj en truppgubbe till poolen och köp en ledig, atomiskt. Lyckat
+// svar är hela den färska managervyn, som saveSquad.
+export async function makeTransfer(sell: string, buy: string): Promise<ApiResult<ManagerView>> {
+  return await sendJson<ManagerView>('/api/manager/transfer', 'POST', { sell, buy })
 }
 
 export async function fetchSiteConfig(): Promise<SiteConfig> {

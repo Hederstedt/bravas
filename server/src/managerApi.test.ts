@@ -65,7 +65,7 @@ function steamStats() {
 beforeEach(() => {
   resetRateLimits();
   db.exec(
-    "DELETE FROM squads; DELETE FROM teams; DELETE FROM season_players; DELETE FROM seasons; DELETE FROM members; DELETE FROM allowlist; DELETE FROM cs2_stats;"
+    "DELETE FROM transfers; DELETE FROM fixtures; DELETE FROM squads; DELETE FROM teams; DELETE FROM season_players; DELETE FROM seasons; DELETE FROM members; DELETE FROM allowlist; DELETE FROM cs2_stats;"
   );
   member(MAG, "[BVS] #Mag");
   member(KUNGALV, "[BVS] Kungalv");

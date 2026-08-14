@@ -30,8 +30,8 @@ Klansida för BVS — ett gäng goa gubbar från Västra Götaland som lirar CS2
 
 Backend klar. Kvar, i ordning:
 
-1. **UI:** React Router in, `/manager`-vyer — säsongslobby, lagbygge, truppbyggare, tabell, spelschema, matchreferat. Live-uppdatering via händelseströmmen.
-2. **Transfermarknad + lagkassa:** persistent kassa (`funds`), trupplåsning när serien startat, byt-mot-poolen med säljkurs 70 %.
+1. **UI:** React Router in, `/manager`-vyer — säsongslobby, lagbygge, truppbyggare, tabell, spelschema, matchreferat. Live-uppdatering via händelseströmmen. *(byggt — väntar på merge)*
+2. **Transfermarknad + lagkassa:** persistent kassa (`funds`), trupplåsning när serien startat, byt-mot-poolen med säljkurs 70 %. *(byggt — väntar på merge)*
 3. **Träning:** deterministisk kurva med avtagande avkastning, 2 pass per omgång, höjer spelarens värde.
 
 Speldesignen i detalj: [manager.md](manager.md).

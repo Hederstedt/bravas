@@ -7,6 +7,7 @@ import {
   fetchPresence,
   fetchSession,
   fetchSiteConfig,
+  makeTransfer,
   playMatchday,
   saveSquad,
   STEAM_LOGIN_URL,
@@ -239,6 +240,25 @@ describe('saveSquad', () => {
 
     const result = await saveSquad(['m:1'])
     expect(result).toEqual({ ok: false, error: 'network', message: null })
+  })
+})
+
+describe('makeTransfer', () => {
+  it('returns the fresh view on a done deal', async () => {
+    const fresh = { season: { id: 1 }, locked: true }
+    mockApiFetch(() => jsonResponse(fresh))
+    await expect(makeTransfer('p:a', 'p:b')).resolves.toEqual({ ok: true, data: fresh })
+  })
+
+  it('surfaces the server verdict on a refused deal', async () => {
+    mockApiFetch(() =>
+      jsonResponse({ error: 'no_transfers_left', message: 'Omgångens transfer är redan gjord.' }, 409),
+    )
+    await expect(makeTransfer('p:a', 'p:b')).resolves.toEqual({
+      ok: false,
+      error: 'no_transfers_left',
+      message: 'Omgångens transfer är redan gjord.',
+    })
   })
 })
 

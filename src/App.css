@@ -1586,3 +1586,26 @@ a.fixture-score:hover {
   opacity: 0.4;
   cursor: default;
 }
+
+.transfer-desk {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.transfer-side h4 {
+  font-family: var(--font-display);
+  color: var(--muted);
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.squad-list li .pick-btn {
+  margin-left: auto;
+}
+
+.squad-list li.selected,
+.pool-table tr.selected td {
+  background: var(--accent-dim);
+}
