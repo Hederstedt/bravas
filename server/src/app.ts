@@ -8,6 +8,7 @@ import { quotesRouter } from "./routes/quotes.ts";
 import { statsRouter } from "./routes/stats.ts";
 import { configRouter } from "./routes/config.ts";
 import { eventsRouter } from "./routes/events.ts";
+import { managerRouter } from "./routes/manager.ts";
 
 export function createApp(): Express {
   const app = express();
@@ -27,6 +28,7 @@ export function createApp(): Express {
   app.use("/api/stats", statsRouter);
   app.use("/api/config", configRouter);
   app.use("/api/events", eventsRouter);
+  app.use("/api/manager", managerRouter);
 
   return app;
 }
