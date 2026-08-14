@@ -1,9 +1,12 @@
-import { describe, expect, it } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { Nav, Games, Stats } from './sections'
 import { games, statHighlights } from '../data/clan'
+import * as api from '../api'
+import type { ValheimStatus } from '../api'
+import { emitLiveEvent, installLiveEvents, teardownLiveEvents } from '../test/liveEvents'
 
 // Nav använder Link och behöver en router omkring sig.
 function renderNav() {
@@ -21,6 +24,89 @@ describe('Games', () => {
       const card = screen.getByRole('heading', { name: g.title }).closest('article')!
       expect(within(card).getByText(g.status)).toBeInTheDocument()
     }
+  })
+})
+
+function valheimCard() {
+  return screen.getByRole('heading', { name: 'Valheim' }).closest('article')!
+}
+
+const ONLINE_ANON: ValheimStatus = {
+  online: true,
+  players: 2,
+  maxPlayers: 10,
+  address: 'valheim.bravas.se:2456',
+  serverName: null,
+  password: null,
+}
+
+describe('Valheim server status', () => {
+  beforeEach(() => {
+    installLiveEvents()
+  })
+
+  afterEach(() => {
+    teardownLiveEvents()
+    vi.restoreAllMocks()
+  })
+
+  it('shows the player count when online', async () => {
+    vi.spyOn(api, 'fetchValheimStatus').mockResolvedValue(ONLINE_ANON)
+    render(<Games />)
+
+    const card = await waitFor(() => valheimCard())
+    expect(within(card).getByText(/2\s*\/\s*10/)).toBeInTheDocument()
+  })
+
+  it('shows offline instead of a player count when the server is down', async () => {
+    vi.spyOn(api, 'fetchValheimStatus').mockResolvedValue({
+      online: false,
+      players: null,
+      maxPlayers: null,
+      address: 'valheim.bravas.se:2456',
+      serverName: null,
+      password: null,
+    })
+    render(<Games />)
+
+    const card = await waitFor(() => valheimCard())
+    expect(within(card).getByText('Offline')).toBeInTheDocument()
+  })
+
+  it('invites an anonymous visitor to log in instead of showing name and password', async () => {
+    vi.spyOn(api, 'fetchValheimStatus').mockResolvedValue(ONLINE_ANON)
+    render(<Games />)
+
+    const card = await waitFor(() => valheimCard())
+    expect(within(card).getByText(/Logga in/)).toBeInTheDocument()
+    expect(within(card).queryByText('hemligt123')).not.toBeInTheDocument()
+  })
+
+  it('reveals the server name and password to a signed-in member', async () => {
+    vi.spyOn(api, 'fetchValheimStatus').mockResolvedValue({
+      ...ONLINE_ANON,
+      serverName: 'Bravas Valheim Server',
+      password: 'hemligt123',
+    })
+    render(<Games />)
+
+    const card = await waitFor(() => valheimCard())
+    expect(within(card).getByText('Bravas Valheim Server')).toBeInTheDocument()
+    expect(within(card).getByText('hemligt123')).toBeInTheDocument()
+  })
+
+  it('updates live when the server status changes', async () => {
+    vi.spyOn(api, 'fetchValheimStatus').mockResolvedValue(ONLINE_ANON)
+    render(<Games />)
+
+    const card = await waitFor(() => valheimCard())
+    expect(within(card).getByText(/2\s*\/\s*10/)).toBeInTheDocument()
+
+    act(() => {
+      emitLiveEvent('valheim', { online: true, players: 5, maxPlayers: 10 })
+    })
+
+    expect(within(card).getByText(/5\s*\/\s*10/)).toBeInTheDocument()
   })
 })
 

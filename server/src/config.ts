@@ -14,4 +14,13 @@ export const config = {
   publicOrigin: process.env.PUBLIC_ORIGIN ?? "http://localhost:5173",
   port: Number(process.env.PORT ?? 3001),
   dbPath: process.env.DB_PATH ?? "./data/bravas.db",
+
+  // Frågeporten är spelporten + 1 (Steams query-protokoll), och servern frågas
+  // lokalt på maskinen den kör på — inte via den publika adressen som gubbarna
+  // ansluter till, se valheimAddress.
+  valheimQueryHost: process.env.VALHEIM_QUERY_HOST ?? "127.0.0.1",
+  valheimQueryPort: Number(process.env.VALHEIM_QUERY_PORT ?? 2457),
+  valheimAddress: process.env.VALHEIM_ADDRESS ?? "",
+  valheimServerName: process.env.VALHEIM_SERVER_NAME ?? "",
+  valheimPassword: process.env.VALHEIM_PASSWORD ?? "",
 };
