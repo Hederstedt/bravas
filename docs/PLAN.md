@@ -32,7 +32,7 @@ Backend klar. Kvar, i ordning:
 
 1. **UI:** React Router in, `/manager`-vyer — säsongslobby, lagbygge, truppbyggare, tabell, spelschema, matchreferat. Live-uppdatering via händelseströmmen. *(byggt — väntar på merge)*
 2. **Transfermarknad + lagkassa:** persistent kassa (`funds`), trupplåsning när serien startat, byt-mot-poolen med säljkurs 70 %. *(byggt — väntar på merge)*
-3. **Träning:** deterministisk kurva med avtagande avkastning, 2 pass per omgång, höjer spelarens värde.
+3. **Träning:** deterministisk kurva med avtagande avkastning, 2 pass per omgång, höjer spelarens värde. *(byggt — väntar på merge)*
 
 Speldesignen i detalj: [manager.md](manager.md).
 

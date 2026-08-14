@@ -6,6 +6,7 @@ import { verifySessionCookieValue } from "../session.ts";
 import { sessionCookie } from "../session.ts";
 import { playNextMatchday } from "../leagueService.ts";
 import { makeTransfer } from "../marketService.ts";
+import { trainPlayer } from "../trainingService.ts";
 import { claimTeam, saveSquad, seasonLocked, seasonView, startSeason } from "../seasonService.ts";
 
 export const managerRouter = Router();
@@ -128,6 +129,47 @@ managerRouter.post("/transfer", mutationLimiter, requireAuth, (req, res) => {
   const result = makeTransfer(season, team, sell, buy);
   if (!result.ok) {
     const status = result.code === "invalid_transfer" ? 400 : 409;
+    res.status(status).json({ error: result.code, message: result.error });
+    return;
+  }
+
+  res.json(seasonView(req.member!.steamid64));
+});
+
+// Ett träningspass: ett attribut på en egen truppgubbe. Samma fasregel som
+// marknaden — i byggfasen finns inget spelschema och därmed inget fönster.
+managerRouter.post("/training", mutationLimiter, requireAuth, (req, res) => {
+  const season = activeSeason();
+  if (!season) {
+    res.status(409).json({ error: "no_active_season" });
+    return;
+  }
+
+  if (!seasonLocked(season.id)) {
+    res.status(409).json({
+      error: "season_not_started",
+      message: "Serien har inte startat än — träningen öppnar när första omgången är spelad.",
+    });
+    return;
+  }
+
+  const team = getTeam(season.id, req.member!.steamid64);
+  if (!team) {
+    res.status(409).json({ error: "no_team" });
+    return;
+  }
+
+  const body = req.body as { player?: unknown; attr?: unknown };
+  const player = typeof body?.player === "string" ? body.player : "";
+  const attr = typeof body?.attr === "string" ? body.attr : "";
+  if (!player || !attr) {
+    res.status(400).json({ error: "invalid_training", message: "Välj en gubbe och ett attribut." });
+    return;
+  }
+
+  const result = trainPlayer(season, team, player, attr);
+  if (!result.ok) {
+    const status = result.code === "invalid_training" ? 400 : 409;
     res.status(status).json({ error: result.code, message: result.error });
     return;
   }

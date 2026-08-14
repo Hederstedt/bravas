@@ -132,6 +132,22 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_transfers_team_day ON transfers(team_id, matchday);
+
+  -- Träningsloggen är kvoträkning på samma sätt som transferloggen: två pass
+  -- per lag och ospelad omgång räknas med COUNT på raderna som är historiken.
+  CREATE TABLE IF NOT EXISTS training_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    season_id INTEGER NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
+    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    season_player_id INTEGER NOT NULL REFERENCES season_players(id),
+    matchday INTEGER NOT NULL,
+    attr TEXT NOT NULL,
+    gain INTEGER NOT NULL,
+    rating_after INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_training_team_day ON training_sessions(team_id, matchday);
 `);
 
 // Lagkassan kom efter teams-tabellen och produktionen har redan lag, så
@@ -411,6 +427,51 @@ export function transferCount(teamId: number, matchday: number): number {
     .get(teamId, matchday) as { n: number };
   return row.n;
 }
+
+export function trainingCount(teamId: number, matchday: number): number {
+  const row = db
+    .prepare("SELECT COUNT(*) AS n FROM training_sessions WHERE team_id = ? AND matchday = ?")
+    .get(teamId, matchday) as { n: number };
+  return row.n;
+}
+
+// Nya betyg, nytt värde och loggrad i en transaktion. Betygen uppdateras
+// direkt i season_players, så matchsimuleringen plockar upp dem via truppen
+// utan att veta att träning finns — och redan sparade rapporter simuleras
+// aldrig om, så determinismen bryts inte.
+export const applyTraining = db.transaction(
+  (input: {
+    seasonId: number;
+    teamId: number;
+    seasonPlayerId: number;
+    matchday: number;
+    attr: string;
+    gain: number;
+    ratingAfter: number;
+    ratingsJson: string;
+    value: number;
+  }) => {
+    db.prepare("UPDATE season_players SET ratings_json = ?, value = ? WHERE id = ?").run(
+      input.ratingsJson,
+      input.value,
+      input.seasonPlayerId
+    );
+    db.prepare(
+      `INSERT INTO training_sessions
+         (season_id, team_id, season_player_id, matchday, attr, gain, rating_after, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      input.seasonId,
+      input.teamId,
+      input.seasonPlayerId,
+      input.matchday,
+      input.attr,
+      input.gain,
+      input.ratingAfter,
+      Date.now()
+    );
+  }
+);
 
 // Sälj, köp, kassa och loggrad i en transaktion. INSERT:en in i squads är
 // racets sista ord: primärnyckeln ligger på spelaren, så två lag som köper

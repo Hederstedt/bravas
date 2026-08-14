@@ -41,6 +41,7 @@ function view(overrides: Partial<api.ManagerView> = {}): api.ManagerView {
       spent: 11_000,
       funds: 1000,
       transfersLeft: 1,
+      trainingLeft: 2,
     },
     teams: [],
     table: [],

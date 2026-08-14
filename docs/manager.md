@@ -119,11 +119,29 @@ låses och all förändring går via marknaden.
 
 `PUT /api/manager/squad` svarar 409 `squad_locked` i seriefasen.
 
-## Planerat
+## Träning
 
-- **Träning:** två pass per lag och ospelad omgång; ett pass höjer ett attribut på
-  en egen spelare med deterministisk, avtagande kurva (cap 90) och räknar om
-  spelarens värde. Ingen slump — ett managerbeslut ska vara förutsägbart.
-  Tränade spelare blir dyrare att köpa och ger mer vid försäljning.
+Ett pass riktar sig mot **ett attribut på en spelare i egna truppen**. Betygen
+uppdateras direkt i säsongspoolen, så matchsimuleringen plockar upp dem via
+truppen utan att veta att träning finns — och sparade rapporter simuleras
+aldrig om, så determinismen bryts inte.
+
+- **Ingen slump.** Seedad rng finns i kodbasen för att kunna återskapa matcher;
+  ett träningspass är ett managerbeslut vars effekt ska vara förutsägbar.
+  Kurvan ger balansen, inte tärningen.
+- **Avtagande avkastning:** `gain = clamp(1, 6, round((90 − betyg) / 8))`. En
+  40-spelare får +6, en 82-spelare +1, vid 90 är det stopp.
+- **Två pass per lag och ospelad omgång** — samma kvotmekanik som marknaden,
+  räknad ur träningsloggen. Med ~10 omgångar blir det ~20 pass på hela truppen:
+  ingen kan maxa allt, och det är poängen.
+- **Värdet räknas om** med samma kubiska kurva i samma transaktion. Tränade
+  spelare blir dyrare att köpa och ger mer vid försäljning —
+  utvecklingsstrategin *köp billigt, träna, sälj dyrare* är avsiktligt spel,
+  eftersom passen är den knappa resursen, inte pengarna.
+- Bara i seriefasen, och passen sänds som `training` på händelseströmmen.
+
+| Metod | Väg | |
+|---|---|---|
+| POST | `/api/manager/training` | `{ player, attr }` — 409 i byggfasen, vid slut kvot och när serien är slut |
 
 Uppdatera det här dokumentet när mekanikerna landar.

@@ -1609,3 +1609,13 @@ a.fixture-score:hover {
 .pool-table tr.selected td {
   background: var(--accent-dim);
 }
+
+.training-table td {
+  padding: 6px 10px;
+}
+
+.pick-btn .gain {
+  color: var(--green);
+  margin-left: 4px;
+  font-size: 11px;
+}

@@ -63,7 +63,7 @@ function steamStats() {
 beforeEach(() => {
   resetRateLimits();
   db.exec(
-    "DELETE FROM transfers; DELETE FROM fixtures; DELETE FROM squads; DELETE FROM teams; DELETE FROM season_players; DELETE FROM seasons; DELETE FROM members; DELETE FROM allowlist; DELETE FROM cs2_stats;"
+    "DELETE FROM training_sessions; DELETE FROM transfers; DELETE FROM fixtures; DELETE FROM squads; DELETE FROM teams; DELETE FROM season_players; DELETE FROM seasons; DELETE FROM members; DELETE FROM allowlist; DELETE FROM cs2_stats;"
   );
   for (const [id, name] of MANAGERS) addMember(id, name);
   vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(steamStats()));

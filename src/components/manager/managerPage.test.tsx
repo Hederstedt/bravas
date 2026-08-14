@@ -201,6 +201,7 @@ describe('ManagerPage', () => {
         spent: 6200,
         funds: 13_800,
         transfersLeft: 0,
+        trainingLeft: 0,
       },
     })
 
@@ -227,6 +228,7 @@ describe('ManagerPage', () => {
         spent: 6200,
         funds: 13_800,
         transfersLeft: 1,
+        trainingLeft: 2,
       },
     })
 

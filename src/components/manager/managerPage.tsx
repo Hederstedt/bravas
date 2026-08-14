@@ -6,6 +6,7 @@ import { LeagueTable } from './leagueTable'
 import { SeasonLobby } from './seasonLobby'
 import { SquadBuilder } from './squadBuilder'
 import { TeamForm } from './teamForm'
+import { TrainingDesk } from './trainingDesk'
 import { TransferDesk } from './transferDesk'
 
 // Läsvyn är öppen — man ska kunna titta på tabellen och poolen utan att logga
@@ -34,8 +35,10 @@ export function ManagerPage() {
     void fetchManagerView().then(setView)
   }, [])
   useLiveEvent('league', reload)
-  // En affär någon annanstans ändrar poolen och priserna för alla.
+  // En affär någon annanstans ändrar poolen och priserna för alla, och ett
+  // träningspass ändrar betyg och värde.
   useLiveEvent('transfer', reload)
+  useLiveEvent('training', reload)
 
   return (
     <main>
@@ -86,10 +89,14 @@ function SeasonBody({
 
       {signedIn && view.myTeam === null && <TeamForm onCreated={onReload} />}
 
-      {/* Byggfas: fri ombyggnad. Seriefas: truppen är låst, marknaden gäller. */}
+      {/* Byggfas: fri ombyggnad. Seriefas: truppen är låst — träning och
+          marknad gäller. */}
       {view.myTeam !== null &&
         (view.locked ? (
-          <TransferDesk view={view} onView={onView} />
+          <>
+            <TrainingDesk view={view} onView={onView} />
+            <TransferDesk view={view} onView={onView} />
+          </>
         ) : (
           <SquadBuilder view={view} onView={onView} />
         ))}
