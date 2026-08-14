@@ -20,7 +20,7 @@ const session = () => `${sessionCookie.name}=${createSessionCookieValue(MEMBER)}
 beforeEach(() => {
   resetRateLimits();
   db.exec(
-    "DELETE FROM transfers; DELETE FROM fixtures; DELETE FROM squads; DELETE FROM teams; DELETE FROM season_players; DELETE FROM seasons; DELETE FROM quote_votes; DELETE FROM quotes; DELETE FROM members; DELETE FROM allowlist;"
+    "DELETE FROM training_sessions; DELETE FROM transfers; DELETE FROM fixtures; DELETE FROM squads; DELETE FROM teams; DELETE FROM season_players; DELETE FROM seasons; DELETE FROM quote_votes; DELETE FROM quotes; DELETE FROM members; DELETE FROM allowlist;"
   );
   db.prepare("INSERT INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(
     MEMBER,
@@ -45,6 +45,7 @@ const WRITES: { method: "post" | "put" | "delete"; path: string; body?: unknown 
   { method: "put", path: "/api/manager/squad", body: { players: [] } },
   { method: "post", path: "/api/manager/matchday" },
   { method: "post", path: "/api/manager/transfer", body: { sell: "a", buy: "b" } },
+  { method: "post", path: "/api/manager/training", body: { player: "a", attr: "SIK" } },
 ];
 
 describe("every state-changing endpoint demands a CSRF token", () => {

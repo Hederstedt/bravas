@@ -30,6 +30,7 @@ import {
 } from "./season.ts";
 import { SELL_RATE } from "./market.ts";
 import { transfersLeft } from "./marketService.ts";
+import { trainingLeft } from "./trainingService.ts";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -109,6 +110,7 @@ export interface SeasonView {
     spent: number;
     funds: number;
     transfersLeft: number;
+    trainingLeft: number;
   } | null;
   teams: { id: number; name: string; manager: string }[];
   table: TableRow[];
@@ -158,6 +160,7 @@ export function seasonView(steamid64: string | null): SeasonView {
           spent: squad.reduce((s, p) => s + p.value, 0),
           funds: mine.funds,
           transfersLeft: transfersLeft(season.id, mine.id),
+          trainingLeft: trainingLeft(season.id, mine.id),
         }
       : null,
     teams: teams.map((t) => ({ id: t.id, name: t.name, manager: t.manager_steamid64 })),

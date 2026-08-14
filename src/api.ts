@@ -203,6 +203,7 @@ export interface ManagerTeam {
   // bara genom transfermarknaden.
   funds: number
   transfersLeft: number
+  trainingLeft: number
 }
 
 // Speglar server/src/league.ts.
@@ -352,6 +353,18 @@ export async function playMatchday(): Promise<ApiResult<MatchdayResult>> {
 // svar är hela den färska managervyn, som saveSquad.
 export async function makeTransfer(sell: string, buy: string): Promise<ApiResult<ManagerView>> {
   return await sendJson<ManagerView>('/api/manager/transfer', 'POST', { sell, buy })
+}
+
+// Speglar server/src/training.ts — kurvan visas i gränssnittet innan passet
+// skickas, servern räknar själv och har sista ordet.
+export const TRAINING_CAP = 90
+
+export function trainingGain(rating: number): number {
+  return Math.min(6, Math.max(1, Math.round((TRAINING_CAP - rating) / 8)))
+}
+
+export async function trainPlayer(player: string, attr: string): Promise<ApiResult<ManagerView>> {
+  return await sendJson<ManagerView>('/api/manager/training', 'POST', { player, attr })
 }
 
 export async function fetchSiteConfig(): Promise<SiteConfig> {

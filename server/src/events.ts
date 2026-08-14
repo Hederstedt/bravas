@@ -11,7 +11,7 @@ export const HEARTBEAT_MS = 25_000;
 // fungera, hundra ska inte.
 export const MAX_CONNECTIONS_PER_IP = 4;
 
-export type EventName = "quote" | "presence" | "league" | "transfer";
+export type EventName = "quote" | "presence" | "league" | "transfer" | "training";
 
 export interface Subscriber {
   ip: string;

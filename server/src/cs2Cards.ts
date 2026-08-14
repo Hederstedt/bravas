@@ -117,8 +117,9 @@ const SPEC: Record<
 };
 
 // Ordningen är både visningsordning på kortet och prioritet när två attribut
-// ligger lika och ska ge positionen.
-const ATTR_ORDER: AttrKey[] = ["SIK", "SKA", "FRA", "TÅL", "NYT", "TID"];
+// ligger lika och ska ge positionen. Exporterad: träningen validerar attribut
+// mot samma lista.
+export const ATTR_ORDER: AttrKey[] = ["SIK", "SKA", "FRA", "TÅL", "NYT", "TID"];
 
 const WEIGHTS: Record<AttrKey, number> = {
   FRA: 0.25,

@@ -9,10 +9,11 @@ interface StubState {
   teamName: string | null
   squad: string[]
   // Antal spelade omgångar (0–2). Från första spelade omgången är truppen låst
-  // och transferfönstret öppet.
+  // och transfer- och träningsfönstren öppna.
   played: number
   funds: number
   transfersUsed: number
+  trainingUsed: number
 }
 
 const POOL = [
@@ -96,6 +97,7 @@ function view(state: StubState) {
           spent,
           funds: state.funds,
           transfersLeft: windowOpen ? Math.max(0, 1 - state.transfersUsed) : 0,
+          trainingLeft: windowOpen ? Math.max(0, 2 - state.trainingUsed) : 0,
         }
       : null,
     teams,
@@ -181,6 +183,10 @@ async function stubApi(page: Page, state: StubState, { signedIn = true } = {}) {
     state.transfersUsed += 1
     return route.fulfill({ json: view(state) })
   })
+  await page.route('**/api/manager/training', (route) => {
+    state.trainingUsed += 1
+    return route.fulfill({ json: view(state) })
+  })
   await page.route('**/api/manager/matchday', (route) => {
     state.played += 1
     return route.fulfill({ status: 201, json: { matchday: state.played, played: 1 } })
@@ -196,6 +202,7 @@ function freshState(overrides: Partial<StubState> = {}): StubState {
     played: 0,
     funds: BUDGET,
     transfersUsed: 0,
+    trainingUsed: 0,
     ...overrides,
   }
 }
@@ -226,9 +233,19 @@ test('a manager plays through the whole flow', async ({ page }) => {
   await page.getByRole('button', { name: 'Skriv på truppen' }).click()
   await expect(page.getByText(/Trupp: 5\/5/)).toBeVisible()
 
-  // Spela omgången — truppen låses och marknaden öppnar.
+  // Spela omgången — truppen låses, träningen och marknaden öppnar.
   await page.getByRole('button', { name: 'Spela nästa omgång' }).click()
   await expect(page.getByText(/Kassa:/)).toBeVisible()
+
+  // Ett träningspass: ett attribut på en egen gubbe, kvoten räknar ner.
+  await expect(page.getByText(/2 pass kvar/)).toBeVisible()
+  await page
+    .getByRole('table', { name: 'Träningen' })
+    .getByRole('row', { name: /Bärarn/ })
+    .getByRole('button')
+    .first()
+    .click()
+  await expect(page.getByText(/1 pass kvar/)).toBeVisible()
 
   // En affär: sälj Enstöringen (ger 2 100), köp Fyllnadsgubben (kostar 2 000).
   await page
