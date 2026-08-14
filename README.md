@@ -74,3 +74,15 @@ sudoers-regel ligger i `server/deploy/`.
 
 Hemligheterna bor i `/srv/bravas-api/.env` på servern, utanför release-mapparna,
 och rörs inte av en deploy.
+
+## Dokumentation
+
+All dokumentation ligger i [`docs/`](docs/):
+
+- [`docs/PLAN.md`](docs/PLAN.md) — projektplan, status och roadmap
+- [`docs/manager.md`](docs/manager.md) — CS Managers speldesign och API
+
+## Licens
+
+Proprietär — se [LICENSE](LICENSE). Koden får inte användas utan skriftligt
+avtal med Bravas.
