@@ -9,6 +9,7 @@ import { statsRouter } from "./routes/stats.ts";
 import { configRouter } from "./routes/config.ts";
 import { eventsRouter } from "./routes/events.ts";
 import { managerRouter } from "./routes/manager.ts";
+import { valheimRouter } from "./routes/valheim.ts";
 
 export function createApp(): Express {
   const app = express();
@@ -29,6 +30,7 @@ export function createApp(): Express {
   app.use("/api/config", configRouter);
   app.use("/api/events", eventsRouter);
   app.use("/api/manager", managerRouter);
+  app.use("/api/valheim", valheimRouter);
 
   return app;
 }

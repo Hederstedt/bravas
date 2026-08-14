@@ -169,6 +169,31 @@ export async function fetchPresence(): Promise<PresenceMap> {
   return data?.presence ?? {}
 }
 
+// serverName/password är null för en utloggad besökare eller någon utanför
+// rostern — servern avgör det, inte klienten, se server/src/routes/valheim.ts.
+export interface ValheimStatus {
+  online: boolean
+  players: number | null
+  maxPlayers: number | null
+  address: string
+  serverName: string | null
+  password: string | null
+}
+
+const VALHEIM_OFFLINE: ValheimStatus = {
+  online: false,
+  players: null,
+  maxPlayers: null,
+  address: '',
+  serverName: null,
+  password: null,
+}
+
+export async function fetchValheimStatus(): Promise<ValheimStatus> {
+  const data = await getJson<ValheimStatus>('/api/valheim/status')
+  return data ?? VALHEIM_OFFLINE
+}
+
 // ---------- CS Manager ----------
 
 // Speglar server/src/cs2Cards.ts och matchSim.ts.

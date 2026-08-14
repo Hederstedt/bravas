@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
-import { fetchHighlights, type Highlights } from '../api'
+import { fetchHighlights, fetchValheimStatus, type Highlights, type ValheimStatus } from '../api'
 import { members, games, statHighlights, statsIsMock } from '../data/clan'
+import { useLiveEvent } from '../useLiveEvents'
 import { useSiteConfig } from '../useSiteConfig'
 import { SteamLogin } from './auth'
 import { BvsMark } from './BvsMark'
@@ -123,7 +124,32 @@ export function Hero() {
   )
 }
 
+// Pollern på servern skickar bara det som faktiskt kan ändras i drift — namn,
+// lösenord och adress är statisk konfig och ingår inte i själva livehändelsen.
+type ValheimLiveUpdate = Pick<ValheimStatus, 'online' | 'players' | 'maxPlayers'>
+
 export function Games() {
+  const [valheim, setValheim] = useState<ValheimStatus | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchValheimStatus().then((v) => {
+      if (!cancelled) setValheim(v)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Namn/lösenord/adress rörs inte av en livehändelse — bara online-läget och
+  // spelarantalet, så raden inte hoppar till om man just fick upp uppgifterna.
+  const onValheimUpdate = useCallback((data: unknown) => {
+    const update = data as ValheimLiveUpdate | null
+    if (!update) return
+    setValheim((prev) => (prev ? { ...prev, ...update } : prev))
+  }, [])
+  useLiveEvent('valheim', onValheimUpdate)
+
   return (
     <section id="spel">
       <div className="container">
@@ -146,6 +172,22 @@ export function Games() {
                 <span className={`status ${g.status.toLowerCase().replace(' ', '-')}`}>
                   {g.status}
                 </span>
+                {g.id === 'valheim' && valheim && (
+                  <div className="valheim-live">
+                    <span className={`status ${valheim.online ? 'aktivt' : 'på-is'}`}>
+                      {valheim.online ? `${valheim.players} / ${valheim.maxPlayers} online` : 'Offline'}
+                    </span>
+                    {valheim.serverName && valheim.password ? (
+                      <p className="valheim-connect">
+                        <strong>{valheim.serverName}</strong>
+                        <br />
+                        {valheim.address} · lösenord <code>{valheim.password}</code>
+                      </p>
+                    ) : (
+                      <p className="valheim-locked">Logga in för att se serverns namn och lösenord</p>
+                    )}
+                  </div>
+                )}
               </article>
             )
           })}
