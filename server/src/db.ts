@@ -37,6 +37,20 @@ db.exec(`
     fetched_at INTEGER NOT NULL
   );
 
+  -- Spelservern frågas var 45:e sekund och svaret kastades förr bort. Sparat
+  -- blir det statistik ingen annan klan har: när är det fullast, hur länge
+  -- håller servern, hur många gubbtimmar har det blivit.
+  --
+  -- En rad skrivs när läget ändras, plus en pulsrad med jämna mellanrum även
+  -- när inget händer. Pulsen är det som gör tiden mätbar: mellan två rader vet
+  -- vi vad som gällde, och ett glapp större än pulsen betyder att API:et var
+  -- nere — den tiden ska inte räknas som något alls.
+  CREATE TABLE IF NOT EXISTS valheim_samples (
+    at INTEGER PRIMARY KEY,
+    online INTEGER NOT NULL,
+    players INTEGER NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS quotes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,
@@ -243,6 +257,35 @@ export function saveCs2Stats(steamid64: string, stats: Record<string, number>): 
     `INSERT INTO cs2_stats (steamid64, stats_json, fetched_at) VALUES (?, ?, ?)
      ON CONFLICT(steamid64) DO UPDATE SET stats_json = excluded.stats_json, fetched_at = excluded.fetched_at`
   ).run(steamid64, JSON.stringify(stats), Date.now());
+}
+
+// ---------- Valheim-historik ----------
+
+export interface ValheimSample {
+  at: number;
+  online: number;
+  players: number;
+}
+
+export function lastValheimSample(): ValheimSample | undefined {
+  return db.prepare("SELECT * FROM valheim_samples ORDER BY at DESC LIMIT 1").get() as
+    | ValheimSample
+    | undefined;
+}
+
+// Tidsstämpeln är primärnyckel, så två avläsningar inom samma millisekund
+// skulle krocka. Det händer inte i drift med 45 sekunders intervall, men en
+// testsvit som skriver i en snabb loop ska inte kunna kasta.
+export function recordValheimSample(at: number, online: boolean, players: number): void {
+  db.prepare(
+    "INSERT INTO valheim_samples (at, online, players) VALUES (?, ?, ?) ON CONFLICT(at) DO NOTHING"
+  ).run(at, online ? 1 : 0, players);
+}
+
+export function listValheimSamples(since = 0): ValheimSample[] {
+  return db
+    .prepare("SELECT * FROM valheim_samples WHERE at >= ? ORDER BY at")
+    .all(since) as ValheimSample[];
 }
 
 export interface CachedStats {
