@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Går att starta för hand. GitHub missade att trigga den här kedjan på en PR
+  # en gång, och utan ett sätt att köra om den fanns bara knep kvar — en tom
+  # commit, eller att stänga och öppna PR:en. Deploy är låst till workflow_run
+  # på main, så en handstartad körning på en gren kan inte rulla ut något.
+  workflow_dispatch:
 
 permissions:
   contents: read
