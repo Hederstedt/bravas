@@ -92,11 +92,13 @@ function ReportBody({ report }: { report: MatchReport }) {
 
   return (
     <>
+      <p className="report-matchday">Omgång {report.matchday}</p>
       <p className="report-score">
-        <span className="report-matchday">Omgång {report.matchday}</span>
+        <span className="report-team">{report.home.name}</span>
         <strong>
           {r.homeScore}–{r.awayScore}
         </strong>
+        <span className="report-team">{report.away.name}</span>
         {r.winner === 'draw' && <span className="report-draw">Oavgjort</span>}
       </p>
 
@@ -123,8 +125,8 @@ function ReportBody({ report }: { report: MatchReport }) {
           </div>
 
           <div className="report-boards">
-            <Scoreboard title="Hemma" lines={home} />
-            <Scoreboard title="Borta" lines={away} />
+            <Scoreboard title={report.home.name} lines={home} />
+            <Scoreboard title={report.away.name} lines={away} />
           </div>
         </>
       )}

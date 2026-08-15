@@ -11,6 +11,8 @@ afterEach(() => {
 const REPORT: api.MatchReport = {
   id: 11,
   matchday: 1,
+  home: { id: 1, name: 'FC Gubbarna' },
+  away: { id: 2, name: 'Träklubborna' },
   homeScore: 13,
   awayScore: 5,
   report: {
@@ -48,12 +50,26 @@ describe('MatchReportPage', () => {
     expect(await screen.findByText('13–5')).toBeInTheDocument()
     expect(screen.getByText(/Matchens gubbe/)).toBeInTheDocument()
 
-    const home = screen.getByRole('table', { name: 'Protokoll för Hemma' })
+    const home = screen.getByRole('table', { name: 'Protokoll för FC Gubbarna' })
     expect(within(home).getByText('Kungalv')).toBeInTheDocument()
     expect(within(home).getByText('19')).toBeInTheDocument()
     expect(
-      within(screen.getByRole('table', { name: 'Protokoll för Borta' })).getByText('Fria Agenten'),
+      within(screen.getByRole('table', { name: 'Protokoll för Träklubborna' })).getByText(
+        'Fria Agenten',
+      ),
     ).toBeInTheDocument()
+  })
+
+  // Utan lagnamn står det bara "Hemma" och "Borta", och läsaren har ingen
+  // aning om vilka som mötte varandra.
+  it('names both teams around the score', async () => {
+    vi.spyOn(api, 'fetchMatchReport').mockResolvedValue(REPORT)
+
+    renderAt('/manager/match/11')
+
+    const score = (await screen.findByText('13–5')).closest('p')!
+    expect(within(score).getByText('FC Gubbarna')).toBeInTheDocument()
+    expect(within(score).getByText('Träklubborna')).toBeInTheDocument()
   })
 
   it('explains a walkover instead of showing an empty scoreboard', async () => {
