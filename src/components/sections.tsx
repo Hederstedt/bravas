@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
-import { fetchHighlights, fetchValheimStatus, type Highlights, type ValheimStatus } from '../api'
+import {
+  fetchHighlights,
+  fetchMembers,
+  fetchValheimStatus,
+  type Highlights,
+  type ValheimStatus,
+} from '../api'
 import { members, games, statHighlights, statsIsMock } from '../data/clan'
 import { useLiveEvent } from '../useLiveEvents'
 import { useSiteConfig } from '../useSiteConfig'
@@ -432,6 +438,21 @@ export function Stats() {
 }
 
 export function About() {
+  const [memberCount, setMemberCount] = useState<number | null>(null)
+
+  // Räknaren tog tidigare längden på den hårdkodade platshållarlistan, så
+  // sajten kunde visa tio riktiga gubbar i rostern och samtidigt påstå sex.
+  // Platshållarsiffran används bara tills den riktiga hunnit hämtas.
+  useEffect(() => {
+    let cancelled = false
+    void fetchMembers().then((m) => {
+      if (!cancelled && m.length > 0) setMemberCount(m.length)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <section id="om" className="about">
       <div className="container about-grid">
@@ -453,7 +474,7 @@ export function About() {
         </div>
         <div className="stat-grid">
           <div className="stat">
-            <div className="num">{members.length}</div>
+            <div className="num">{memberCount ?? members.length}</div>
             <div className="label">Goa gubbar</div>
           </div>
           <div className="stat">

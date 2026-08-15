@@ -54,10 +54,12 @@ function stubApi(overrides: {
   members?: RosterMember[]
   cards?: PlayerCard[]
   presence?: api.PresenceMap
+  session?: api.Session | null
 } = {}) {
   vi.spyOn(api, 'fetchMembers').mockResolvedValue(overrides.members ?? [])
   vi.spyOn(api, 'fetchCards').mockResolvedValue(overrides.cards ?? [])
   vi.spyOn(api, 'fetchPresence').mockResolvedValue(overrides.presence ?? {})
+  vi.spyOn(api, 'fetchSession').mockResolvedValue(overrides.session ?? null)
 }
 
 function cardFor(name: string) {
@@ -249,6 +251,63 @@ describe('the attribute legend', () => {
     for (const attr of MAG_CARD.attributes) {
       expect(screen.getByText(attr.description)).toBeInTheDocument()
     }
+  })
+})
+
+// Steam vet vad du heter i Steam, inte i Discorden. Backenden har kunnat spara
+// kopplingen hela tiden — den gick bara inte att nå från sajten.
+describe('linking a Discord name', () => {
+  const session = { steamid64: MAG.steamid64 }
+
+  it('shows the name on the card once it is set', async () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    render(<Roster />)
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    expect(within(card).getByText('mag')).toBeInTheDocument()
+  })
+
+  it('leaves the card clean for someone who has not linked one', async () => {
+    stubApi({ members: [HIDDEN], cards: [] })
+    render(<Roster />)
+
+    const card = await waitFor(() => cardFor(HIDDEN.personaName))
+    expect(within(card).queryByText('mag')).not.toBeInTheDocument()
+  })
+
+  it('hides the form from anonymous visitors', async () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD], session: null })
+    render(<Roster />)
+
+    await waitFor(() => cardFor(MAG.personaName))
+    expect(screen.queryByRole('button', { name: /Koppla till kortet/ })).not.toBeInTheDocument()
+  })
+
+  it('saves the name and refreshes the roster so the card updates', async () => {
+    const user = userEvent.setup()
+    stubApi({ members: [{ ...MAG, discordName: null }], cards: [MAG_CARD], session })
+    const link = vi.spyOn(api, 'linkDiscord').mockResolvedValue(true)
+
+    render(<Roster />)
+
+    await user.type(await screen.findByLabelText(/Vad heter du i Discorden/), 'magge')
+    await user.click(screen.getByRole('button', { name: 'Koppla till kortet' }))
+
+    expect(link).toHaveBeenCalledWith('magge')
+    expect(await screen.findByText(/Sparat — namnet syns på ditt kort/)).toBeInTheDocument()
+  })
+
+  it('says so when the name could not be saved', async () => {
+    const user = userEvent.setup()
+    stubApi({ members: [MAG], cards: [MAG_CARD], session })
+    vi.spyOn(api, 'linkDiscord').mockResolvedValue(false)
+
+    render(<Roster />)
+
+    await user.type(await screen.findByLabelText(/Byt Discord-namn/), 'magge')
+    await user.click(screen.getByRole('button', { name: 'Koppla till kortet' }))
+
+    expect(await screen.findByText(/kunde inte sparas/)).toBeInTheDocument()
   })
 })
 

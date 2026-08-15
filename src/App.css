@@ -343,6 +343,58 @@ a.steam-login:hover {
   color: #12100d;
 }
 
+/* Discord-namnet under gubbens nick på kortet. */
+.card-discord {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.card-discord svg {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
+  flex: none;
+}
+
+/* Kopplingsformuläret sitter under rostern, med luft ifrån noten ovanför. */
+.discord-link {
+  margin-top: 24px;
+}
+
+/* Bara på egna citat. Dämpad tills man nuddar den — att ta bort sitt eget
+   citat är sällsynt och ska inte konkurrera med rösta-knappen. */
+.quote-delete {
+  padding: 6px 12px;
+  border: 1px solid var(--panel-edge);
+  background: none;
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.quote-delete:hover {
+  border-color: #f87171;
+  color: #f87171;
+}
+
+/* Andra klicket bekräftar. En dialogruta hade varit tyngre än beslutet. */
+.quote-delete.confirming {
+  border-color: #f87171;
+  color: #f87171;
+}
+
 /* ---------- Närvaro ---------- */
 .player-card .avatar {
   position: relative;

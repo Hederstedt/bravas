@@ -4,6 +4,7 @@ import { broadcast } from "../events.ts";
 import { mutationLimiter, readLimiter } from "../middleware/rateLimit.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
 import { parseQuoteInput } from "../quotes.ts";
+import { sessionCookie, verifySessionCookieValue } from "../session.ts";
 
 export const quotesRouter = Router();
 
@@ -11,32 +12,39 @@ interface QuoteRow {
   id: number;
   text: string;
   said_by: string;
+  submitted_by: string;
   created_at: number;
   votes: number;
 }
 
 // Inskickare och röstande läggs medvetet inte med i svaret: väggen ska kunna
 // läsas utan att det syns vem som tyckte vad.
-function publicQuote(row: QuoteRow) {
+//
+// `mine` är undantaget som bekräftar regeln — den berättar bara för dig vilka
+// citat som är dina, så raderingsknappen kan visas på rätt kort. Vem som
+// skrivit någon annans citat framgår fortfarande inte.
+function publicQuote(row: QuoteRow, steamid64: string | null) {
   return {
     id: row.id,
     text: row.text,
     saidBy: row.said_by,
     createdAt: row.created_at,
     votes: row.votes,
+    mine: steamid64 !== null && row.submitted_by === steamid64,
   };
 }
 
 const LIST_SQL = `
-  SELECT q.id, q.text, q.said_by, q.created_at,
+  SELECT q.id, q.text, q.said_by, q.submitted_by, q.created_at,
          (SELECT COUNT(*) FROM quote_votes v WHERE v.quote_id = q.id) AS votes
   FROM quotes q
   ORDER BY votes DESC, q.created_at DESC
 `;
 
-quotesRouter.get("/", readLimiter, (_req, res) => {
+quotesRouter.get("/", readLimiter, (req, res) => {
+  const steamid64 = verifySessionCookieValue(req.cookies?.[sessionCookie.name]);
   const rows = db.prepare(LIST_SQL).all() as QuoteRow[];
-  res.json({ quotes: rows.map(publicQuote) });
+  res.json({ quotes: rows.map((row) => publicQuote(row, steamid64)) });
 });
 
 quotesRouter.post("/", mutationLimiter, requireAuth, (req, res) => {
@@ -59,6 +67,9 @@ quotesRouter.post("/", mutationLimiter, requireAuth, (req, res) => {
     text: parsed.value.text,
     saidBy: parsed.value.saidBy,
     votes: 0,
+    // Ditt eget, per definition — så kortet får sin raderingsknapp direkt utan
+    // att väggen behöver hämtas om.
+    mine: true,
   });
 });
 

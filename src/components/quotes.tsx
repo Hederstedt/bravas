@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   addQuote,
+  deleteQuote,
   fetchQuotes,
   fetchSession,
   toggleQuoteVote,
@@ -18,6 +19,8 @@ export function Quotes() {
   const [saidBy, setSaidBy] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  // Vilket citat som väntar på en bekräftelse av raderingen.
+  const [confirming, setConfirming] = useState<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -63,6 +66,22 @@ export function Quotes() {
     // uppräkning som inte finns på servern.
     if (!result) return
     setQuotes((current) => current.map((q) => (q.id === id ? { ...q, votes: result.votes } : q)))
+  }
+
+  // Radering är inte ångerbar, så den kräver ett andra klick i stället för en
+  // dialogruta — samma mönster som resten av sajten, och den som råkar nudda
+  // knappen på mobilen tappar inte sitt citat.
+  async function remove(id: number) {
+    if (confirming !== id) {
+      setConfirming(id)
+      return
+    }
+    setConfirming(null)
+    if (!(await deleteQuote(id))) {
+      setError('Citatet kunde inte tas bort. Försök igen.')
+      return
+    }
+    setQuotes((current) => current.filter((q) => q.id !== id))
   }
 
   return (
@@ -118,6 +137,16 @@ export function Quotes() {
                   {signedIn && (
                     <button type="button" className="quote-vote" onClick={() => void vote(q.id)}>
                       Rösta
+                    </button>
+                  )}
+                  {q.mine && (
+                    <button
+                      type="button"
+                      className={`quote-delete${confirming === q.id ? ' confirming' : ''}`}
+                      onClick={() => void remove(q.id)}
+                      onBlur={() => setConfirming((c) => (c === q.id ? null : c))}
+                    >
+                      {confirming === q.id ? 'Säkert?' : 'Ta bort'}
                     </button>
                   )}
                 </div>

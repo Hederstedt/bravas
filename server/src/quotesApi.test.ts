@@ -94,6 +94,51 @@ describe("GET /api/quotes", () => {
     expect(serialised).not.toContain(MAG);
     expect(serialised).not.toContain(KUNGALV);
   });
+
+  // `mine` är undantaget från regeln ovan: den berättar bara för dig vilka
+  // citat som är dina, så raderingsknappen hamnar på rätt kort. Vem som
+  // skrivit någon annans framgår fortfarande inte.
+  describe("the mine flag", () => {
+    it("is false for everything when nobody is logged in", async () => {
+      await postQuote(MAG, { text: "Ett citat", saidBy: "Gubbe" });
+
+      const res = await request(app).get("/api/quotes").expect(200);
+      expect(res.body.quotes[0].mine).toBe(false);
+    });
+
+    it("marks only your own quotes", async () => {
+      const mine = (await postQuote(MAG, { text: "Mitt citat", saidBy: "Gubbe" })).body.id;
+      const theirs = (await postQuote(KUNGALV, { text: "Hans citat", saidBy: "Gubbe" })).body.id;
+
+      const res = await request(app)
+        .get("/api/quotes")
+        .set("Cookie", sessionFor(MAG))
+        .expect(200);
+
+      const byId = new Map(
+        (res.body.quotes as { id: number; mine: boolean }[]).map((q) => [q.id, q.mine])
+      );
+      expect(byId.get(mine)).toBe(true);
+      expect(byId.get(theirs)).toBe(false);
+    });
+
+    it("still hides the submitter when the flag is set", async () => {
+      await postQuote(MAG, { text: "Mitt citat", saidBy: "Gubbe" });
+
+      const res = await request(app)
+        .get("/api/quotes")
+        .set("Cookie", sessionFor(MAG))
+        .expect(200);
+
+      expect(res.body.quotes[0].mine).toBe(true);
+      expect(JSON.stringify(res.body)).not.toContain(MAG);
+    });
+
+    it("comes back true on the quote you just posted", async () => {
+      const res = await postQuote(MAG, { text: "Nytt citat", saidBy: "Gubbe" });
+      expect(res.body.mine).toBe(true);
+    });
+  });
 });
 
 describe("POST /api/quotes", () => {
