@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import {
+  fetchDiscordStatus,
   fetchHighlights,
   fetchMembers,
   fetchValheimStatus,
+  type DiscordStatus,
   type Highlights,
   type ValheimStatus,
 } from '../api'
@@ -497,12 +499,37 @@ export function About() {
 
 export function DiscordCta() {
   const { discordInviteUrl } = useSiteConfig()
+  const [discord, setDiscord] = useState<DiscordStatus | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchDiscordStatus().then((d) => {
+      if (!cancelled) setDiscord(d)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Pollern skickar hela ögonblicksbilden när någon kommer eller går.
+  const onDiscord = useCallback((data: unknown) => {
+    const next = data as DiscordStatus | null
+    if (next) setDiscord(next)
+  }, [])
+  useLiveEvent('discord', onDiscord)
+
+  // Widgeten kan vara avstängd i Discord, och då ska sektionen se ut som förut
+  // i stället för att visa en tom lista.
+  const live = discord?.available === true
 
   return (
     <section id="discord" className="discord-cta">
       <div className="container">
         <h2>Häng med i Discorden</h2>
         <p>Där händer allt: kvällens lineup, serverstatus och diskussioner om rush B ändå.</p>
+
+        {live && <DiscordLive status={discord} />}
+
         {discordInviteUrl && (
           <a className="btn btn-primary" href={discordInviteUrl}>
             <DiscordIcon /> Joina BVS
@@ -510,6 +537,37 @@ export function DiscordCta() {
         )}
       </div>
     </section>
+  )
+}
+
+// Vilka som hänger inne just nu. Discord listar bara de som är online och som
+// själva syns i widgeten, så en tom lista med noll inne är ett giltigt svar —
+// inte ett fel.
+function DiscordLive({ status }: { status: DiscordStatus }) {
+  if (status.online === 0) {
+    return <p className="discord-live empty">Tomt i Discorden just nu — bli den som drar igång.</p>
+  }
+
+  // Siffran kommer från Discord och räknar alla online, även de som inte ryms
+  // i namnlistan.
+  const hidden = status.online - status.members.length
+
+  return (
+    <div className="discord-live">
+      <p className="discord-count">
+        <span className="server-dot" aria-hidden="true" />
+        {status.online === 1 ? '1 gubbe inne just nu' : `${status.online} gubbar inne just nu`}
+      </p>
+      <ul className="discord-members">
+        {status.members.map((m) => (
+          <li key={m.name} className={m.status}>
+            <span className="who">{m.name}</span>
+            {m.game && <span className="playing">{m.game}</span>}
+          </li>
+        ))}
+        {hidden > 0 && <li className="more">+{hidden} till</li>}
+      </ul>
+    </div>
   )
 }
 

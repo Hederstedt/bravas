@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
-import { About, Nav, Games, Stats } from './sections'
+import { About, DiscordCta, Nav, Games, Stats } from './sections'
 import { games, members, statHighlights } from '../data/clan'
 import * as api from '../api'
 import type { ValheimStatus } from '../api'
@@ -173,6 +173,103 @@ describe('Stats', () => {
     for (const s of statHighlights) {
       expect(screen.getByText(s.label)).toBeInTheDocument()
     }
+  })
+})
+
+// Widgeten hämtas av BFF:en, inte av webbläsaren — server-ID:t stannar i
+// backend och sajten talar aldrig med Discord från klienten.
+describe('DiscordCta', () => {
+  const ONLINE: api.DiscordStatus = {
+    available: true,
+    online: 2,
+    members: [
+      { name: 'Mag', status: 'online', game: 'Counter-Strike 2' },
+      { name: 'Kungalv', status: 'idle', game: null },
+    ],
+  }
+
+  beforeEach(() => {
+    installLiveEvents()
+    vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({
+      discordInviteUrl: 'https://discord.gg/test',
+    })
+  })
+
+  afterEach(() => {
+    teardownLiveEvents()
+    vi.restoreAllMocks()
+  })
+
+  it('lists who is hanging out, and what they are playing', async () => {
+    vi.spyOn(api, 'fetchDiscordStatus').mockResolvedValue(ONLINE)
+    render(<DiscordCta />)
+
+    expect(await screen.findByText(/2 gubbar inne just nu/)).toBeInTheDocument()
+    expect(screen.getByText('Mag')).toBeInTheDocument()
+    expect(screen.getByText('Counter-Strike 2')).toBeInTheDocument()
+  })
+
+  it('counts one gubbe in the singular', async () => {
+    vi.spyOn(api, 'fetchDiscordStatus').mockResolvedValue({
+      ...ONLINE,
+      online: 1,
+      members: [ONLINE.members[0]],
+    })
+    render(<DiscordCta />)
+
+    expect(await screen.findByText(/1 gubbe inne just nu/)).toBeInTheDocument()
+  })
+
+  // Discord räknar alla online, även de som inte ryms i namnlistan.
+  it('says how many did not fit in the list', async () => {
+    vi.spyOn(api, 'fetchDiscordStatus').mockResolvedValue({ ...ONLINE, online: 9 })
+    render(<DiscordCta />)
+
+    expect(await screen.findByText('+7 till')).toBeInTheDocument()
+  })
+
+  it('invites someone to start the evening when nobody is in', async () => {
+    vi.spyOn(api, 'fetchDiscordStatus').mockResolvedValue({
+      available: true,
+      online: 0,
+      members: [],
+    })
+    render(<DiscordCta />)
+
+    expect(await screen.findByText(/Tomt i Discorden just nu/)).toBeInTheDocument()
+  })
+
+  // Widgeten är avstängd i Discord, eller servern svarar inte — då ska
+  // sektionen se ut som den alltid gjort i stället för att visa en tom lista.
+  it('falls back to the plain invite when the widget is unavailable', async () => {
+    vi.spyOn(api, 'fetchDiscordStatus').mockResolvedValue({
+      available: false,
+      online: 0,
+      members: [],
+    })
+    render(<DiscordCta />)
+
+    expect(await screen.findByRole('link', { name: /Joina BVS/ })).toBeInTheDocument()
+    expect(screen.queryByText(/inne just nu/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Tomt i Discorden/)).not.toBeInTheDocument()
+  })
+
+  it('updates live when someone joins', async () => {
+    vi.spyOn(api, 'fetchDiscordStatus').mockResolvedValue(ONLINE)
+    render(<DiscordCta />)
+
+    expect(await screen.findByText(/2 gubbar inne just nu/)).toBeInTheDocument()
+
+    act(() => {
+      emitLiveEvent('discord', {
+        available: true,
+        online: 3,
+        members: [...ONLINE.members, { name: 'BrunKalle', status: 'online', game: null }],
+      })
+    })
+
+    expect(screen.getByText(/3 gubbar inne just nu/)).toBeInTheDocument()
+    expect(screen.getByText('BrunKalle')).toBeInTheDocument()
   })
 })
 

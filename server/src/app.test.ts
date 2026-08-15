@@ -41,12 +41,16 @@ describe("GET /api/health", () => {
 });
 
 describe("GET /api/config", () => {
-  it("exposes only the public Discord fields", async () => {
+  it("hands out the invite and nothing else", async () => {
     const res = await request(app).get("/api/config").expect(200);
-    expect(res.body).toEqual({
-      discordServerId: "323523542312419348",
-      discordInviteUrl: "https://discord.gg/testinvite",
-    });
+    expect(res.body).toEqual({ discordInviteUrl: "https://discord.gg/testinvite" });
+  });
+
+  // Server-ID:t skickades hit förr men lästes aldrig av någon komponent, och
+  // nu hämtar BFF:en widgeten själv — då hör det inte hemma i klientens config.
+  it("keeps the Discord server id in the backend", async () => {
+    const res = await request(app).get("/api/config").expect(200);
+    expect(JSON.stringify(res.body)).not.toContain("323523542312419348");
   });
 
   it("never leaks the Steam API key or session secret", async () => {

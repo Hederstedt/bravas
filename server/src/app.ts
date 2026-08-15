@@ -11,6 +11,7 @@ import { configRouter } from "./routes/config.ts";
 import { eventsRouter } from "./routes/events.ts";
 import { managerRouter } from "./routes/manager.ts";
 import { valheimRouter } from "./routes/valheim.ts";
+import { discordRouter } from "./routes/discord.ts";
 
 export function createApp(): Express {
   const app = express();
@@ -39,6 +40,7 @@ export function createApp(): Express {
   app.use("/api/events", eventsRouter);
   app.use("/api/manager", managerRouter);
   app.use("/api/valheim", valheimRouter);
+  app.use("/api/discord", discordRouter);
 
   // Sist: allt som kastat sig förbi routrarna landar här i stället för i
   // Express standardhanterare, som svarar med en HTML-sida och loggar utan

@@ -21,7 +21,6 @@ export interface Presence {
 export type PresenceMap = Record<string, Presence>
 
 export interface SiteConfig {
-  discordServerId: string
   discordInviteUrl: string
 }
 
@@ -443,5 +442,30 @@ export async function trainPlayer(player: string, attr: string): Promise<ApiResu
 
 export async function fetchSiteConfig(): Promise<SiteConfig> {
   const data = await getJson<SiteConfig>('/api/config')
-  return data ?? { discordServerId: '', discordInviteUrl: '' }
+  return data ?? { discordInviteUrl: '' }
+}
+
+// Speglar server/src/discordWidget.ts. Widgeten hämtas av BFF:en, inte av
+// webbläsaren — server-ID:t stannar i backend och sajten talar inte med
+// Discord från klienten.
+export type DiscordPresence = 'online' | 'idle' | 'dnd'
+
+export interface DiscordMember {
+  name: string
+  status: DiscordPresence
+  game: string | null
+}
+
+export interface DiscordStatus {
+  // Falskt när widgeten är avstängd i Discord, server-ID saknas eller Discord
+  // inte svarar. Då visas bara den vanliga inbjudningsknappen.
+  available: boolean
+  online: number
+  members: DiscordMember[]
+}
+
+const DISCORD_UNAVAILABLE: DiscordStatus = { available: false, online: 0, members: [] }
+
+export async function fetchDiscordStatus(): Promise<DiscordStatus> {
+  return (await getJson<DiscordStatus>('/api/discord')) ?? DISCORD_UNAVAILABLE
 }
