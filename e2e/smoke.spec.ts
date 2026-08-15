@@ -161,6 +161,56 @@ test('the quote wall asks anonymous visitors to log in', async ({ page }) => {
   await expect(wall.getByText(/Logga in med Steam för att lägga till/)).toBeAttached()
 })
 
+// Mobilmenyn låg en gång inuti <nav>, som har backdrop-filter. Ett filter gör
+// elementet till containing block för allt med position: fixed inuti, så
+// overlayns `inset: 64px 0 0` räknades mot navbarens 65 px i stället för mot
+// skärmen: menyn kollapsade till en 48 px hög remsa och alla länkarna klipptes
+// bort. Den öppnades alltså, men innehöll inget klickbart.
+//
+// Enhetstesterna missade det helt — jsdom har ingen layout, så en kollapsad
+// overlay går inte att upptäcka där. Därför måste det vaktas här, med riktig
+// layout, och med krav på att länkarna faktiskt SYNS och inte bara finns.
+test.describe('the mobile menu', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/')
+  })
+
+  test('opens with every link visible and inside the screen', async ({ page }) => {
+    await page.getByRole('button', { name: 'Öppna menyn' }).click()
+
+    const menu = page.getByRole('dialog', { name: 'Meny' })
+    await expect(menu).toBeVisible()
+
+    // Kärnan: länkarna ska synas, inte bara vara monterade.
+    for (const label of ['Gubbarna', 'Spel', 'Siffrorna', 'Citat', 'Manager', 'Om oss', 'Discord']) {
+      await expect(menu.getByRole('link', { name: label })).toBeInViewport()
+    }
+
+    // Och överlagret ska täcka skärmen, inte kollapsa till en remsa.
+    const height = await menu.evaluate((el) => el.getBoundingClientRect().height)
+    expect(height).toBeGreaterThan(600)
+  })
+
+  test('navigates when a link is tapped and closes behind it', async ({ page }) => {
+    await page.getByRole('button', { name: 'Öppna menyn' }).click()
+    await page.getByRole('dialog', { name: 'Meny' }).getByRole('link', { name: 'Manager' }).click()
+
+    await expect(page).toHaveURL(/\/manager$/)
+    await expect(page.getByRole('dialog', { name: 'Meny' })).toBeHidden()
+  })
+
+  test('closes on Escape and hands focus back to the burger', async ({ page }) => {
+    const burger = page.getByRole('button', { name: 'Öppna menyn' })
+    await burger.click()
+    await expect(page.getByRole('dialog', { name: 'Meny' })).toBeVisible()
+
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog', { name: 'Meny' })).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Öppna menyn' })).toBeFocused()
+  })
+})
+
 // Laguppställningen scrollar avsiktligt i sidled, men den scrollen ska stanna
 // inne i raden. Sidan som helhet får aldrig gå att dra i sidled.
 test('no horizontal overflow', async ({ page }) => {

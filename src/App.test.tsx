@@ -20,9 +20,11 @@ describe('routing', () => {
     expect(screen.getByRole('heading', { name: 'Gubbarna' })).toBeInTheDocument()
   })
 
-  it('renders the manager page on /manager', () => {
+  // Manager-rutterna hämtas separat, så de dyker upp först efter att chunken
+  // laddats — därav findBy i stället för getBy.
+  it('renders the manager page on /manager', async () => {
     renderAt('/manager')
-    expect(screen.getByRole('heading', { name: 'Manager' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Manager' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Bravas' })).not.toBeInTheDocument()
   })
 
@@ -31,8 +33,9 @@ describe('routing', () => {
     expect(screen.getByRole('heading', { name: 'Bravas' })).toBeInTheDocument()
   })
 
-  it('keeps nav and footer on every page', () => {
+  it('keeps nav and footer on every page', async () => {
     renderAt('/manager')
+    expect(await screen.findByRole('heading', { name: 'Manager' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /BVS/ })).toBeInTheDocument()
     expect(screen.getByText(/Hostad i ett garage/)).toBeInTheDocument()
   })

@@ -272,13 +272,16 @@ describe("POST /api/manager/transfer", () => {
     ).toBe("Kungälvs Kanoner");
   });
 
+  // Sista omgången stänger säsongen, så det finns ingen aktiv säsong kvar att
+  // handla i — svaret kommer från den kontrollen i stället för från kvoten.
   it("refuses once the season is finished", async () => {
     const { mag } = await seasonInPlay(2);
     await mag.post("/api/manager/matchday").expect(201);
     await mag.post("/api/manager/matchday").expect(201);
 
     const res = await mag.post("/api/manager/transfer", { sell: "a", buy: "b" }).expect(409);
-    expect(res.body.error).toBe("season_finished");
+    expect(res.body.error).toBe("no_active_season");
+    expect(res.body.message).toMatch(/Ingen säsong är igång/);
   });
 
   // Primärnyckeln på spelaren är sista ordet: två lag som köper samma gubbe i

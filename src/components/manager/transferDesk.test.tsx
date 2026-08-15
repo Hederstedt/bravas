@@ -43,6 +43,7 @@ function view(overrides: Partial<api.ManagerView> = {}): api.ManagerView {
       transfersLeft: 1,
       trainingLeft: 2,
     },
+    lastFinished: null,
     teams: [],
     table: [],
     fixtures: [],

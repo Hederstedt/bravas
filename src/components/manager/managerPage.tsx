@@ -58,7 +58,11 @@ export function ManagerPage() {
           )}
 
           {view !== 'loading' && view !== null && view.season === null && (
-            <SeasonLobby signedIn={signedIn} onStarted={reload} />
+            <SeasonLobby
+              signedIn={signedIn}
+              onStarted={reload}
+              lastFinished={view.lastFinished}
+            />
           )}
 
           {view !== 'loading' && view !== null && view.season !== null && (

@@ -18,6 +18,7 @@ const RATINGS: api.ManagerRatings = { SIK: 70, SKA: 65, FRA: 60, TÅL: 55, NYT: 
 
 const VIEW: api.ManagerView = {
   season: { id: 1, name: 'Höstserien', starts_at: 1, ends_at: 2, status: 'active' },
+  lastFinished: null,
   budget: 20_000,
   squadSize: 5,
   locked: false,

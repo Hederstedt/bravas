@@ -7,6 +7,7 @@ Klansida för BVS — ett gäng goa gubbar från Västra Götaland som lirar CS2
 - **Frontend:** React + Vite + TypeScript. Statisk build, självhostade fonter, ingen extern tracking.
 - **Backend:** Node-API (Express + SQLite) byggt som **BFF** (Backend-for-Frontend) — skräddarsytt för exakt denna frontend, inga generiska endpoints. Hanterar Steam-inloggning (OpenID 2.0), medlemsdata, statistik-aggregering från externa API:er och manager-spelet. API-nycklar och secrets bor enbart i backend.
 - **CI/CD:** GitHub Actions — lint (oxlint), enhetstester (Vitest + React Testing Library), E2E (Playwright, desktop + mobil), typecheck + build. Grön CI krävs innan deploy. Deployen är atomisk (release-mappar + symlänk-swap) så sajten aldrig är trasig under utrullning.
+- **Observability:** felhanterande middleware loggar 5xx med metod, väg och stacktrace; långsamma svar (≥1 s) loggas som varning. `GET /api/health` svarar med drifttid — systemd:s `Restart=on-failure` fångar bara krasch, inte en process som lever men inte fungerar. Frontenden har en felgräns så ett renderingsfel ger ett besked i stället för vit skärm.
 - **Säkerhet:** CodeQL-skanning, Dependabot (3 dagars release-cooldown; minor/patch auto-mergas efter grön CI, majors granskas manuellt), secret scanning, branch protection på main.
 - **Licens:** proprietär — se [LICENSE](../LICENSE) i roten. Ingen användning utan skriftligt avtal.
 
@@ -36,8 +37,21 @@ Klansida för BVS — ett gäng goa gubbar från Västra Götaland som lirar CS2
 
 Speldesignen i detalj: [manager.md](manager.md).
 
+- [x] **Säsongscykel:** serien tar slut när sista omgången spelats, och lobbyn kommer tillbaka med förra sluttabellen kvar så att en ny säsong kan startas.
+
 Nästa steg om serien känns för lätt: låt botlagen träna och göra affärer mellan
 omgångarna — i dag står de still medan managern utvecklar sin trupp.
+
+### Senare — Mikaels önskelista (aug 2026)
+
+I prioritetsordning, med underlag utrett:
+
+1. **Småfix med färdig backend:** ta bort egna citat (`DELETE /api/quotes/:id`) och koppla Discord-namn (`POST /api/members/link`) — båda endpoints finns och är testade, bara UI saknas.
+2. **Discord-widget:** `DISCORD_SERVER_ID` går redan hela vägen till klienten men konsumeras aldrig. Proxa Discords widget-JSON via BFF:en.
+3. **World of Tanks-statistik** via Wargaming API — kräver application ID och att gubbarna anger sina WoT-nick, de går inte att härleda ur SteamID.
+4. **Valheim-statistik:** Valheim exponerar **achievements, inte räknare** — "mest dödade troll" går alltså inte att få. Däremot "först i klanen att fälla Bonemass", speltid via `GetOwnedGames`, och egen statistik ur `valheimPoller` (flest timmar inne på servern, kvällen då flest var inne samtidigt). Verifiera först med `GetSchemaForGame` för appid 892970.
+5. **Vikingafigurer:** procedurella SVG-figurer per gubbe, seedade på SteamID via `rng.ts` och varierade med attribut och tier. Passar regeln om egen CSS/SVG utan fan art.
+6. **Tvärspelspoäng:** verklig speltid ger **managerresurser** (extra träningspass, pengar, transfers) — aldrig ändrade spelarbetyg, eftersom den frysta poolen är invarianten hela transfermarknaden vilar på.
 
 ### Senare
 

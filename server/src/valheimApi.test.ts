@@ -77,6 +77,7 @@ describe("GET /api/valheim/status", () => {
 
     expect(res.body.serverName).toBeNull();
     expect(res.body.password).toBeNull();
+    expect(res.body.signedIn).toBe(false);
     expect(JSON.stringify(res.body)).not.toContain("hemligt123");
   });
 
@@ -110,6 +111,9 @@ describe("GET /api/valheim/status", () => {
 
     expect(res.body.serverName).toBe("Bravas Valheim Server");
     expect(res.body.password).toBe("hemligt123");
+    // Flaggan låter kortet skilja "du är utloggad" från "servern saknar
+    // uppgifterna i sin .env".
+    expect(res.body.signedIn).toBe(true);
   });
 
   it("reports offline with null player counts when the server doesn't answer", async () => {

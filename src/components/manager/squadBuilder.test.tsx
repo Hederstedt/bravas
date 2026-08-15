@@ -33,6 +33,7 @@ function view(overrides: Partial<api.ManagerView> = {}): api.ManagerView {
     sellRate: 0.7,
     pool: POOL,
     myTeam: { id: 2, name: 'FC Träklubban', squad: [], spent: 0, funds: 20_000, transfersLeft: 0, trainingLeft: 0 },
+    lastFinished: null,
     teams: [],
     table: [],
     fixtures: [],

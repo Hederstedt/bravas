@@ -41,9 +41,11 @@ export async function refreshPresence(): Promise<boolean> {
   let byId: Map<string, Presence>;
   try {
     byId = await fetchPresence(steamids);
-  } catch {
+  } catch (err) {
     // Presence är dekoration. Ett avbrott mot Steam ska lämna kvar den senaste
-    // kända bilden, inte tömma rostern.
+    // kända bilden, inte tömma rostern — men det ska synas i loggen. Utgången
+    // API-nyckel frös annars prickarna för alltid utan ett enda spår.
+    console.warn(`presence: kunde inte nå Steam — behåller senaste bilden. ${String(err)}`);
     return false;
   }
 

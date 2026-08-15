@@ -30,6 +30,16 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// Processen kan leva medan databasen är låst eller Steam-nyckeln utgången —
+// Restart=on-failure i systemd fångar bara krasch.
+describe("GET /api/health", () => {
+  it("answers without a session", async () => {
+    const res = await request(app).get("/api/health").expect(200);
+    expect(res.body.ok).toBe(true);
+    expect(typeof res.body.uptime).toBe("number");
+  });
+});
+
 describe("GET /api/config", () => {
   it("exposes only the public Discord fields", async () => {
     const res = await request(app).get("/api/config").expect(200);

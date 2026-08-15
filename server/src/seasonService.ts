@@ -5,6 +5,7 @@ import {
   createTeam,
   getTeam,
   keysTakenByOtherTeams,
+  lastFinishedSeason,
   listPool,
   listTeams,
   savePool,
@@ -94,8 +95,20 @@ export async function startSeason(name: string): Promise<SeasonRow> {
   return season;
 }
 
+// Den senast färdigspelade säsongen följer med i vyn. Utan den känns
+// säsongsslutet som att allt raderades: lobbyn dyker upp och tabellen man
+// nyss spelade fram är borta utan spår.
+export interface FinishedSeason {
+  name: string;
+  table: TableRow[];
+  // Så att sluttabellen kan märka ut det datorstyrda motståndet på samma sätt
+  // som den pågående tabellen gör.
+  botTeamIds: number[];
+}
+
 export interface SeasonView {
   season: SeasonRow | null;
+  lastFinished: FinishedSeason | null;
   budget: number;
   squadSize: number;
   // Seriefas: första omgången är spelad, trupperna är låsta och all förändring
@@ -117,11 +130,24 @@ export interface SeasonView {
   fixtures: PublicFixture[];
 }
 
+function finishedSeasonView(): FinishedSeason | null {
+  const previous = lastFinishedSeason();
+  if (!previous) return null;
+  return {
+    name: previous.name,
+    table: seasonTable(previous.id),
+    botTeamIds: listTeams(previous.id)
+      .filter((t) => t.bot === 1)
+      .map((t) => t.id),
+  };
+}
+
 export function seasonView(steamid64: string | null): SeasonView {
   const season = activeSeason() ?? null;
   if (!season) {
     return {
       season: null,
+      lastFinished: finishedSeasonView(),
       budget: SEASON_BUDGET,
       squadSize: SQUAD_SIZE,
       locked: false,
@@ -147,6 +173,8 @@ export function seasonView(steamid64: string | null): SeasonView {
 
   return {
     season,
+    // En pågående säsong behöver inte historiken — den visas i lobbyn.
+    lastFinished: null,
     budget: SEASON_BUDGET,
     squadSize: SQUAD_SIZE,
     locked: anyFixturePlayed(season.id),

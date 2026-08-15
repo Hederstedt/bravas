@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { fetchHighlights, fetchValheimStatus, type Highlights, type ValheimStatus } from '../api'
@@ -58,35 +58,58 @@ const navLinks = [
 
 export function Nav() {
   const [open, setOpen] = useState(false)
+  const burgerRef = useRef<HTMLButtonElement>(null)
 
+  // Escape stänger menyn och lämnar tillbaka fokus till hamburgaren — utan det
+  // hamnar tangentbordsanvändaren i ingenmansland när menyn försvinner.
+  useEffect(() => {
+    if (!open) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return
+      setOpen(false)
+      burgerRef.current?.focus()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
+
+  // OBS: overlayn ligger som syskon till <nav>, inte inuti den. `.nav` har
+  // backdrop-filter, och ett filter gör elementet till containing block för
+  // allt med position: fixed inuti — då räknas overlayns `inset: 64px 0 0`
+  // mot navbarens 65 px i stället för mot skärmen. Resultatet blev en 48 px
+  // hög remsa där alla länkarna hamnade utanför och klipptes bort: menyn såg
+  // ut att öppnas men innehöll inget klickbart. Flytta inte tillbaka den.
   return (
-    <nav className="nav">
-      <div className="container nav-inner">
-        <Link to="/#top" className="nav-brand" onClick={() => setOpen(false)}>
-          <BvsMark className="mark" /> BVS
-        </Link>
-        <div className="nav-links">
-          {navLinks.map((l) => (
-            <Link key={l.to} to={l.to}>
-              {l.label}
-            </Link>
-          ))}
-          <SteamLogin />
+    <>
+      <nav className="nav">
+        <div className="container nav-inner">
+          <Link to="/#top" className="nav-brand" onClick={() => setOpen(false)}>
+            <BvsMark className="mark" /> BVS
+          </Link>
+          <div className="nav-links">
+            {navLinks.map((l) => (
+              <Link key={l.to} to={l.to}>
+                {l.label}
+              </Link>
+            ))}
+            <SteamLogin />
+          </div>
+          <button
+            type="button"
+            ref={burgerRef}
+            className="nav-burger"
+            aria-label={open ? 'Stäng menyn' : 'Öppna menyn'}
+            aria-expanded={open}
+            onClick={() => setOpen(!open)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
         </div>
-        <button
-          type="button"
-          className="nav-burger"
-          aria-label={open ? 'Stäng menyn' : 'Öppna menyn'}
-          aria-expanded={open}
-          onClick={() => setOpen(!open)}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
-      </div>
+      </nav>
       {open && (
-        <div className="nav-overlay" role="dialog" aria-label="Meny">
+        <div className="nav-overlay" role="dialog" aria-modal="true" aria-label="Meny">
           {navLinks.map((l) => (
             <Link key={l.to} to={l.to} onClick={() => setOpen(false)}>
               {l.label}
@@ -95,7 +118,7 @@ export function Nav() {
           <SteamLogin />
         </div>
       )}
-    </nav>
+    </>
   )
 }
 
@@ -210,10 +233,14 @@ function ValheimCard({
             </p>
           )}
 
+          {/* Inloggad men ändå inga uppgifter betyder att serverns .env saknar
+              dem — då är "logga in" fel besked och omöjligt att agera på. */}
           {status && !canFlip && (
             <p className="server-locked">
               <LockIcon />
-              Logga in för att se serverns namn och lösenord
+              {status.signedIn
+                ? 'Serverns namn och lösenord är inte ifyllda än'
+                : 'Logga in för att se serverns namn och lösenord'}
             </p>
           )}
 
