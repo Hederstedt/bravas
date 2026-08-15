@@ -114,6 +114,10 @@ export interface Quote {
   saidBy: string
   createdAt: number
   votes: number
+  // Vem som skickat in ett citat visas aldrig — väggen ska kunna läsas utan att
+  // det syns vem som tyckte vad. Den här flaggan berättar bara för dig vilka
+  // som är dina, så raderingsknappen hamnar på rätt kort.
+  mine: boolean
 }
 
 export async function fetchQuotes(): Promise<Quote[]> {
@@ -162,6 +166,32 @@ export async function addQuote(text: string, saidBy: string): Promise<Quote | nu
 
 export async function toggleQuoteVote(id: number): Promise<{ votes: number; voted: boolean } | null> {
   return await send<{ votes: number; voted: boolean }>(`/api/quotes/${id}/vote`, 'POST')
+}
+
+// Servern raderar bara citat som är dina — någon annans är omöjligt att ta bort
+// och oskiljbart från ett som inte finns. Svaret är 204 utan kropp.
+export async function deleteQuote(id: number): Promise<boolean> {
+  return (await send<Record<string, never>>(`/api/quotes/${id}`, 'DELETE')) !== null
+}
+
+// Steam vet vad du heter i Steam, inte i Discorden. Kopplingen får därför
+// skrivas in för hand och hamnar på ditt eget spelarkort.
+export const MAX_DISCORD_NAME = 64
+
+export async function linkDiscord(discordName: string): Promise<boolean> {
+  const token = await csrfToken()
+  if (!token) return false
+  try {
+    const res = await fetch('/api/members/link', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'x-csrf-token': token },
+      body: JSON.stringify({ discordName }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
 }
 
 export async function fetchPresence(): Promise<PresenceMap> {

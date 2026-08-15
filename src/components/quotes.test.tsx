@@ -14,13 +14,17 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-const QUOTE = {
+const QUOTE: api.Quote = {
   id: 1,
   text: 'Jag hade ju träklubban',
   saidBy: 'Gubbe #6',
   createdAt: 1_700_000_000_000,
   votes: 3,
+  mine: false,
 }
+
+// Samma citat, fast inskickat av den som tittar — då finns en raderingsknapp.
+const MY_QUOTE: api.Quote = { ...QUOTE, id: 2, text: 'Mitt eget citat', mine: true }
 
 describe('Quotes', () => {
   it('lists the quotes with their attribution and vote count', async () => {
@@ -65,6 +69,7 @@ describe('Quotes', () => {
       saidBy: 'Kungalv',
       createdAt: 1,
       votes: 0,
+      mine: true,
     })
 
     render(<Quotes />)
@@ -124,6 +129,56 @@ describe('Quotes', () => {
 
     await screen.findByText(/Jag hade ju träklubban/)
     expect(screen.queryByRole('button', { name: /Rösta/ })).not.toBeInTheDocument()
+  })
+
+  // Skriver man ett citat med stavfel ska det gå att ta bort. Servern raderar
+  // bara egna citat, och `mine` avgör vilka kort som får knappen.
+  describe('removing your own quote', () => {
+    it('offers the button only on your own quotes', async () => {
+      vi.spyOn(api, 'fetchQuotes').mockResolvedValue([QUOTE, MY_QUOTE])
+      vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1' })
+
+      render(<Quotes />)
+
+      const mine = (await screen.findByText('Mitt eget citat')).closest('article')!
+      const theirs = screen.getByText(/Jag hade ju träklubban/).closest('article')!
+      expect(within(mine).getByRole('button', { name: 'Ta bort' })).toBeInTheDocument()
+      expect(within(theirs).queryByRole('button', { name: 'Ta bort' })).not.toBeInTheDocument()
+    })
+
+    // Radering går inte att ångra, så första klicket frågar bara.
+    it('asks once before actually removing it', async () => {
+      const user = userEvent.setup()
+      vi.spyOn(api, 'fetchQuotes').mockResolvedValue([MY_QUOTE])
+      vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1' })
+      const remove = vi.spyOn(api, 'deleteQuote').mockResolvedValue(true)
+
+      render(<Quotes />)
+
+      await user.click(await screen.findByRole('button', { name: 'Ta bort' }))
+      expect(remove).not.toHaveBeenCalled()
+
+      await user.click(screen.getByRole('button', { name: 'Säkert?' }))
+      expect(remove).toHaveBeenCalledWith(MY_QUOTE.id)
+      await waitFor(() => {
+        expect(screen.queryByText('Mitt eget citat')).not.toBeInTheDocument()
+      })
+    })
+
+    it('keeps the quote and says so when the removal fails', async () => {
+      const user = userEvent.setup()
+      vi.spyOn(api, 'fetchQuotes').mockResolvedValue([MY_QUOTE])
+      vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1' })
+      vi.spyOn(api, 'deleteQuote').mockResolvedValue(false)
+
+      render(<Quotes />)
+
+      await user.click(await screen.findByRole('button', { name: 'Ta bort' }))
+      await user.click(screen.getByRole('button', { name: 'Säkert?' }))
+
+      expect(await screen.findByText(/kunde inte tas bort/)).toBeInTheDocument()
+      expect(screen.getByText('Mitt eget citat')).toBeInTheDocument()
+    })
   })
 
   // React escapar automatiskt — testet finns för att fånga om någon senare
