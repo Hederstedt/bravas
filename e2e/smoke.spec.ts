@@ -234,7 +234,13 @@ test('opening an attribute does not resize the lineup', async ({ page }) => {
   await expect(card.locator('.attr-detail')).toBeVisible()
 
   const after = await card.evaluate((el) => el.getBoundingClientRect().height)
-  expect(after).toBe(before)
+  // Tolerans, inte exakt likhet: getBoundingClientRect ger flyttal, och
+  // Chromium räknar om layouten med några hundradels promilles skillnad mellan
+  // två mätningar av samma element — på mobilprojektet syns det som
+  // 448.40625 mot 448.4062194824219. Buggen testet vaktar växte korten med
+  // tiotals pixlar, så en halv pixel fångar den lika säkert utan att fälla på
+  // avrundningsbrus.
+  expect(after).toBeCloseTo(before, 0)
 
   // Och panelen ska hålla sig innanför kortet den hör till.
   const fits = await card.evaluate((el) => {
