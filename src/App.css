@@ -49,6 +49,9 @@ section {
   position: sticky;
   top: 0;
   z-index: 20;
+  /* Filtret gör .nav till containing block för allt med position: fixed inuti
+     den. Mobilmenyn måste därför ligga utanför <nav> i DOM:en — se
+     .nav-overlay och kommentaren i sections.tsx. */
   backdrop-filter: blur(12px);
   background: rgba(10, 12, 15, 0.82);
   border-bottom: 1px solid var(--panel-edge);
@@ -128,6 +131,10 @@ section {
   transform: translateY(-7px) rotate(-45deg);
 }
 
+/* Ligger som syskon till .nav, aldrig inuti den: navbarens backdrop-filter
+   skulle annars bli containing block för den här fixed-positioneringen, och
+   `inset` räknas mot navbarens 65 px i stället för mot skärmen. Då kollapsar
+   menyn till en remsa och länkarna klipps bort. */
 .nav-overlay {
   position: fixed;
   inset: 64px 0 0;
@@ -606,6 +613,17 @@ a.steam-login:hover {
   filter: brightness(1.1);
 }
 
+/* clip-path klipper bort allt som ritas utanför formen, och en outline ritas
+   just där — utan inset-offset blir tangentbordsfokus helt osynligt på sajtens
+   viktigaste knappar. Samma teknik som .lineup:focus-visible. */
+.btn:focus-visible,
+.game-card:focus-visible,
+.player-card:focus-visible,
+.stat-card:focus-visible {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: -4px;
+}
+
 .btn-primary {
   background: linear-gradient(135deg, var(--accent), #ff9a3d);
   color: #14100b;
@@ -722,6 +740,13 @@ a.steam-login:hover {
 .status.säsong {
   background: rgba(125, 211, 252, 0.12);
   color: #7dd3fc;
+}
+
+/* Manager-rutterna hämtas separat. Utan luft runt texten hoppar den upp i
+   navbaren under den bråkdel av en sekund laddningen tar. */
+.route-loading {
+  padding: 80px 24px;
+  text-align: center;
 }
 
 /* Datorstyrda lag märks ut i tabellen så ingen undrar vem som managar dem. */
