@@ -25,6 +25,8 @@ Klansida för BVS — ett gäng goa gubbar från Västra Götaland som lirar CS2
 - [x] Mobilmeny + atmosfärisk bakgrund (CSS/SVG — ingen upphovsrättsskyddad fan art)
 - [x] **CS Manager:** matchsimulering (#23), säsong + trupp (#24), liga + tabell (#25), UI, transfermarknad, träning och botlag — se [manager.md](manager.md)
 - [x] **Spelserver-status:** live Valheim-widget med pulserande kort och anslutningsuppgifter för inloggade (#33, #34)
+- [x] **Citat går att ta bort** — egna citat, med bekräftelse. `mine`-flaggan avgör vilka kort som får knappen utan att avslöja vem som skrivit någon annans.
+- [x] **Discord-namn på spelarkortet** — Steam vet vad du heter i Steam, inte i Discorden, så kopplingen skrivs in för hand.
 
 ## Roadmap
 
@@ -46,7 +48,7 @@ omgångarna — i dag står de still medan managern utvecklar sin trupp.
 
 I prioritetsordning, med underlag utrett:
 
-1. **Småfix med färdig backend:** ta bort egna citat (`DELETE /api/quotes/:id`) och koppla Discord-namn (`POST /api/members/link`) — båda endpoints finns och är testade, bara UI saknas.
+1. ~~Småfix med färdig backend~~ — klart, se Status ovan.
 2. **Discord-widget:** `DISCORD_SERVER_ID` går redan hela vägen till klienten men konsumeras aldrig. Proxa Discords widget-JSON via BFF:en.
 3. **World of Tanks-statistik** via Wargaming API — kräver application ID och att gubbarna anger sina WoT-nick, de går inte att härleda ur SteamID.
 4. **Valheim-statistik:** Valheim exponerar **achievements, inte räknare** — "mest dödade troll" går alltså inte att få. Däremot "först i klanen att fälla Bonemass", speltid via `GetOwnedGames`, och egen statistik ur `valheimPoller` (flest timmar inne på servern, kvällen då flest var inne samtidigt). Verifiera först med `GetSchemaForGame` för appid 892970.

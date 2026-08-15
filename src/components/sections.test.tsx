@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
-import { Nav, Games, Stats } from './sections'
-import { games, statHighlights } from '../data/clan'
+import { About, Nav, Games, Stats } from './sections'
+import { games, members, statHighlights } from '../data/clan'
 import * as api from '../api'
 import type { ValheimStatus } from '../api'
 import { emitLiveEvent, installLiveEvents, teardownLiveEvents } from '../test/liveEvents'
@@ -173,6 +173,32 @@ describe('Stats', () => {
     for (const s of statHighlights) {
       expect(screen.getByText(s.label)).toBeInTheDocument()
     }
+  })
+})
+
+// Räknaren tog längden på den hårdkodade platshållarlistan, så sajten kunde
+// visa tio riktiga gubbar i rostern och samtidigt påstå sex.
+describe('About', () => {
+  it('counts the real crew once the roster has loaded', async () => {
+    const eight = Array.from({ length: 8 }, (_, i) => ({
+      steamid64: `7656119800000000${i}`,
+      personaName: `Gubbe ${i}`,
+      avatarUrl: null,
+      discordName: null,
+    }))
+    vi.spyOn(api, 'fetchMembers').mockResolvedValue(eight)
+
+    render(<About />)
+
+    expect(await screen.findByText('8')).toBeInTheDocument()
+  })
+
+  it('falls back to the placeholder count while nobody has logged in', async () => {
+    vi.spyOn(api, 'fetchMembers').mockResolvedValue([])
+
+    render(<About />)
+
+    expect(await screen.findByText(String(members.length))).toBeInTheDocument()
   })
 })
 

@@ -4,17 +4,22 @@ import {
   fetchCards,
   fetchMembers,
   fetchPresence,
+  fetchSession,
+  linkDiscord,
+  MAX_DISCORD_NAME,
   type CardAttribute,
   type CardTier,
   type PlayerCard,
   type Presence,
   type PresenceMap,
   type RosterMember,
+  type Session,
 } from '../api'
 import { compareAttribute } from '../cardStats'
 import { useLiveEvent } from '../useLiveEvents'
 import { members } from '../data/clan'
 import { BvsMark } from './BvsMark'
+import { DiscordIcon } from './icons'
 
 // Allt kortkomponenten behöver, oavsett om raden kom från Steam eller från
 // platshållarna. Utan den skulle kortet behöva känna till båda källorna.
@@ -22,6 +27,7 @@ interface LineupEntry {
   id: string
   name: string
   avatarUrl: string | null
+  discordName: string | null
   overall: number
   tier: CardTier
   position: string
@@ -59,6 +65,7 @@ function buildLineup(
       id: card.steamid64,
       name: member.personaName,
       avatarUrl: member.avatarUrl,
+      discordName: member.discordName,
       overall: card.overall,
       tier: card.tier,
       position: card.position,
@@ -75,6 +82,7 @@ function buildLineup(
       id: m.steamid64,
       name: m.personaName,
       avatarUrl: m.avatarUrl,
+      discordName: m.discordName,
       overall: 0,
       tier: 'okänd' as CardTier,
       position: '',
@@ -92,6 +100,7 @@ function placeholderLineup(): LineupEntry[] {
     id: m.nick,
     name: m.nick,
     avatarUrl: null,
+    discordName: null,
     overall: m.overall,
     tier: m.tier,
     position: m.position,
@@ -145,6 +154,12 @@ function PlayerCardView({ entry, crew }: { entry: LineupEntry; crew: PlayerCard[
       </div>
 
       <h3 className="card-name">{entry.name}</h3>
+      {entry.discordName && (
+        <p className="card-discord">
+          <DiscordIcon />
+          {entry.discordName}
+        </p>
+      )}
       {p?.game && <p className="card-playing">{p.game}</p>}
 
       {entry.attributes.length > 0 && (
@@ -206,6 +221,7 @@ export function Roster() {
   const [live, setLive] = useState<RosterMember[]>([])
   const [cards, setCards] = useState<PlayerCard[]>([])
   const [presence, setPresence] = useState<PresenceMap>({})
+  const [session, setSession] = useState<Session | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -218,9 +234,18 @@ export function Roster() {
     void fetchPresence().then((p) => {
       if (!cancelled) setPresence(p)
     })
+    void fetchSession().then((s) => {
+      if (!cancelled) setSession(s)
+    })
     return () => {
       cancelled = true
     }
+  }, [])
+
+  // Efter en Discord-koppling: hämta om rostern så namnet dyker upp på kortet
+  // utan att sidan behöver laddas om.
+  const reloadMembers = useCallback(() => {
+    void fetchMembers().then(setLive)
   }, [])
 
   // Pollern på servern säger till när någon loggat in i ett spel. Bara
@@ -280,7 +305,71 @@ export function Roster() {
             ? 'Betygen räknas fram ur gubbarnas riktiga CS2-statistik från Steam. Kommentarerna skriver sig själva.'
             : 'Rostern fylls på med riktiga nick, Steam-avatarer och betyg — logga in med Steam för att synas här.'}
         </p>
+
+        <DiscordLink
+          mine={session ? (live.find((m) => m.steamid64 === session.steamid64) ?? null) : null}
+          onLinked={reloadMembers}
+        />
       </div>
     </section>
+  )
+}
+
+// Steam vet vad du heter i Steam, inte i Discorden — kopplingen får skrivas in
+// för hand. Visas bara för den som är inloggad och finns i rostern; namnet
+// hamnar sedan på hans eget spelarkort.
+function DiscordLink({
+  mine,
+  onLinked,
+}: {
+  mine: RosterMember | null
+  onLinked: () => void
+}) {
+  const [name, setName] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(false)
+
+  if (!mine) return null
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const value = name.trim()
+    if (!value || saving) return
+
+    setSaving(true)
+    setError('')
+    const ok = await linkDiscord(value)
+    setSaving(false)
+
+    if (!ok) {
+      setError('Namnet kunde inte sparas. Försök igen.')
+      return
+    }
+    setName('')
+    setSaved(true)
+    onLinked()
+  }
+
+  return (
+    <form className="quote-form discord-link" onSubmit={submit}>
+      <label>
+        {mine.discordName ? 'Byt Discord-namn' : 'Vad heter du i Discorden?'}
+        <input
+          value={name}
+          maxLength={MAX_DISCORD_NAME}
+          onChange={(e) => {
+            setName(e.target.value)
+            setSaved(false)
+          }}
+          placeholder={mine.discordName ?? 'gubbe'}
+        />
+      </label>
+      <button type="submit" className="btn btn-primary" disabled={saving}>
+        {saving ? 'Sparar…' : 'Koppla till kortet'}
+      </button>
+      {error && <p className="quote-error">{error}</p>}
+      {saved && !error && <p className="roster-note">Sparat — namnet syns på ditt kort.</p>}
+    </form>
   )
 }
