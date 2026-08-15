@@ -1,18 +1,26 @@
 import {
+  createBotTeam,
   listFixtures,
+  listPool,
   listTeams,
   nextMatchday,
   saveFixtures,
   saveResult,
+  setFunds,
+  setSquad,
   squadOf,
+  takenKeys,
   unplayedOnMatchday,
   type FixtureRow,
+  type SeasonPlayerRow,
   type SeasonRow,
   type TeamRow,
 } from "./db.ts";
 import { broadcast } from "./events.ts";
+import { botBudget, draftSquad, MIN_TEAMS, pickBotNames } from "./bots.ts";
 import { buildFixtures, buildTable, type PlayedFixture, type TableRow } from "./league.ts";
 import { simulateMatch, type MatchResult, type MatchTeam, type PlayerRatings } from "./matchSim.ts";
+import { SEASON_BUDGET, squadCost, type PoolPlayer } from "./season.ts";
 
 // Ett lag utan trupp kan inte spela. Att kasta hade tagit hela omgången med
 // sig, så laget förlorar i stället — vilket också är det enda rimliga svaret
@@ -33,6 +41,54 @@ export function scheduleSeason(seasonId: number): void {
   if (listFixtures(seasonId).length > 0) return;
   const teams = listTeams(seasonId);
   saveFixtures(seasonId, buildFixtures(teams.map((t) => t.id)));
+}
+
+function toPoolPlayer(row: SeasonPlayerRow): PoolPlayer {
+  return {
+    key: row.player_key,
+    source: row.source as PoolPlayer["source"],
+    steamid64: row.steamid64,
+    name: row.name,
+    ratings: JSON.parse(row.ratings_json) as PlayerRatings,
+    value: row.value,
+  };
+}
+
+// Fyller serien med datorstyrda lag inför första omgången. Utan dem kan den
+// första gubben som hittar hit skriva på sin trupp och sedan inte göra
+// någonting — det finns ingen att möta.
+//
+// Bara den som är helt ensam får sällskap. Har två gubbar redan skapat lag har
+// de valt varandra som motstånd, och då ska datorn inte tränga sig in i deras
+// serie. Botlagen läggs dessutom till först när serien faktiskt startar, så
+// att alla som hinner skapa lag under byggfasen får plats före datorn.
+export function ensureOpponents(seasonId: number): number {
+  const existing = listTeams(seasonId);
+  if (existing.length !== 1) return 0;
+
+  const names = pickBotNames(MIN_TEAMS - existing.length, new Set(existing.map((t) => t.name)));
+  const taken = takenKeys(seasonId);
+  const pool = listPool(seasonId).map(toPoolPlayer);
+
+  let added = 0;
+  for (const name of names) {
+    const available = pool.filter((p) => !taken.has(p.key));
+    const seed = `${seasonId}:${name}`;
+    const squad = draftSquad(available, seed, botBudget(seed));
+    // Är poolen slut går det inte att fylla på fler lag — hellre en kortare
+    // serie än ett lag utan trupp som förlorar allt på walkover.
+    if (squad.length === 0) break;
+
+    const team = createBotTeam(seasonId, name);
+    setSquad(seasonId, team.id, squad.map((p) => p.key));
+    // Kassan räknas mot den riktiga budgeten, inte mot botens snålare tak —
+    // annars skulle ett botlag som handlat billigt se ut att sakna pengar det
+    // faktiskt har.
+    setFunds(team.id, SEASON_BUDGET - squadCost(squad));
+    for (const p of squad) taken.add(p.key);
+    added++;
+  }
+  return added;
 }
 
 function toMatchTeam(team: TeamRow): MatchTeam | null {
@@ -86,6 +142,9 @@ export interface MatchdayResult {
 
 // Spelar nästa ospelade omgång. Returnerar null när serien är färdig.
 export function playNextMatchday(season: SeasonRow): MatchdayResult | null {
+  // Motståndarna först: schemat läggs utifrån vilka lag som finns, så botlagen
+  // måste vara på plats innan det ritas — efteråt går de inte att få in.
+  ensureOpponents(season.id);
   scheduleSeason(season.id);
 
   const matchday = nextMatchday(season.id);

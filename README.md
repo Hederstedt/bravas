@@ -48,9 +48,36 @@ Starta sedan frontenden i ett andra fönster med proxyn omdirigerad:
 VITE_API_PROXY=http://localhost:3001 npm run dev
 ```
 
+Slipp variabeln varje gång genom att lägga den i `.env.local` i roten — den är
+gitignorerad och läses av vite-konfigen:
+
+```bash
+echo "VITE_API_PROXY=http://localhost:3001" > .env.local
+```
+
 Nu landar Steam-callbacken på localhost, kakan sätts för rätt värd och
 inloggningen sitter kvar mellan omstarter. Sessionen är 30 dagar och förnyas
 automatiskt när mer än halva tiden gått, så aktiva besökare loggas aldrig ut.
+
+## Lokalt utan Steam
+
+Behöver du bara klicka runt — särskilt i managern — går det att hoppa över
+Steam helt:
+
+```bash
+npm --prefix server run seed:dev
+```
+
+Skriptet lägger in några testgubbar med färsk CS2-statistik (cachad med aktuell
+tidsstämpel, så servern aldrig ringer Steam) och skriver ut en sessionskaka per
+gubbe. Klistra in en av dem i webbläsarens konsol på localhost:
+
+```js
+document.cookie = 'bvs_session=<värdet från skriptet>; path=/'
+```
+
+Sedan är du inloggad som den gubben. Skriptet rör bara databasen `DB_PATH`
+pekar på — peka den på något annat än driftdatabasen.
 
 ## Testa
 

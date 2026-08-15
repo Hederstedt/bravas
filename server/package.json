@@ -9,6 +9,7 @@
     "build": "tsc -b",
     "start": "node dist/index.js",
     "seed:allowlist": "tsx src/scripts/seedAllowlist.ts",
+    "seed:dev": "tsx src/scripts/seedDev.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

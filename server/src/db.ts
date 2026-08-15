@@ -80,12 +80,18 @@ db.exec(`
   );
 
   -- En gubbe managar ett lag per säsong, upprätthållet av databasen.
+  --
+  -- manager_steamid64 är null för botlagen: de fylls på så att en ensam
+  -- manager har någon att möta. SQLite räknar nullvärden som olika i ett
+  -- unikhetskrav, så flera botlag ryms per säsong utan att kravet luckras
+  -- upp för de riktiga gubbarna.
   CREATE TABLE IF NOT EXISTS teams (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     season_id INTEGER NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
-    manager_steamid64 TEXT NOT NULL REFERENCES members(steamid64),
+    manager_steamid64 TEXT REFERENCES members(steamid64),
     name TEXT NOT NULL,
     created_at INTEGER NOT NULL,
+    bot INTEGER NOT NULL DEFAULT 0,
     UNIQUE (season_id, manager_steamid64)
   );
 
@@ -164,6 +170,34 @@ if (!teamColumns.some((c) => c.name === "funds")) {
       0
     )
   `);
+}
+
+// Botlagen kom efter teams-tabellen, och de behöver två ändringar som inte går
+// att lägga till med ALTER: manager_steamid64 måste tåla null, och bot-flaggan
+// tillkommer. Alltså byggs tabellen om. Främmande nycklar stängs av under
+// bytet — annars skulle DROP TABLE kaskadradera trupper, matcher, affärer och
+// träningspass som pekar på lagen.
+if (!teamColumns.some((c) => c.name === "bot")) {
+  db.pragma("foreign_keys = OFF");
+  db.transaction(() => {
+    db.exec(`
+      CREATE TABLE teams_rebuilt (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        season_id INTEGER NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
+        manager_steamid64 TEXT REFERENCES members(steamid64),
+        name TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        funds INTEGER NOT NULL DEFAULT 0,
+        bot INTEGER NOT NULL DEFAULT 0,
+        UNIQUE (season_id, manager_steamid64)
+      );
+      INSERT INTO teams_rebuilt (id, season_id, manager_steamid64, name, created_at, funds)
+        SELECT id, season_id, manager_steamid64, name, created_at, funds FROM teams;
+      DROP TABLE teams;
+      ALTER TABLE teams_rebuilt RENAME TO teams;
+    `);
+  })();
+  db.pragma("foreign_keys = ON");
 }
 
 export interface Member {
@@ -286,10 +320,12 @@ export function listPool(seasonId: number): SeasonPlayerRow[] {
 export interface TeamRow {
   id: number;
   season_id: number;
-  manager_steamid64: string;
+  // Null för botlagen — de har ingen gubbe bakom sig.
+  manager_steamid64: string | null;
   name: string;
   created_at: number;
   funds: number;
+  bot: number;
 }
 
 export function setFunds(teamId: number, funds: number): void {
@@ -300,6 +336,10 @@ export function getTeam(seasonId: number, steamid64: string): TeamRow | undefine
   return db
     .prepare("SELECT * FROM teams WHERE season_id = ? AND manager_steamid64 = ?")
     .get(seasonId, steamid64) as TeamRow | undefined;
+}
+
+export function getTeamById(id: number): TeamRow | undefined {
+  return db.prepare("SELECT * FROM teams WHERE id = ?").get(id) as TeamRow | undefined;
 }
 
 export function listTeams(seasonId: number): TeamRow[] {
@@ -313,6 +353,28 @@ export function createTeam(seasonId: number, steamid64: string, name: string): T
     .prepare("INSERT INTO teams (season_id, manager_steamid64, name, created_at) VALUES (?, ?, ?, ?)")
     .run(seasonId, steamid64, name, Date.now());
   return db.prepare("SELECT * FROM teams WHERE id = ?").get(info.lastInsertRowid) as TeamRow;
+}
+
+// Ett botlag: ingen manager, bot-flaggan satt. Kassan sätts när truppen
+// draftats, precis som för ett riktigt lag.
+export function createBotTeam(seasonId: number, name: string): TeamRow {
+  const info = db
+    .prepare("INSERT INTO teams (season_id, manager_steamid64, name, created_at, bot) VALUES (?, NULL, ?, ?, 1)")
+    .run(seasonId, name, Date.now());
+  return db.prepare("SELECT * FROM teams WHERE id = ?").get(info.lastInsertRowid) as TeamRow;
+}
+
+// Alla nycklar som något lag i säsongen redan skrivit på. Driver botdraften:
+// den ska bara välja bland gubbar som faktiskt är lediga.
+export function takenKeys(seasonId: number): Set<string> {
+  const rows = db
+    .prepare(
+      `SELECT p.player_key FROM squads s
+       JOIN season_players p ON p.id = s.season_player_id
+       WHERE p.season_id = ?`
+    )
+    .all(seasonId) as { player_key: string }[];
+  return new Set(rows.map((r) => r.player_key));
 }
 
 export function squadOf(teamId: number): SeasonPlayerRow[] {

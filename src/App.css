@@ -724,6 +724,20 @@ a.steam-login:hover {
   color: #7dd3fc;
 }
 
+/* Datorstyrda lag märks ut i tabellen så ingen undrar vem som managar dem. */
+.bot-badge {
+  margin-left: 8px;
+  padding: 1px 5px;
+  border: 1px solid var(--panel-edge);
+  border-radius: 3px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--muted);
+  vertical-align: middle;
+}
+
 /* ---------- Valheim-kortet: live-ram och flipp ---------- */
 /* Online signaleras av hela kortet: ramen pulserar grönt. Glowen ligger som
    inset-skugga — clip-path klipper bort allt som målas utanför kortkanten. */
@@ -1742,6 +1756,39 @@ a.fixture-score:hover {
 .report-matchday,
 .report-draw {
   color: var(--muted);
+}
+
+.report-matchday {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+/* Lagnamnen flankerar siffrorna. Flex-basis noll med lika growth håller
+   resultatet mitt emellan även när namnen är olika långa. */
+.report-team {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.report-score .report-team:last-of-type {
+  text-align: right;
+}
+
+@media (max-width: 520px) {
+  .report-score {
+    gap: 10px;
+  }
+  .report-team {
+    font-size: 15px;
+  }
+  .report-score strong {
+    font-size: 30px;
+  }
 }
 
 .report-mvp {

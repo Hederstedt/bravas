@@ -22,23 +22,25 @@ Klansida för BVS — ett gäng goa gubbar från Västra Götaland som lirar CS2
 - [x] Citatvägg med röstning (#17)
 - [x] Spelarkort: genererade CS2-attribut, tiers och quips (#19, #21)
 - [x] Mobilmeny + atmosfärisk bakgrund (CSS/SVG — ingen upphovsrättsskyddad fan art)
-- [x] **CS Manager, backend:** matchsimulering (#23), säsong + trupp (#24), liga + tabell (#25) — se [manager.md](manager.md)
+- [x] **CS Manager:** matchsimulering (#23), säsong + trupp (#24), liga + tabell (#25), UI, transfermarknad, träning och botlag — se [manager.md](manager.md)
+- [x] **Spelserver-status:** live Valheim-widget med pulserande kort och anslutningsuppgifter för inloggade (#33, #34)
 
 ## Roadmap
 
-### Fas 3 — CS Manager (pågår)
+### Fas 3 — CS Manager (klar)
 
-Backend klar. Kvar, i ordning:
-
-1. **UI:** React Router in, `/manager`-vyer — säsongslobby, lagbygge, truppbyggare, tabell, spelschema, matchreferat. Live-uppdatering via händelseströmmen. *(byggt — väntar på merge)*
-2. **Transfermarknad + lagkassa:** persistent kassa (`funds`), trupplåsning när serien startat, byt-mot-poolen med säljkurs 70 %. *(byggt — väntar på merge)*
-3. **Träning:** deterministisk kurva med avtagande avkastning, 2 pass per omgång, höjer spelarens värde. *(byggt — väntar på merge)*
+- [x] **UI:** React Router in, `/manager`-vyer — säsongslobby, lagbygge, truppbyggare, tabell, spelschema, matchreferat. Live-uppdatering via händelseströmmen.
+- [x] **Transfermarknad + lagkassa:** persistent kassa (`funds`), trupplåsning när serien startat, byt-mot-poolen med säljkurs 70 %.
+- [x] **Träning:** deterministisk kurva med avtagande avkastning, 2 pass per omgång, höjer spelarens värde.
+- [x] **Botlag:** en ensam manager fylls upp till fyra lag med datorstyrt motstånd, så serien går att spela från dag ett.
 
 Speldesignen i detalj: [manager.md](manager.md).
 
+Nästa steg om serien känns för lätt: låt botlagen träna och göra affärer mellan
+omgångarna — i dag står de still medan managern utvecklar sin trupp.
+
 ### Senare
 
-- **Spelserver-status:** live-widget — är Minecraft/Valheim-servern uppe, antal spelare inne.
 - **Klipp-galleri:** bästa klippen (embeds).
 - **Discord-widget:** när server-ID:t är på plats.
 - **World of Tanks-statistik:** via Wargaming API.

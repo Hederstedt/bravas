@@ -51,7 +51,8 @@ export function Fixtures({
     <div className="fixtures">
       {!hasSchedule && (
         <p className="roster-note">
-          Schemat läggs när första omgången spelas — då låses trupperna och serien är igång.
+          Schemat läggs när första omgången spelas — då låses trupperna och serien är igång. Är ni
+          för få fylls serien på med datorstyrda lag, så den går att spela även ensam.
         </p>
       )}
       {canPlay && !allPlayed && (

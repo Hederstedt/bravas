@@ -1,7 +1,15 @@
 import type { TableRow } from '../../api'
 
 // Ren presentation — sortering och särskiljning är redan gjorda på servern.
-export function LeagueTable({ table }: { table: TableRow[] }) {
+// botTeams märker ut det datorstyrda motståndet, så ingen undrar vem som
+// managar "Lagg IF".
+export function LeagueTable({
+  table,
+  botTeams,
+}: {
+  table: TableRow[]
+  botTeams?: ReadonlySet<number>
+}) {
   if (table.length === 0) {
     return <p className="roster-note">Tabellen fylls på när serien drar igång.</p>
   }
@@ -42,7 +50,14 @@ export function LeagueTable({ table }: { table: TableRow[] }) {
           {table.map((row, i) => (
             <tr key={row.teamId}>
               <td className="num">{i + 1}</td>
-              <td>{row.name}</td>
+              <td>
+                {row.name}
+                {botTeams?.has(row.teamId) && (
+                  <span className="bot-badge" title="Datorstyrt lag">
+                    BOT
+                  </span>
+                )}
+              </td>
               <td className="num">{row.played}</td>
               <td className="num">{row.won}</td>
               <td className="num">{row.drawn}</td>

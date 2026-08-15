@@ -56,8 +56,12 @@ function view(state: StubState) {
   const spent = squad.reduce((s, p) => s + p.value, 0)
 
   const windowOpen = state.played > 0 && state.played < MATCHDAYS
-  const teams = [{ id: 1, name: 'Motståndarna', manager: '76561198000000009' }]
-  if (state.teamName) teams.push({ id: 2, name: state.teamName, manager: '76561198000000001' })
+  // Motståndarna är ett botlag: det är så en ensam manager får någon att möta.
+  const teams: { id: number; name: string; manager: string | null; bot: boolean }[] = [
+    { id: 1, name: 'Motståndarna', manager: null, bot: true },
+  ]
+  if (state.teamName)
+    teams.push({ id: 2, name: state.teamName, manager: '76561198000000001', bot: false })
 
   const tableRow = (id: number, name: string, won: boolean) => ({
     teamId: id,
@@ -111,6 +115,8 @@ function view(state: StubState) {
 const REPORT = {
   id: 1,
   matchday: 1,
+  home: { id: 2, name: 'FC Träklubban' },
+  away: { id: 1, name: 'Motståndarna' },
   homeScore: 13,
   awayScore: 5,
   report: {
