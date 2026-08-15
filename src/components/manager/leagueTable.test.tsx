@@ -50,4 +50,21 @@ describe('LeagueTable', () => {
     expect(screen.getByText(/Tabellen fylls på/)).toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
+
+  // Datorstyrt motstånd ska gå att skilja från gubbarnas egna lag.
+  it('marks the computer-run teams', () => {
+    render(<LeagueTable table={ROWS} botTeams={new Set([2])} />)
+
+    const rows = within(screen.getByRole('table', { name: 'Ligatabellen' }))
+      .getAllByRole('row')
+      .slice(1)
+
+    expect(within(rows[0]).queryByText('BOT')).not.toBeInTheDocument()
+    expect(within(rows[1]).getByText('BOT')).toBeInTheDocument()
+  })
+
+  it('marks nothing when the league has no bots', () => {
+    render(<LeagueTable table={ROWS} />)
+    expect(screen.queryByText('BOT')).not.toBeInTheDocument()
+  })
 })

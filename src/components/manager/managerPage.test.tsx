@@ -42,8 +42,8 @@ const VIEW: api.ManagerView = {
   ],
   myTeam: null,
   teams: [
-    { id: 1, name: 'FC Gubbarna', manager: '76561198000000001' },
-    { id: 2, name: 'Träklubborna', manager: '76561198000000002' },
+    { id: 1, name: 'FC Gubbarna', manager: '76561198000000001', bot: false },
+    { id: 2, name: 'Träklubborna', manager: null, bot: true },
   ],
   table: [
     {

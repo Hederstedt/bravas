@@ -268,7 +268,9 @@ export interface ManagerView {
   sellRate: number
   pool: PoolPlayer[]
   myTeam: ManagerTeam | null
-  teams: { id: number; name: string; manager: string }[]
+  // manager är null för botlagen — serien fylls på med datorstyrt motstånd så
+  // att den som är först in kan spela en hel säsong, se server/src/bots.ts.
+  teams: { id: number; name: string; manager: string | null; bot: boolean }[]
   table: TableRow[]
   fixtures: PublicFixture[]
 }
@@ -292,6 +294,8 @@ export interface RoundResult {
 export interface MatchReport {
   id: number
   matchday: number
+  home: { id: number; name: string }
+  away: { id: number; name: string }
   homeScore: number | null
   awayScore: number | null
   report: {

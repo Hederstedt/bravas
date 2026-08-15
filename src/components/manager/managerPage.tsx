@@ -103,7 +103,10 @@ function SeasonBody({
 
       <div className="manager-block">
         <h3>Tabellen</h3>
-        <LeagueTable table={view.table} />
+        <LeagueTable
+          table={view.table}
+          botTeams={new Set(view.teams.filter((t) => t.bot).map((t) => t.id))}
+        />
       </div>
 
       <div className="manager-block">

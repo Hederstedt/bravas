@@ -4,7 +4,8 @@ import { createApp } from "./app.ts";
 import { db } from "./db.ts";
 import { resetRateLimits } from "./middleware/rateLimit.ts";
 import { createSessionCookieValue, sessionCookie } from "./session.ts";
-import { SQUAD_SIZE } from "./season.ts";
+import { SEASON_BUDGET, SQUAD_SIZE } from "./season.ts";
+import { MIN_TEAMS } from "./bots.ts";
 
 const app = createApp();
 const MANAGERS = [
@@ -169,16 +170,94 @@ describe("POST /api/manager/matchday", () => {
     await request(app).post("/api/manager/matchday").expect(403);
   });
 
-  // En ensam manager som testar spelet ska få veta vad som saknas — inte
-  // "färdigspelad" om en serie som aldrig börjat.
-  it("explains that the league needs at least two teams", async () => {
+  // Utan lag finns ingen serie — men beskedet ska säga vad som saknas.
+  it("says there is nothing to play before anyone has a team", async () => {
     const solo = await authed(MANAGERS[0][0]);
     await solo.post("/api/manager/season", { name: "Säsong 1" }).expect(201);
-    await solo.post("/api/manager/team", { name: "Ensamma Gubben" }).expect(201);
 
     const res = await solo.post("/api/manager/matchday").expect(409);
-    expect(res.body.error).toBe("too_few_teams");
-    expect(res.body.message).toMatch(/minst två lag/);
+    expect(res.body.error).toBe("no_teams");
+    expect(res.body.message).toMatch(/Ingen har skapat ett lag/);
+  });
+
+  // Kärnan i att spelet ska gå att spela: den som är först in i klanen ska
+  // kunna spela en hel säsong utan att vänta på att någon annan loggar in.
+  describe("a manager on their own", () => {
+    async function solo() {
+      const mag = await authed(MANAGERS[0][0]);
+      await mag.post("/api/manager/season", { name: "Ensamvargen" }).expect(201);
+      await mag.post("/api/manager/team", { name: "Ensamma Gubben" }).expect(201);
+
+      const view = await request(app).get("/api/manager").expect(200);
+      const pool = view.body.pool as { key: string; value: number }[];
+      const picks = [...pool].sort((a, b) => a.value - b.value).slice(0, SQUAD_SIZE);
+      await mag.put("/api/manager/squad", { players: picks.map((p) => p.key) }).expect(200);
+      resetRateLimits();
+      return mag;
+    }
+
+    it("gets computer-run opponents so the first matchday can be played", async () => {
+      const mag = await solo();
+      await mag.post("/api/manager/matchday").expect(201);
+
+      const view = await request(app).get("/api/manager").expect(200);
+      const teams = view.body.teams as { name: string; manager: string | null; bot: boolean }[];
+      expect(teams).toHaveLength(MIN_TEAMS);
+      expect(teams.filter((t) => t.bot)).toHaveLength(MIN_TEAMS - 1);
+      // Botlagen har ingen gubbe bakom sig.
+      for (const bot of teams.filter((t) => t.bot)) expect(bot.manager).toBeNull();
+    });
+
+    it("gives every bot a full squad inside the budget", async () => {
+      const mag = await solo();
+      await mag.post("/api/manager/matchday").expect(201);
+
+      const view = await request(app).get("/api/manager").expect(200);
+      const pool = view.body.pool as { takenBy: string | null; value: number }[];
+      const teams = view.body.teams as { name: string; bot: boolean }[];
+
+      for (const team of teams.filter((t) => t.bot)) {
+        const squad = pool.filter((p) => p.takenBy === team.name);
+        expect(squad).toHaveLength(SQUAD_SIZE);
+        expect(squad.reduce((s, p) => s + p.value, 0)).toBeLessThanOrEqual(SEASON_BUDGET);
+      }
+    });
+
+    it("plays a whole season through to the end", async () => {
+      const mag = await solo();
+
+      let matchdays = 0;
+      for (;;) {
+        resetRateLimits();
+        const res = await mag.post("/api/manager/matchday");
+        if (res.status === 409) break;
+        expect(res.status).toBe(201);
+        matchdays++;
+        expect(matchdays).toBeLessThan(20);
+      }
+
+      // Fyra lag som möts dubbelt: sex omgångar, tolv matcher, alla spelade.
+      expect(matchdays).toBe(6);
+      const view = await request(app).get("/api/manager").expect(200);
+      expect(view.body.fixtures).toHaveLength(12);
+      expect((view.body.fixtures as { played: boolean }[]).every((f) => f.played)).toBe(true);
+      // Ingen walkover: botlagen hade trupper hela vägen.
+      for (const f of view.body.fixtures as { homeScore: number; awayScore: number }[]) {
+        expect(Math.max(f.homeScore, f.awayScore)).toBeLessThanOrEqual(13);
+      }
+    });
+
+    // Har gubbarna hittat varandra ska datorn hålla sig undan — deras serie
+    // är deras, även om den är mindre än den botfyllda.
+    it("stays out of a league that already has more than one manager", async () => {
+      const mag = await league();
+      await mag.post("/api/manager/matchday").expect(201);
+
+      const view = await request(app).get("/api/manager").expect(200);
+      const teams = view.body.teams as { bot: boolean }[];
+      expect(teams).toHaveLength(MANAGERS.length);
+      expect(teams.some((t) => t.bot)).toBe(false);
+    });
   });
 
   it("gives a team with no squad a walkover loss instead of taking the round down", async () => {

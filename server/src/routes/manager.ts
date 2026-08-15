@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { activeSeason, getFixture, getTeam, listTeams } from "../db.ts";
+import { activeSeason, getFixture, getTeam, getTeamById, listTeams } from "../db.ts";
 import { mutationLimiter, readLimiter } from "../middleware/rateLimit.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
 import { verifySessionCookieValue } from "../session.ts";
@@ -186,12 +186,13 @@ managerRouter.post("/matchday", mutationLimiter, requireAuth, (_req, res) => {
     return;
   }
 
-  // Ett ensamt lag har ingen att möta — utan den här kollen hade schemat
-  // blivit tomt och svaret "färdigspelad" om en serie som aldrig börjat.
-  if (listTeams(season.id).length < 2) {
+  // Utan ett enda lag finns ingen serie att spela. Är det bara ett fylls
+  // motståndet på med datorstyrda lag, se ensureOpponents — den som är först
+  // in i spelet ska kunna spela en hel säsong utan att vänta på klanen.
+  if (listTeams(season.id).length === 0) {
     res.status(409).json({
-      error: "too_few_teams",
-      message: "Serien behöver minst två lag — värva en gubbe till innan första omgången kan spelas.",
+      error: "no_teams",
+      message: "Ingen har skapat ett lag än — döp ditt lag och skriv på en trupp först.",
     });
     return;
   }
@@ -216,9 +217,16 @@ managerRouter.get("/match/:id", readLimiter, (req, res) => {
     return;
   }
 
+  // Lagnamnen följer med: utan dem säger referatet "Hemma" och "Borta" och
+  // läsaren har ingen aning om vilka som mötte varandra.
+  const home = getTeamById(fixture.home_team_id);
+  const away = getTeamById(fixture.away_team_id);
+
   res.json({
     id: fixture.id,
     matchday: fixture.matchday,
+    home: { id: fixture.home_team_id, name: home?.name ?? "Okänt lag" },
+    away: { id: fixture.away_team_id, name: away?.name ?? "Okänt lag" },
     homeScore: fixture.home_score,
     awayScore: fixture.away_score,
     report: JSON.parse(fixture.report_json) as unknown,

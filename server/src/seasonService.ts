@@ -112,7 +112,7 @@ export interface SeasonView {
     transfersLeft: number;
     trainingLeft: number;
   } | null;
-  teams: { id: number; name: string; manager: string }[];
+  teams: { id: number; name: string; manager: string | null; bot: boolean }[];
   table: TableRow[];
   fixtures: PublicFixture[];
 }
@@ -163,7 +163,12 @@ export function seasonView(steamid64: string | null): SeasonView {
           trainingLeft: trainingLeft(season.id, mine.id),
         }
       : null,
-    teams: teams.map((t) => ({ id: t.id, name: t.name, manager: t.manager_steamid64 })),
+    teams: teams.map((t) => ({
+      id: t.id,
+      name: t.name,
+      manager: t.manager_steamid64,
+      bot: t.bot === 1,
+    })),
     table: seasonTable(season.id),
     fixtures: publicFixtures(season.id),
   };

@@ -1,8 +1,8 @@
 # CS Manager — speldesign
 
 Varje gubbe managar ett eget lag av klanens spelare (och genererade fria agenter),
-bygger trupp inom budget och spelar en serie där alla möter alla. Backend är klar
-(#23, #24, #25); UI, transfermarknad och träning byggs härnäst.
+bygger trupp inom budget och spelar en serie där alla möter alla. Är man ensam
+fylls serien på med datorstyrda lag, så spelet går att spela från dag ett.
 
 ## Matchsimuleringen (#23)
 
@@ -78,6 +78,34 @@ frilottning i stället för en påhittad motståndare.
 - En spelad omgång sänds som `league` på händelseströmmen, så öppna sidor
   uppdaterar sig.
 
+## Botlag — serien går att spela ensam
+
+Den som är först in i spelet kunde tidigare skriva på sin trupp och sedan inte
+göra någonting: en serie kräver motstånd, och att vänta på att resten av klanen
+loggar in är inget spel. Därför fylls serien på med **datorstyrda lag** inför
+första omgången.
+
+- **Bara den som är helt ensam får sällskap.** Har två gubbar redan skapat lag
+  har de valt varandra som motstånd, och då tränger sig datorn inte in. Ett
+  ensamt lag fylls upp till **fyra** — dubbelmöten över sex omgångar.
+- **Botlagen läggs till när serien startar**, inte vid säsongsstart, så att alla
+  som hinner skapa lag under byggfasen får plats före datorn.
+- **De draftar som vem som helst:** fem gubbar ur den lediga poolen, inom
+  budget, seedat på säsong och lagnamn så draften går att återskapa. Draften
+  börjar med de billigaste fem och uppgraderar sedan — en girig draft uppifrån
+  kan måla in sig i ett hörn där de sista platserna inte går att fylla.
+- **Olika djupa fickor:** varje botlag handlar för 62–100 % av budgeten. Lät man
+  alla handla för hela blev serien en mur av maximalt optimerade lag, och den
+  som testar spelet första gången fick däng i varje match utan att förstå varför.
+- I databasen är ett botlag ett vanligt lag med `manager_steamid64` null och
+  `bot` satt. SQLite räknar nullvärden som olika i unikhetskravet, så flera
+  botlag ryms per säsong utan att kravet luckras upp för de riktiga gubbarna.
+- Tabellen märker ut dem med **BOT**, så ingen undrar vem som managar "Lagg IF".
+
+Botlagen tränar inte och gör inga affärer — de står still medan managern
+utvecklar sin trupp. Det är avsiktligt så länge: den som spelar ska kunna
+klättra i tabellen. Att låta dem utvecklas är nästa steg om serien känns för lätt.
+
 ## API
 
 Alla mutationer kräver Steam-inloggning och går genom CSRF-skydd och rate limiting.
@@ -90,7 +118,7 @@ Läsvyn är öppen — man ska kunna titta på tabellen utan att logga in.
 | POST | `/api/manager/team` | Ett lag per manager och säsong |
 | PUT | `/api/manager/squad` | Skriver hela truppen |
 | POST | `/api/manager/matchday` | Spelar nästa ospelade omgång, 409 när serien är slut |
-| GET | `/api/manager/match/:id` | Sparat referat med protokoll och MVP |
+| GET | `/api/manager/match/:id` | Sparat referat med lagnamn, protokoll och MVP |
 
 ## Transfermarknad och lagkassa
 
