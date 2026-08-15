@@ -11,6 +11,7 @@ import {
 } from "./db.ts";
 import { broadcast } from "./events.ts";
 import { TRANSFERS_PER_MATCHDAY, validateTransfer, type MarketPlayer } from "./market.ts";
+import { bonusFor } from "./activityService.ts";
 
 export type TransferOutcome =
   | { ok: true }
@@ -20,12 +21,17 @@ function toMarketPlayer(row: SeasonPlayerRow): MarketPlayer {
   return { key: row.player_key, name: row.name, value: row.value };
 }
 
-// Hur många transfers laget har kvar inför nästa omgång. null-omgång betyder
+// Hur många transfers laget har kvar inför nästa omgång, inklusive den man
+// lirat ihop i klanens andra spel sedan förra matchen. null-omgång betyder
 // färdigspelad serie — då finns inget fönster.
-export function transfersLeft(seasonId: number, teamId: number): number {
-  const matchday = nextMatchday(seasonId);
+export function transfersAllowed(season: SeasonRow, team: TeamRow): number {
+  return TRANSFERS_PER_MATCHDAY + bonusFor(season, team).transfer;
+}
+
+export function transfersLeft(season: SeasonRow, team: TeamRow): number {
+  const matchday = nextMatchday(season.id);
   if (matchday === null) return 0;
-  return Math.max(0, TRANSFERS_PER_MATCHDAY - transferCount(teamId, matchday));
+  return Math.max(0, transfersAllowed(season, team) - transferCount(team.id, matchday));
 }
 
 export function makeTransfer(
@@ -39,7 +45,7 @@ export function makeTransfer(
     return { ok: false, code: "season_finished", error: "Serien är färdigspelad — inga fler affärer." };
   }
 
-  if (transferCount(team.id, matchday) >= TRANSFERS_PER_MATCHDAY) {
+  if (transferCount(team.id, matchday) >= transfersAllowed(season, team)) {
     return {
       ok: false,
       code: "no_transfers_left",

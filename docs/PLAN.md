@@ -27,6 +27,7 @@ Klansida för BVS — ett gäng goa gubbar från Västra Götaland som lirar CS2
 - [x] **Spelserver-status:** live Valheim-widget med pulserande kort och anslutningsuppgifter för inloggade (#33, #34)
 - [x] **Citat går att ta bort** — egna citat, med bekräftelse. `mine`-flaggan avgör vilka kort som får knappen utan att avslöja vem som skrivit någon annans.
 - [x] **Discord-namn på spelarkortet** — Steam vet vad du heter i Steam, inte i Discorden, så kopplingen skrivs in för hand.
+- [x] **Tvärspelspoäng:** timmar i klanens spel sedan förra omgången ger extra träningspass och affärer i managern. Rör aldrig de frysta betygen — se [manager.md](manager.md).
 - [x] **Valheim-serverrekord:** flest inne samtidigt, längsta uptime, gubbtimmar och primetime — räknat ur vår egen poller, som förut kastade bort varje svar. Ingen tredje part inblandad; det här är statistik om *er* server som inte finns någon annanstans. Serverfrågan ger antal, inte namn, så rekorden är serverns och inte enskilda gubbars.
 - [x] **Discord-widget:** vilka som hänger i Discorden just nu. Widgeten hämtas av BFF:en var 60:e sekund, så server-ID:t stannar i backend och besökarna delar på ett anrop. Kräver `DISCORD_SERVER_ID` och att widgeten är påslagen i Discord — annars visas bara inbjudningsknappen som förut.
 
@@ -55,7 +56,7 @@ I prioritetsordning, med underlag utrett:
 3. **World of Tanks-statistik** via Wargaming API — kräver application ID och att gubbarna anger sina WoT-nick, de går inte att härleda ur SteamID.
 4. **Valheim-statistik, del 2:** serverrekorden är byggda (se Status). Kvar är spelardelen: Valheim exponerar **achievements, inte räknare**, så "mest dödade troll" går inte att få — men "först i klanen att fälla Bonemass" och speltid via `GetOwnedGames` gör det. Verifiera först med `GetSchemaForGame` för appid 892970 med den skarpa nyckeln.
 5. **Vikingafigurer:** procedurella SVG-figurer per gubbe, seedade på SteamID via `rng.ts` och varierade med attribut och tier. Passar regeln om egen CSS/SVG utan fan art.
-6. **Tvärspelspoäng:** verklig speltid ger **managerresurser** (extra träningspass, pengar, transfers) — aldrig ändrade spelarbetyg, eftersom den frysta poolen är invarianten hela transfermarknaden vilar på.
+6. ~~Tvärspelspoäng~~ — klart, se Status ovan.
 
 ### Senare
 

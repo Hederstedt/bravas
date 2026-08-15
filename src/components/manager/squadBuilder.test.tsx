@@ -32,7 +32,7 @@ function view(overrides: Partial<api.ManagerView> = {}): api.ManagerView {
     locked: false,
     sellRate: 0.7,
     pool: POOL,
-    myTeam: { id: 2, name: 'FC Träklubban', squad: [], spent: 0, funds: 20_000, transfersLeft: 0, trainingLeft: 0 },
+    myTeam: { id: 2, name: 'FC Träklubban', squad: [], spent: 0, funds: 20_000, transfersLeft: 0, trainingLeft: 0, activity: { hours: { cs2: 0, other: 0 }, training: 0, transfer: 0 } },
     lastFinished: null,
     teams: [],
     table: [],
@@ -131,7 +131,7 @@ describe('SquadBuilder', () => {
     render(
       <SquadBuilder
         view={view({
-          myTeam: { id: 2, name: 'FC Träklubban', squad, spent: 11_000, funds: 9000, transfersLeft: 0, trainingLeft: 0 },
+          myTeam: { id: 2, name: 'FC Träklubban', squad, spent: 11_000, funds: 9000, transfersLeft: 0, trainingLeft: 0, activity: { hours: { cs2: 0, other: 0 }, training: 0, transfer: 0 } },
           pool: POOL.map((p) =>
             squad.some((s) => s.key === p.key) ? { ...p, takenBy: 'FC Träklubban' } : p,
           ),

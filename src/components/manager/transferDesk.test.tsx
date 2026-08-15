@@ -42,6 +42,7 @@ function view(overrides: Partial<api.ManagerView> = {}): api.ManagerView {
       funds: 1000,
       transfersLeft: 1,
       trainingLeft: 2,
+    activity: { hours: { cs2: 0, other: 0 }, training: 0, transfer: 0 },
     },
     lastFinished: null,
     teams: [],

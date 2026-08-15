@@ -1,5 +1,9 @@
 import type { StatHighlight } from "./cs2Stats.ts";
 import type { ValheimSample } from "./db.ts";
+import { MAX_GAP_MS, spans } from "./sampleSpans.ts";
+
+// Vidareexporteras: pollern och testerna hämtar dem härifrån sedan tidigare.
+export { HEARTBEAT_MS, MAX_GAP_MS } from "./sampleSpans.ts";
 
 // Rekorden räknas fram ur pollerns egna avläsningar. Ingen tredje part
 // inblandad — det här är statistik om er server, och den finns ingen
@@ -11,13 +15,6 @@ import type { ValheimSample } from "./db.ts";
 
 const GAME = { gameId: "valheim", gameTitle: "Valheim" };
 
-// Pulsraden skrivs var femte minut. Ett glapp större än så betyder att API:et
-// var nere — då vet vi inte vad som hände, och tiden räknas inte alls. Utan
-// den gränsen hade en veckas driftstopp bokförts som en vecka med servern i
-// det läge den råkade ha när strömmen gick.
-export const HEARTBEAT_MS = 5 * 60 * 1000;
-export const MAX_GAP_MS = 15 * 60 * 1000;
-
 export interface Interval {
   from: number;
   to: number;
@@ -25,23 +22,15 @@ export interface Interval {
   players: number;
 }
 
-// Varje avläsning gäller fram till nästa. Glapp hoppas över i stället för att
-// gissas.
+// Regeln för hur avläsningar blir tid bor i sampleSpans — närvaropollern
+// behöver exakt samma, och den är subtil nog att inte vilja ha i två exemplar.
 export function toIntervals(samples: readonly ValheimSample[], maxGapMs = MAX_GAP_MS): Interval[] {
-  const intervals: Interval[] = [];
-  for (let i = 0; i < samples.length - 1; i++) {
-    const start = samples[i]!;
-    const end = samples[i + 1]!;
-    const span = end.at - start.at;
-    if (span <= 0 || span > maxGapMs) continue;
-    intervals.push({
-      from: start.at,
-      to: end.at,
-      online: start.online === 1,
-      players: start.players,
-    });
-  }
-  return intervals;
+  return spans(samples, maxGapMs).map((s) => ({
+    from: s.from,
+    to: s.to,
+    online: s.row.online === 1,
+    players: s.row.players,
+  }));
 }
 
 function hours(ms: number): number {

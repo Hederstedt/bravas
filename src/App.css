@@ -801,6 +801,17 @@ a.steam-login:hover {
   text-align: center;
 }
 
+/* Tvärspelspoängen: varför du har fler pass än vanligt. */
+.activity-note {
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.activity-note.earned strong {
+  color: var(--green);
+}
+
 /* Datorstyrda lag märks ut i tabellen så ingen undrar vem som managar dem. */
 .bot-badge {
   margin-left: 8px;

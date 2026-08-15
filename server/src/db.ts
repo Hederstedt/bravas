@@ -51,6 +51,24 @@ db.exec(`
     players INTEGER NOT NULL
   );
 
+  -- Vem som spelade vad, och när. Steam berättar det var 45:e sekund och
+  -- svaret kastades förr bort så fort prickarna ritats om.
+  --
+  -- Sparat blir det underlaget för tvärspelspoängen: den som faktiskt lirar
+  -- med klanen får mer att göra i managern. Bara medlemmar som är inne i ett
+  -- spel skrivs — "online men inte i något spel" är inte aktivitet.
+  --
+  -- Samma pulsregel som valheim_samples: en rad när spelet byts, plus en med
+  -- jämna mellanrum så att tiden går att mäta och glapp går att känna igen.
+  CREATE TABLE IF NOT EXISTS presence_samples (
+    at INTEGER NOT NULL,
+    steamid64 TEXT NOT NULL,
+    game TEXT NOT NULL,
+    PRIMARY KEY (at, steamid64)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_presence_samples_member ON presence_samples(steamid64, at);
+
   CREATE TABLE IF NOT EXISTS quotes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,
@@ -286,6 +304,41 @@ export function listValheimSamples(since = 0): ValheimSample[] {
   return db
     .prepare("SELECT * FROM valheim_samples WHERE at >= ? ORDER BY at")
     .all(since) as ValheimSample[];
+}
+
+// ---------- Närvarohistorik ----------
+
+export interface PresenceSample {
+  at: number;
+  steamid64: string;
+  game: string;
+}
+
+export function lastPresenceSample(steamid64: string): PresenceSample | undefined {
+  return db
+    .prepare("SELECT * FROM presence_samples WHERE steamid64 = ? ORDER BY at DESC LIMIT 1")
+    .get(steamid64) as PresenceSample | undefined;
+}
+
+export function recordPresenceSample(at: number, steamid64: string, game: string): void {
+  db.prepare(
+    "INSERT INTO presence_samples (at, steamid64, game) VALUES (?, ?, ?) ON CONFLICT(at, steamid64) DO NOTHING"
+  ).run(at, steamid64, game);
+}
+
+export function listPresenceSamples(steamid64: string, since = 0): PresenceSample[] {
+  return db
+    .prepare("SELECT * FROM presence_samples WHERE steamid64 = ? AND at >= ? ORDER BY at")
+    .all(steamid64, since) as PresenceSample[];
+}
+
+// När den senast spelade omgången avgjordes. Fönstret för tvärspelspoängen
+// börjar där: timmar räknas sedan förra matchen, inte sedan tidernas begynnelse.
+export function lastPlayedAt(seasonId: number): number | null {
+  const row = db
+    .prepare("SELECT MAX(played_at) AS at FROM fixtures WHERE season_id = ? AND played_at IS NOT NULL")
+    .get(seasonId) as { at: number | null };
+  return row.at;
 }
 
 export interface CachedStats {

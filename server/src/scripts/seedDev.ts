@@ -91,12 +91,29 @@ function playersAt(at: number): number {
   return 0;
 }
 
+// En kväll CS2 och en stund Valheim för den förste testgubben, så att
+// tvärspelspoängen går att se utan att först sitta och lira. Ligger bakåt från
+// nu, med samma femminuterspuls som närvaropollern skriver.
+const insertPresence = db.prepare(
+  "INSERT OR IGNORE INTO presence_samples (at, steamid64, game) VALUES (?, ?, ?)"
+);
+
+function seedEvening(steamid64: string, game: string, minutesAgoFrom: number, minutes: number) {
+  for (let ago = minutesAgoFrom; ago > minutesAgoFrom - minutes; ago -= 5) {
+    insertPresence.run(now - ago * MIN, steamid64, game);
+  }
+}
+
 const seed = db.transaction(() => {
   for (const m of MANAGERS) {
     insertAllowlist.run(m.steamid64, m.name, now);
     insertMember.run(m.steamid64, m.name, now, now);
     insertStats.run(m.steamid64, JSON.stringify(statsFor(m.steamid64)), now);
   }
+
+  // Sju timmar CS2 och fem i Valheim — nog för full bonus i båda spåren.
+  seedEvening(MANAGERS[0].steamid64, "Counter-Strike 2", 12 * 60, 7 * 60);
+  seedEvening(MANAGERS[0].steamid64, "Valheim", 5 * 60, 5 * 60);
 
   const start = now - 14 * 24 * 60 * MIN;
   const outageFrom = now - 6 * 24 * 60 * MIN;

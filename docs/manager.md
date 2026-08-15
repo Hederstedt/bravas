@@ -106,6 +106,37 @@ Botlagen tränar inte och gör inga affärer — de står still medan managern
 utvecklar sin trupp. Det är avsiktligt så länge: den som spelar ska kunna
 klättra i tabellen. Att låta dem utvecklas är nästa steg om serien känns för lätt.
 
+## Tvärspelspoäng — det du lirar märks i managern
+
+Timmar i klanens spel ger managern mer att göra före nästa omgång. Närvaron
+hämtas redan från Steam var 45:e sekund för prickarna på rostern; sparad blir
+den underlaget för det här.
+
+**Den hårda regeln: aktiviteten rör aldrig spelarbetygen.** Poolen fryses vid
+säsongsstart just för att en bra kväll i CS2 inte ska ändra en gubbes pris mitt
+i en pågående serie. Rivs den invarianten faller hela transfermarknaden. Därför
+går belöningen till managerns *resurser* — knappheten per omgång är ändå den
+skruv spelet vrider på.
+
+| Aktivitet sedan förra omgången | Ger |
+|---|---|
+| 3 h CS2 | +1 träningspass, max +2 |
+| 4 h i klanens andra spel | +1 affär, max +1 |
+
+- **Bonusen räknas fram, den lagras aldrig.** Kvoterna är redan "gräns minus
+  använt den här omgången", så en bonus som höjer gränsen kan inte växlas in
+  två gånger: timmarna spenderas inte, de bestämmer bara takets höjd i det
+  fönster de ligger i. Ingen avstämplingstabell behövs.
+- **Fönstret börjar när förra omgången avgjordes.** Spelas en omgång flyttar
+  det fram och gamla timmar hamnar utanför — det är samma mekanism som gör
+  dubbelväxling omöjlig.
+- **Taken** hindrar den som lirar dygnet runt från att göra serien meningslös.
+  Som mest dubblas kvoterna.
+- **Bara tid i ett spel räknas.** "Online men står i menyn" är inte aktivitet.
+- Ett glapp i mätningen räknas inte som speltid, av samma skäl som i
+  Valheim-historiken: vi vet inte vad som hände.
+- Botlagen har ingen gubbe bakom sig och får aldrig någon bonus.
+
 ## Säsongen tar slut — och en ny kan börja
 
 När sista omgången spelats sätts säsongens status till `finished`. Utan det steget

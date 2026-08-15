@@ -17,6 +17,8 @@ export function TransferDesk({
 }) {
   const team = view.myTeam!
   const [sellKey, setSellKey] = useState<string | null>(null)
+  // Aktiviteten kan ha öppnat en extra affär — samma förklaring som i
+  // träningen, så den inte dyker upp oförklarad här heller.
   const [buyKey, setBuyKey] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -56,8 +58,10 @@ export function TransferDesk({
 
       <p className="manager-budget">
         Kassa: {kr(team.funds)} · försäljning ger {Math.round(view.sellRate * 100)} % av värdet ·{' '}
+        {/* Kvoten kunde bara vara ett innan tvärspelspoängen fanns, så
+            singularen räckte. Nu kan den vara fler. */}
         {windowOpen
-          ? `${team.transfersLeft} affär kvar före nästa omgång`
+          ? `${team.transfersLeft} ${team.transfersLeft === 1 ? 'affär' : 'affärer'} kvar före nästa omgång`
           : 'omgångens affär är gjord — fönstret öppnar när omgången spelats'}
       </p>
 

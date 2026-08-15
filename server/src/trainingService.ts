@@ -11,17 +11,23 @@ import { broadcast } from "./events.ts";
 import type { PlayerRatings } from "./matchSim.ts";
 import { playerValue } from "./season.ts";
 import { isAttrKey, SESSIONS_PER_MATCHDAY, validateTraining } from "./training.ts";
+import { bonusFor } from "./activityService.ts";
 
 export type TrainingOutcome =
   | { ok: true }
   | { ok: false; code: "season_finished" | "no_sessions_left" | "invalid_training"; error: string };
 
-// Hur många pass laget har kvar inför nästa omgång. null-omgång betyder
-// färdigspelad serie — då finns inget fönster.
-export function trainingLeft(seasonId: number, teamId: number): number {
-  const matchday = nextMatchday(seasonId);
+// Hur många pass laget har kvar inför nästa omgång, inklusive det man lirat
+// ihop sedan förra matchen. null-omgång betyder färdigspelad serie — då finns
+// inget fönster.
+export function sessionsAllowed(season: SeasonRow, team: TeamRow): number {
+  return SESSIONS_PER_MATCHDAY + bonusFor(season, team).training;
+}
+
+export function trainingLeft(season: SeasonRow, team: TeamRow): number {
+  const matchday = nextMatchday(season.id);
   if (matchday === null) return 0;
-  return Math.max(0, SESSIONS_PER_MATCHDAY - trainingCount(teamId, matchday));
+  return Math.max(0, sessionsAllowed(season, team) - trainingCount(team.id, matchday));
 }
 
 export function trainPlayer(
@@ -35,11 +41,11 @@ export function trainPlayer(
     return { ok: false, code: "season_finished", error: "Serien är färdigspelad — träningen är stängd." };
   }
 
-  if (trainingCount(team.id, matchday) >= SESSIONS_PER_MATCHDAY) {
+  if (trainingCount(team.id, matchday) >= sessionsAllowed(season, team)) {
     return {
       ok: false,
       code: "no_sessions_left",
-      error: "Omgångens pass är gjorda — gubbarna behöver vila före nästa match.",
+      error: "Omgångens pass är gjorda — lira lite CS2 så öppnar fler före nästa match.",
     };
   }
 
