@@ -3,6 +3,9 @@
 Klansidan för Bravas. React + TypeScript + Vite i roten, ett Express-API med
 SQLite under `server/`. Allt körs på egen järnvara.
 
+**Väntar på handpåläggning:** [docs/TODO.md](docs/TODO.md) — sådant som bara
+går att göra av någon med tillgång till servern, Discord eller externa konton.
+
 ## Komma igång
 
 ```bash

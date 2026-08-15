@@ -47,6 +47,9 @@ Speldesignen i detalj: [manager.md](manager.md).
 Nästa steg om serien känns för lätt: låt botlagen träna och göra affärer mellan
 omgångarna — i dag står de still medan managern utvecklar sin trupp.
 
+Det som väntar på konfiguration eller konton i stället för kod står i
+[TODO.md](TODO.md).
+
 ### Senare — Mikaels önskelista (aug 2026)
 
 I prioritetsordning, med underlag utrett:
