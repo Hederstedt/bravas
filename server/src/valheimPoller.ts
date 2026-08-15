@@ -1,5 +1,7 @@
 import { config } from "./config.ts";
 import { broadcast } from "./events.ts";
+import { lastValheimSample, recordValheimSample } from "./db.ts";
+import { HEARTBEAT_MS } from "./valheimHistory.ts";
 import { queryValheimServer, type ValheimStatus } from "./valheimQuery.ts";
 
 export const POLL_MS = 45_000;
@@ -31,11 +33,27 @@ export function valheimStatusChanged(before: ValheimStatus, after: ValheimStatus
   );
 }
 
+// Sparar avläsningen när något ändrats, och annars med jämna mellanrum. Pulsen
+// är det som gör tiden mätbar: mellan två rader vet vi vad som gällde, och ett
+// glapp större än pulsen betyder att API:et var nere — då räknas inte tiden
+// alls i statistiken. Utan pulsraderna hade en vecka utan omstart bokförts som
+// en enda lång stund i det läge servern råkade ha när sista raden skrevs.
+function remember(status: ValheimStatus, at: number): void {
+  const last = lastValheimSample();
+  const changed =
+    !last || (last.online === 1) !== status.online || last.players !== (status.players ?? 0);
+
+  if (changed || at - last.at >= HEARTBEAT_MS) {
+    recordValheimSample(at, status.online, status.players ?? 0);
+  }
+}
+
 export async function refreshValheimStatus(): Promise<boolean> {
   const next = await queryValheimServer(config.valheimQueryHost, config.valheimQueryPort);
   const changed = valheimStatusChanged(snapshot, next);
   snapshot = next;
   polled = true;
+  remember(next, Date.now());
   return changed;
 }
 

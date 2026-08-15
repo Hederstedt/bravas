@@ -1,5 +1,6 @@
 import { config } from "./config.ts";
-import { listMembers, readCs2Stats, saveCs2Stats } from "./db.ts";
+import { listMembers, listValheimSamples, readCs2Stats, saveCs2Stats } from "./db.ts";
+import { valheimHighlights } from "./valheimHistory.ts";
 import { computeHighlights, type MemberStats, type StatHighlight } from "./cs2Stats.ts";
 import { buildCards, type PlayerCard } from "./cs2Cards.ts";
 
@@ -89,7 +90,10 @@ async function getCrewStats(): Promise<CrewStats> {
 export async function getHighlights(): Promise<HighlightsResult> {
   const { memberCount, withStats } = await getCrewStats();
   return {
-    highlights: computeHighlights(withStats),
+    // Valheim-rekorden kommer ur vår egen poller och beror varken på Steam
+    // eller på att någon har öppen profil — de finns även när CS2-listan är
+    // tom, och det är hela poängen: "Siffrorna" ska inte vara en CS2-sektion.
+    highlights: [...computeHighlights(withStats), ...valheimHighlights(listValheimSamples())],
     memberCount,
     withStats: withStats.length,
   };

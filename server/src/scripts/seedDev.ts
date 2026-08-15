@@ -65,16 +65,53 @@ const insertStats = db.prepare(
    ON CONFLICT(steamid64) DO UPDATE SET stats_json = excluded.stats_json, fetched_at = excluded.fetched_at`
 );
 
+// Två veckors Valheim-historik med femminuterspuls, så att serverrekorden går
+// att titta på utan att först vänta två veckor. Formen speglar driften: uppe
+// nästan hela tiden, kvällslir, och ett avbrott att bryta uptime-sviten på.
+const MIN = 60_000;
+const STEP = 5 * MIN;
+
+const insertSample = db.prepare(
+  "INSERT OR IGNORE INTO valheim_samples (at, online, players) VALUES (?, ?, ?)"
+);
+
+function playersAt(at: number): number {
+  const d = new Date(at);
+  const hour = d.getHours();
+  const day = d.getDay();
+
+  if (hour >= 19 && hour <= 23) {
+    // Torsdag är klanens kväll, helgen näst bäst.
+    const base = day === 4 ? 5 : day === 5 || day === 6 ? 3 : 2;
+    // Variationen följer datumet i stället för slumpen, så en omseedning ger
+    // samma historik.
+    return Math.max(0, base + ((d.getDate() + hour) % 3) - 1);
+  }
+  if (hour < 2) return day === 5 || day === 6 ? 1 : 0;
+  return 0;
+}
+
 const seed = db.transaction(() => {
   for (const m of MANAGERS) {
     insertAllowlist.run(m.steamid64, m.name, now);
     insertMember.run(m.steamid64, m.name, now, now);
     insertStats.run(m.steamid64, JSON.stringify(statsFor(m.steamid64)), now);
   }
+
+  const start = now - 14 * 24 * 60 * MIN;
+  const outageFrom = now - 6 * 24 * 60 * MIN;
+  const outageTo = outageFrom + 90 * MIN;
+
+  for (let at = start; at <= now; at += STEP) {
+    const down = at >= outageFrom && at < outageTo;
+    insertSample.run(at, down ? 0 : 1, down ? 0 : playersAt(at));
+  }
 });
 seed();
 
-console.log(`Seedade ${MANAGERS.length} testgubbar med färsk CS2-statistik.\n`);
+console.log(
+  `Seedade ${MANAGERS.length} testgubbar med färsk CS2-statistik, plus två veckors Valheim-historik.\n`
+);
 console.log("Sessionskakor — klistra in i webbläsarens cookie för localhost:\n");
 for (const m of MANAGERS) {
   console.log(`  ${m.name}`);
