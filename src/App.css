@@ -1634,6 +1634,86 @@ a.steam-login:hover {
   margin: 14px auto 30px;
 }
 
+/* Vilka som hänger i Discorden just nu. Discords blålila i stället för sajtens
+   orange — det är deras hörn av sidan, och det skiljer den levande listan från
+   knappen under. */
+.discord-live {
+  max-width: 620px;
+  margin: 0 auto 30px;
+}
+
+.discord-live.empty {
+  font-size: 14px;
+}
+
+/* Specificiteten måste slå `.discord-cta p`, som annars färgar den grå. */
+.discord-cta .discord-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 14px;
+  max-width: none;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--green);
+}
+
+/* .server-dot är grå som grundläge — grönt sitter annars bara på
+   Valheim-kortets online-rad, och här är prickens hela poäng att det är folk
+   inne. Samma puls som spelservern, av samma skäl. */
+.discord-count .server-dot {
+  background: var(--green);
+  animation: server-pulse 2.4s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .discord-count .server-dot {
+    animation: none;
+  }
+}
+
+.discord-members {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.discord-members li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 6px 13px;
+  border: 1px solid rgba(88, 101, 242, 0.4);
+  background: rgba(88, 101, 242, 0.12);
+  border-radius: 999px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+/* Borta och stör ej dämpas — de är inne, men inte nödvändigtvis anträffbara. */
+.discord-members li.idle,
+.discord-members li.dnd {
+  opacity: 0.62;
+}
+
+.discord-members .playing {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.discord-members li.more {
+  border-style: dashed;
+  background: none;
+  color: var(--muted);
+}
+
 /* ---------- Footer ---------- */
 footer {
   border-top: 1px solid var(--panel-edge);
