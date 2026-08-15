@@ -224,9 +224,14 @@ describe('Roster with live data', () => {
     ])
 
     const { Roster } = await import('./sections')
-    render(<Roster />)
+    const { container } = render(<Roster />)
 
-    const img = await screen.findByRole('img', { name: '[BVS] #Mag' })
-    expect(img).toHaveAttribute('src', 'https://avatars.example/mag.jpg')
+    // Avataren är dekorativ sedan vikingen tog över porträttet — namnet står
+    // utskrivet under bilden, så den hämtas på klass i stället för på namn.
+    await screen.findByText('[BVS] #Mag')
+    expect(container.querySelector('.avatar-inset')).toHaveAttribute(
+      'src',
+      'https://avatars.example/mag.jpg',
+    )
   })
 })

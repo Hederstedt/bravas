@@ -20,6 +20,7 @@ import { useLiveEvent } from '../useLiveEvents'
 import { members } from '../data/clan'
 import { BvsMark } from './BvsMark'
 import { DiscordIcon } from './icons'
+import { Viking } from './viking'
 
 // Allt kortkomponenten behöver, oavsett om raden kom från Steam eller från
 // platshållarna. Utan den skulle kortet behöva känna till båda källorna.
@@ -42,9 +43,8 @@ function presenceLabel(p: Presence): string {
   return p.status === 'online' ? 'Online' : 'Offline'
 }
 
-function initial(name: string): string {
-  return name.replace(/^\[BVS\]\s*/, '').charAt(0).toUpperCase()
-}
+// Initialen var reservporträtt för den som saknade Steam-avatar. Vikingen
+// ritas ur statistiken och finns alltid, så reserven behövs inte längre.
 
 // Kortens ordning kommer från API:et, som redan sorterat bäst först. Gubbar vars
 // statistik ännu inte hämtats hamnar sist i stället för att falla ur raden.
@@ -142,10 +142,19 @@ function PlayerCardView({ entry, crew }: { entry: LineupEntry; crew: PlayerCard[
 
       <div className="card-portrait">
         <div className="avatar">
-          {entry.avatarUrl ? (
-            <img src={entry.avatarUrl} alt={entry.name} />
-          ) : (
-            initial(entry.name)
+          {/* Vikingen växer fram ur gubbens egen statistik — hjälm ur tiern,
+              vapen ur positionen, skägg ur speltiden. Steam-avataren blir en
+              liten bricka i hörnet: figuren är spelpersonan, avataren är
+              personen. */}
+          <Viking
+            className="viking"
+            id={entry.id}
+            tier={entry.tier}
+            position={entry.position}
+            attributes={entry.attributes}
+          />
+          {entry.avatarUrl && (
+            <img className="avatar-inset" src={entry.avatarUrl} alt="" width={30} height={30} />
           )}
           {p && (
             <span className={`presence ${p.status}`} role="status" aria-label={presenceLabel(p)} />

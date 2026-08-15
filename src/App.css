@@ -1186,6 +1186,27 @@ a.steam-login:hover {
   color: var(--accent);
 }
 
+/* Fyller hexagonen helt — figuren är ritad för att tåla att hörnen klipps. */
+.player-card .viking {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Steam-avataren som bricka uppe till höger. Vänster sida bär vikingens
+   utrustning och nedre högra hörnet närvaroprickens plats — det här är det
+   enda hörnet som är fritt. */
+.avatar-inset {
+  position: absolute;
+  top: 14px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid #151a21;
+  object-fit: cover;
+}
+
 .card-name {
   font-size: 19px;
   letter-spacing: 1px;

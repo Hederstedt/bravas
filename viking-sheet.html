@@ -1,0 +1,14 @@
+<!doctype html>
+<!-- Provark för vikingafigurerna, se scripts/viking-sheet.mjs. Ligger i roten
+     för att Vite ska servera den som en egen sida under utveckling. Den ingår
+     inte i produktionsbygget: rollupOptions pekar bara ut index.html. -->
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Vikingar — provark</title>
+  </head>
+  <body>
+    <div id="sheet"></div>
+    <script type="module" src="/src/vikingSheet.tsx"></script>
+  </body>
+</html>

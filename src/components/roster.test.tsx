@@ -87,15 +87,16 @@ describe('Roster with live members', () => {
     expect(within(card).getByText(MAG_CARD.comments[0])).toBeInTheDocument()
   })
 
+  // Avataren är dekorativ sedan vikingen tog över porträttet: namnet står
+  // utskrivet under bilden, så en alt-text hade lästs upp två gånger.
   it('shows the Steam avatar when there is one', async () => {
     stubApi({ members: [MAG], cards: [MAG_CARD] })
     render(<Roster />)
 
     const card = await waitFor(() => cardFor(MAG.personaName))
-    expect(within(card).getByRole('img', { name: MAG.personaName })).toHaveAttribute(
-      'src',
-      MAG.avatarUrl,
-    )
+    const avatar = card.querySelector('.avatar-inset')
+    expect(avatar).toHaveAttribute('src', MAG.avatarUrl)
+    expect(avatar).toHaveAttribute('alt', '')
   })
 
   it('marks who is in-game right now', async () => {
@@ -251,6 +252,28 @@ describe('the attribute legend', () => {
     for (const attr of MAG_CARD.attributes) {
       expect(screen.getByText(attr.description)).toBeInTheDocument()
     }
+  })
+})
+
+// Vikingen ritas ur gubbens egen statistik och ersatte initialen som porträtt.
+// Reglerna testas i viking.test.ts — här vaktas bara att kortet faktiskt
+// visar figuren, och att Steam-avataren finns kvar bredvid den.
+describe('the viking portrait', () => {
+  it('draws a viking on every card', async () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    render(<Roster />)
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    expect(within(card).getByRole('img', { name: /Vikingporträtt/ })).toBeInTheDocument()
+  })
+
+  it('draws the viking even for a member with no Steam avatar', async () => {
+    stubApi({ members: [HIDDEN], cards: [] })
+    render(<Roster />)
+
+    const card = await waitFor(() => cardFor(HIDDEN.personaName))
+    expect(within(card).getByRole('img', { name: /Vikingporträtt/ })).toBeInTheDocument()
+    expect(card.querySelector('.avatar-inset')).toBeNull()
   })
 })
 

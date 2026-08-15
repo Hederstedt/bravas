@@ -33,3 +33,8 @@ PLAN.local.md
 playwright-report
 test-results
 coverage
+
+# Granskningsbilder från utvecklingsskripten i scripts/. Regenereras med
+# `node scripts/viking-sheet.mjs` respektive `roster-shot.mjs` — till skillnad
+# från public/og-image.png, som serveras i drift och därför är spårad.
+scripts/*.png
