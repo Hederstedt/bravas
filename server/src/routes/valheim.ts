@@ -21,11 +21,16 @@ valheimRouter.get("/status", readLimiter, async (req, res) => {
 
   const status = currentValheimStatus();
 
+  // Skiljer "du är utloggad" från "uppgifterna är inte konfigurerade på
+  // servern". Utan flaggan fick en inloggad medlem texten "logga in för att
+  // se namn och lösenord" när VALHEIM_SERVER_NAME saknades i .env — ett
+  // besked som var direkt felaktigt och omöjligt att agera på.
   res.json({
     online: status.online,
     players: status.players,
     maxPlayers: status.maxPlayers,
     address: config.valheimAddress,
+    signedIn: member !== undefined,
     serverName: member ? config.valheimServerName : null,
     password: member ? config.valheimPassword : null,
   });

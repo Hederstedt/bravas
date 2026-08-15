@@ -41,6 +41,7 @@ const ONLINE_ANON: ValheimStatus = {
   players: 2,
   maxPlayers: 10,
   address: 'valheim.bravas.se:2456',
+  signedIn: false,
   serverName: null,
   password: null,
 }
@@ -69,6 +70,7 @@ describe('Valheim server status', () => {
       players: null,
       maxPlayers: null,
       address: 'valheim.bravas.se:2456',
+      signedIn: false,
       serverName: null,
       password: null,
     })
@@ -76,6 +78,17 @@ describe('Valheim server status', () => {
 
     const card = valheimCard()
     expect(await within(card).findByText('Offline')).toBeInTheDocument()
+  })
+
+  // Inloggad men utan uppgifter betyder att serverns .env saknar dem. Att då
+  // säga "logga in" är fel besked till någon som redan är inloggad.
+  it('says the credentials are missing rather than telling a member to log in', async () => {
+    vi.spyOn(api, 'fetchValheimStatus').mockResolvedValue({ ...ONLINE_ANON, signedIn: true })
+    render(<Games />)
+
+    const card = valheimCard()
+    expect(await within(card).findByText(/inte ifyllda än/)).toBeInTheDocument()
+    expect(within(card).queryByText(/Logga in för att se/)).not.toBeInTheDocument()
   })
 
   it('invites an anonymous visitor to log in instead of showing name and password', async () => {
