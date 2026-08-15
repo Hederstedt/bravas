@@ -176,6 +176,9 @@ export interface ValheimStatus {
   players: number | null
   maxPlayers: number | null
   address: string
+  // Skiljer utloggad från "serverns .env saknar namn/lösenord" — annars får en
+  // inloggad medlem beskedet "logga in" och kan inte göra något åt det.
+  signedIn: boolean
   serverName: string | null
   password: string | null
 }
@@ -185,6 +188,7 @@ const VALHEIM_OFFLINE: ValheimStatus = {
   players: null,
   maxPlayers: null,
   address: '',
+  signedIn: false,
   serverName: null,
   password: null,
 }
@@ -259,6 +263,14 @@ export interface PublicFixture {
 // Speglar server/src/seasonService.ts (SeasonView). season: null är ett giltigt
 // svar — ingen säsong igång — och skiljer sig från att API:et är nere (null
 // från fetchManagerView).
+// Sluttabellen från förra säsongen, så att den inte försvinner spårlöst när
+// serien tar slut och lobbyn tar över.
+export interface FinishedSeason {
+  name: string
+  table: TableRow[]
+  botTeamIds: number[]
+}
+
 export interface ManagerView {
   season: Season | null
   budget: number
@@ -268,6 +280,9 @@ export interface ManagerView {
   sellRate: number
   pool: PoolPlayer[]
   myTeam: ManagerTeam | null
+  // Senast färdigspelade säsongen, satt bara när ingen säsong är igång — så
+  // att lobbyn kan visa förra tabellen i stället för att allt ser raderat ut.
+  lastFinished: FinishedSeason | null
   // manager är null för botlagen — serien fylls på med datorstyrt motstånd så
   // att den som är först in kan spela en hel säsong, se server/src/bots.ts.
   teams: { id: number; name: string; manager: string | null; bot: boolean }[]

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SeasonLobby } from './seasonLobby'
 import * as api from '../../api'
@@ -8,7 +8,71 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+const FINISHED: api.FinishedSeason = {
+  name: 'Höstserien',
+  botTeamIds: [2],
+  table: [
+    {
+      teamId: 1,
+      name: 'FC Gubbarna',
+      played: 6,
+      won: 4,
+      drawn: 1,
+      lost: 1,
+      roundsFor: 70,
+      roundsAgainst: 50,
+      diff: 20,
+      points: 13,
+    },
+    {
+      teamId: 2,
+      name: 'Träklubborna',
+      played: 6,
+      won: 1,
+      drawn: 1,
+      lost: 4,
+      roundsFor: 50,
+      roundsAgainst: 70,
+      diff: -20,
+      points: 4,
+    },
+  ],
+}
+
 describe('SeasonLobby', () => {
+  // När serien tar slut stängs säsongen och lobbyn tar över. Utan förra
+  // tabellen kvar ser det ut som att allt man spelat fram raderades.
+  describe('after a season has been played out', () => {
+    it('names the season and its winner', () => {
+      render(<SeasonLobby signedIn onStarted={() => {}} lastFinished={FINISHED} />)
+
+      // Namnet står både i sammanfattningen och som rubrik över tabellen.
+      expect(screen.getAllByText(/Höstserien/).length).toBeGreaterThan(0)
+      expect(screen.getByText(/är färdigspelad/)).toBeInTheDocument()
+      expect(screen.getByText(/13 poäng/)).toBeInTheDocument()
+    })
+
+    it('keeps the final table on screen, bots marked as in the live table', () => {
+      render(<SeasonLobby signedIn onStarted={() => {}} lastFinished={FINISHED} />)
+
+      const table = screen.getByRole('table', { name: 'Ligatabellen' })
+      expect(within(table).getByText('Träklubborna')).toBeInTheDocument()
+      expect(within(table).getByText('BOT')).toBeInTheDocument()
+    })
+
+    it('still lets a new season be started', () => {
+      render(<SeasonLobby signedIn onStarted={() => {}} lastFinished={FINISHED} />)
+      expect(screen.getByRole('button', { name: /Starta säsongen/ })).toBeInTheDocument()
+    })
+  })
+
+  it('explains the game from scratch when nothing has been played yet', () => {
+    render(<SeasonLobby signedIn onStarted={() => {}} />)
+
+    expect(screen.getByText(/Ingen säsong igång ännu/)).toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
   it('offers Steam login instead of a form to anonymous visitors', () => {
     render(<SeasonLobby signedIn={false} onStarted={() => {}} />)
 

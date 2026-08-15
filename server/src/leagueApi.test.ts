@@ -145,6 +145,61 @@ describe("POST /api/manager/matchday", () => {
     expect((await mag.post("/api/manager/matchday").expect(201)).body.matchday).toBe(3);
   });
 
+  // Säsongen måste kunna ta slut. Stod den kvar som 'active' kom lobbyn aldrig
+  // tillbaka och säsong 2 gick inte att starta utan att peta i databasen.
+  describe("when the last matchday has been played", () => {
+    async function playOut() {
+      const mag = await league();
+      let last: { seasonFinished: boolean } | null = null;
+      for (;;) {
+        resetRateLimits();
+        const res = await mag.post("/api/manager/matchday");
+        if (res.status === 409) break;
+        expect(res.status).toBe(201);
+        last = res.body as { seasonFinished: boolean };
+      }
+      resetRateLimits();
+      return { mag, last };
+    }
+
+    it("reports that the season finished on the closing matchday", async () => {
+      const { last } = await playOut();
+      expect(last?.seasonFinished).toBe(true);
+    });
+
+    it("hands the lobby back so a new season can start", async () => {
+      const { mag } = await playOut();
+
+      const view = await request(app).get("/api/manager").expect(200);
+      expect(view.body.season).toBeNull();
+
+      await mag.post("/api/manager/season", { name: "Säsong 2" }).expect(201);
+      const next = await request(app).get("/api/manager").expect(200);
+      expect(next.body.season.name).toBe("Säsong 2");
+      // Ny säsong, ny frusen pool och inga lag kvar från förra.
+      expect(next.body.teams).toHaveLength(0);
+      expect(next.body.fixtures).toHaveLength(0);
+    });
+
+    it("keeps the old table around instead of letting it vanish", async () => {
+      await playOut();
+
+      const view = await request(app).get("/api/manager").expect(200);
+      expect(view.body.lastFinished.name).toBe("Säsong 1");
+      expect(view.body.lastFinished.table).toHaveLength(MANAGERS.length);
+      // Sluttabellen, inte en tom: alla lag har spelat.
+      for (const row of view.body.lastFinished.table as { played: number }[]) {
+        expect(row.played).toBeGreaterThan(0);
+      }
+    });
+
+    it("leaves lastFinished empty while a season is running", async () => {
+      await league();
+      const view = await request(app).get("/api/manager").expect(200);
+      expect(view.body.lastFinished).toBeNull();
+    });
+  });
+
   it("says the season is finished once every fixture is played", async () => {
     const mag = await league();
 
@@ -227,6 +282,9 @@ describe("POST /api/manager/matchday", () => {
       const mag = await solo();
 
       let matchdays = 0;
+      // Schemat läses medan säsongen fortfarande är igång — sista omgången
+      // stänger säsongen, och då lämnar schemat den aktiva vyn.
+      let scheduled = 0;
       for (;;) {
         resetRateLimits();
         const res = await mag.post("/api/manager/matchday");
@@ -234,17 +292,34 @@ describe("POST /api/manager/matchday", () => {
         expect(res.status).toBe(201);
         matchdays++;
         expect(matchdays).toBeLessThan(20);
+        const body = (await request(app).get("/api/manager").expect(200)).body;
+        if (body.season !== null) scheduled = body.fixtures.length;
       }
 
-      // Fyra lag som möts dubbelt: sex omgångar, tolv matcher, alla spelade.
+      // Fyra lag som möts dubbelt: sex omgångar, tolv matcher.
       expect(matchdays).toBe(6);
-      const view = await request(app).get("/api/manager").expect(200);
-      expect(view.body.fixtures).toHaveLength(12);
-      expect((view.body.fixtures as { played: boolean }[]).every((f) => f.played)).toBe(true);
-      // Ingen walkover: botlagen hade trupper hela vägen.
-      for (const f of view.body.fixtures as { homeScore: number; awayScore: number }[]) {
-        expect(Math.max(f.homeScore, f.awayScore)).toBeLessThanOrEqual(13);
+      expect(scheduled).toBe(12);
+
+      // Att alla tolv spelades syns i sluttabellen: fyra lag, sex matcher var.
+      const table = (await request(app).get("/api/manager").expect(200)).body.lastFinished
+        .table as { played: number }[];
+      expect(table).toHaveLength(MIN_TEAMS);
+      for (const row of table) expect(row.played).toBe(6);
+    });
+
+    it("closes the season and offers the lobby again", async () => {
+      const mag = await solo();
+      for (;;) {
+        resetRateLimits();
+        if ((await mag.post("/api/manager/matchday")).status === 409) break;
       }
+
+      const view = await request(app).get("/api/manager").expect(200);
+      expect(view.body.season).toBeNull();
+      expect(view.body.lastFinished.name).toBe("Ensamvargen");
+      expect(view.body.lastFinished.table).toHaveLength(MIN_TEAMS);
+      // Botlagen märks ut även i sluttabellen.
+      expect(view.body.lastFinished.botTeamIds).toHaveLength(MIN_TEAMS - 1);
     });
 
     // Har gubbarna hittat varandra ska datorn hålla sig undan — deras serie

@@ -106,6 +106,20 @@ Botlagen tränar inte och gör inga affärer — de står still medan managern
 utvecklar sin trupp. Det är avsiktligt så länge: den som spelar ska kunna
 klättra i tabellen. Att låta dem utvecklas är nästa steg om serien känns för lätt.
 
+## Säsongen tar slut — och en ny kan börja
+
+När sista omgången spelats sätts säsongens status till `finished`. Utan det steget
+stod den kvar som `active` för alltid: lobbyn kom aldrig tillbaka, och säsong 2
+gick inte att starta utan att gå in i databasen för hand.
+
+Den färdigspelade säsongen försvinner inte. `seasonView` lämnar med `lastFinished`
+— namn, sluttabell och vilka lag som var datorstyrda — så lobbyn kan visa vem som
+vann och hela tabellen bredvid formuläret för nästa säsong. Annars hade
+säsongsslutet känts som att allt man spelat fram raderades.
+
+Träning och affärer svarar `no_active_season` när säsongen är slut, eftersom det
+då inte finns någon aktiv säsong att göra dem i.
+
 ## API
 
 Alla mutationer kräver Steam-inloggning och går genom CSRF-skydd och rate limiting.

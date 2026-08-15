@@ -1,5 +1,6 @@
 import {
   createBotTeam,
+  finishSeason,
   listFixtures,
   listPool,
   listTeams,
@@ -138,6 +139,9 @@ function playFixture(season: SeasonRow, fixture: FixtureRow, teams: Map<number, 
 export interface MatchdayResult {
   matchday: number;
   played: number;
+  // Sant när den här omgången var den sista — då är säsongen avslutad och
+  // lobbyn tar över, med förra tabellen kvar att titta på.
+  seasonFinished: boolean;
 }
 
 // Spelar nästa ospelade omgång. Returnerar null när serien är färdig.
@@ -158,8 +162,14 @@ export function playNextMatchday(season: SeasonRow): MatchdayResult | null {
     saveResult(fixture.id, result.homeScore, result.awayScore, result);
   }
 
-  broadcast("league", { seasonId: season.id, matchday, played: fixtures.length });
-  return { matchday, played: fixtures.length };
+  // Var det sista omgången stängs säsongen här. Utan det står den kvar som
+  // 'active' för alltid: lobbyn kommer aldrig tillbaka, och säsong 2 går inte
+  // att starta utan att peta i databasen.
+  const seasonFinished = nextMatchday(season.id) === null;
+  if (seasonFinished) finishSeason(season.id);
+
+  broadcast("league", { seasonId: season.id, matchday, played: fixtures.length, seasonFinished });
+  return { matchday, played: fixtures.length, seasonFinished };
 }
 
 export function seasonTable(seasonId: number): TableRow[] {

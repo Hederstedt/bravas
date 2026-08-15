@@ -280,6 +280,21 @@ export function activeSeason(): SeasonRow | undefined {
     | undefined;
 }
 
+// Sista omgången är spelad. Utan det här steget står säsongen kvar som
+// 'active' för alltid, lobbyn kommer aldrig tillbaka och det går inte att
+// starta en ny säsong utan att gå in i databasen för hand.
+export function finishSeason(seasonId: number): void {
+  db.prepare("UPDATE seasons SET status = 'finished' WHERE id = ?").run(seasonId);
+}
+
+// Den senast färdigspelade säsongen, så att lobbyn kan visa förra tabellen i
+// stället för att allt bara försvinner när serien tar slut.
+export function lastFinishedSeason(): SeasonRow | undefined {
+  return db
+    .prepare("SELECT * FROM seasons WHERE status = 'finished' ORDER BY starts_at DESC LIMIT 1")
+    .get() as SeasonRow | undefined;
+}
+
 export function createSeason(name: string, startsAt: number, endsAt: number): SeasonRow {
   const info = db
     .prepare("INSERT INTO seasons (name, starts_at, ends_at, status) VALUES (?, ?, ?, 'active')")

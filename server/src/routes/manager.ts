@@ -13,6 +13,11 @@ export const managerRouter = Router();
 
 const MAX_TEAM_NAME = 40;
 
+// Går igen på alla mutationer som kräver en pågående säsong. Sedan säsongen
+// stängs när sista omgången spelats är det här också svaret till den som har
+// en gammal flik öppen efter att serien tagit slut.
+const NO_SEASON_MESSAGE = "Ingen säsong är igång just nu — ladda om sidan så kommer lobbyn upp.";
+
 // Läsvyn är öppen — man ska kunna titta på tabellen och truppen utan att logga
 // in. Den egna truppen fylls i bara om det finns en session.
 managerRouter.get("/", readLimiter, (req, res) => {
@@ -100,7 +105,9 @@ managerRouter.put("/squad", mutationLimiter, requireAuth, (req, res) => {
 managerRouter.post("/transfer", mutationLimiter, requireAuth, (req, res) => {
   const season = activeSeason();
   if (!season) {
-    res.status(409).json({ error: "no_active_season" });
+    // Också svaret när säsongen just spelats färdigt och stängts — då finns
+    // ingen aktiv säsong längre, och lobbyn har tagit över på sidan.
+    res.status(409).json({ error: "no_active_season", message: NO_SEASON_MESSAGE });
     return;
   }
 
@@ -141,7 +148,7 @@ managerRouter.post("/transfer", mutationLimiter, requireAuth, (req, res) => {
 managerRouter.post("/training", mutationLimiter, requireAuth, (req, res) => {
   const season = activeSeason();
   if (!season) {
-    res.status(409).json({ error: "no_active_season" });
+    res.status(409).json({ error: "no_active_season", message: NO_SEASON_MESSAGE });
     return;
   }
 

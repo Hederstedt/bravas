@@ -230,12 +230,15 @@ describe("POST /api/manager/training", () => {
     await mag.post("/api/manager/training", { player: a!.key, attr: "SKA" }).expect(200);
   });
 
+  // Sista omgången stänger säsongen, så det finns ingen aktiv säsong kvar att
+  // träna i — svaret kommer från den kontrollen i stället för från kvoten.
   it("refuses once the season is finished", async () => {
     const { mag } = await seasonInPlay();
     await mag.post("/api/manager/matchday").expect(201);
 
     const res = await mag.post("/api/manager/training", { player: "a", attr: "SIK" }).expect(409);
-    expect(res.body.error).toBe("season_finished");
+    expect(res.body.error).toBe("no_active_season");
+    expect(res.body.message).toMatch(/Ingen säsong är igång/);
   });
 
   // Träningen möter marknaden: den tränade gubben säljs för 70 % av sitt NYA
