@@ -1184,6 +1184,21 @@ a.steam-login:hover {
   margin-bottom: 6px;
 }
 
+.overall-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.overall-label {
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .card-top .overall {
   font-family: var(--font-display);
   font-weight: 700;
@@ -1277,6 +1292,35 @@ a.steam-login:hover {
   height: 100%;
   width: var(--pct, 0%);
   background: var(--accent);
+}
+
+/* Rubriken ovanför WoT-attributen — egen rad, skild från CS2-attributen ovan
+   i stället för blandad med dem. */
+.card-attrs-label {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.card-attrs-wot {
+  margin-top: 8px;
+  padding-top: 0;
+  border-top: none;
+}
+
+/* Samma layout som .attr-toggle ger sina barn, men utan knappen — WoT-
+   attributen går inte att klicka upp mot resten av klanen (ännu). */
+.attr-static .attr-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
 }
 
 .card-quip {
@@ -1420,6 +1464,31 @@ a.steam-login:hover {
 
 .legend-toggle[aria-expanded='true'] svg {
   transform: rotate(180deg);
+}
+
+.legend-body {
+  margin-top: 16px;
+}
+
+.legend-body p {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+
+.legend-body strong {
+  color: var(--text);
+}
+
+.legend-subhead {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent-soft);
+  margin: 20px 0 0;
 }
 
 /* Förklaringslistan. Samma innehåll som detaljpanelen på kortet, men

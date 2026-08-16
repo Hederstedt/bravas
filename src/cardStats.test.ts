@@ -16,6 +16,7 @@ function card(steamid64: string, sik: number, hasStats = true): PlayerCard {
           { key: 'TÅL', label: 'Tålighet', description: 'Överlevnad', rating: 50 },
         ]
       : [],
+    wotAttributes: [],
     comments: ['nåt'],
   }
 }

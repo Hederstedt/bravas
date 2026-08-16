@@ -2,6 +2,7 @@ import type { StatHighlight } from "./cs2Stats.ts";
 
 export interface WotMemberStats {
   wotAccountId: string;
+  steamid64: string;
   personaName: string;
   stats: Record<string, number>;
 }

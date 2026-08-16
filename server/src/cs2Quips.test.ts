@@ -131,6 +131,29 @@ describe("the rules", () => {
     expect(idsFor(base({ knifeKills: 120 }))).not.toContain("fallback");
   });
 
+  it("talks about tanks instead of a locked profile for someone who only plays WoT", () => {
+    const d = base({ hasStats: false, hasWotStats: true, wotBattles: 3000 });
+    expect(idsFor(d)).toContain("wot-only");
+    expect(idsFor(d)).not.toContain("private");
+  });
+
+  it("still blames the locked profile when there is no WoT to talk about instead", () => {
+    expect(idsFor(base({ hasStats: false, hasWotStats: false }))).toEqual(["private"]);
+  });
+
+  it("calls out a strong WoT win rate, high damage with low survival, and a turtle", () => {
+    expect(idsFor(base({ hasWotStats: true, wotWinRate: 0.6 }))).toContain("wot-ace");
+    expect(
+      idsFor(base({ hasWotStats: true, wotDamagePerBattle: 1800, wotSurvivalRate: 0.2 }))
+    ).toContain("wot-brawler");
+    expect(idsFor(base({ hasWotStats: true, wotSurvivalRate: 0.55 }))).toContain("wot-turtle");
+  });
+
+  it("notices a member who plays both CS2 and World of Tanks", () => {
+    expect(idsFor(base({ hasStats: true, hasWotStats: true }))).toContain("dual-game");
+    expect(idsFor(base({ hasStats: true, hasWotStats: false }))).not.toContain("dual-game");
+  });
+
   it("gives every rule at least two variants so the wall never reads the same twice", () => {
     for (const rule of QUIP_RULES) {
       expect(rule.lines.length, `${rule.id} needs more variants`).toBeGreaterThanOrEqual(2);

@@ -45,6 +45,7 @@ const MAG_CARD: PlayerCard = {
     { key: 'NYT', label: 'Nytta', description: 'Bomber och MVP:er per runda', rating: 64 },
     { key: 'TID', label: 'Tid', description: 'Total speltid i CS2', rating: 88 },
   ],
+  wotAttributes: [],
   comments: ['Smyger runt mest. Dyker upp när röken lagt sig.'],
 }
 
@@ -139,6 +140,7 @@ describe('Roster degrading gracefully', () => {
       tier: 'okänd',
       position: 'OKÄND',
       attributes: [],
+      wotAttributes: [],
       comments: ['Steam-profilen är låst.'],
     }
     stubApi({ members: [HIDDEN], cards: [locked] })
@@ -265,6 +267,65 @@ describe('the attribute legend', () => {
     for (const attr of MAG_CARD.attributes) {
       expect(screen.getByText(attr.description)).toBeInTheDocument()
     }
+  })
+
+  it('explains that another game only ever adds to the score, never subtracts', async () => {
+    const user = userEvent.setup()
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    render(<Roster />)
+
+    await waitFor(() => cardFor(MAG.personaName))
+    await user.click(screen.getByRole('button', { name: 'Hur räknas betyget fram?' }))
+
+    expect(screen.getByText(/aldrig ett avdrag/)).toBeInTheDocument()
+    expect(screen.getByText(/starkaste attribut/)).toBeInTheDocument()
+  })
+
+  it('lists World of Tanks attributes separately once someone has linked one', async () => {
+    const user = userEvent.setup()
+    const withWot: PlayerCard = {
+      ...MAG_CARD,
+      wotAttributes: [{ key: 'SEG', label: 'Segerprocent', description: 'Andel vunna strider', rating: 70 }],
+    }
+    stubApi({ members: [MAG], cards: [withWot] })
+    render(<Roster />)
+
+    await waitFor(() => cardFor(MAG.personaName))
+    await user.click(screen.getByRole('button', { name: 'Hur räknas betyget fram?' }))
+
+    expect(screen.getByText('Andel vunna strider')).toBeInTheDocument()
+  })
+})
+
+describe('World of Tanks attributes on the card', () => {
+  it('shows a separate World of Tanks row once an account is linked', async () => {
+    const withWot: PlayerCard = {
+      ...MAG_CARD,
+      wotAttributes: [{ key: 'SEG', label: 'Segerprocent', description: 'Andel vunna strider', rating: 70 }],
+    }
+    stubApi({ members: [MAG], cards: [withWot] })
+    render(<Roster />)
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    expect(within(card).getByText('World of Tanks')).toBeInTheDocument()
+    expect(within(card).getByText('SEG')).toBeInTheDocument()
+    expect(within(card).getByText('70')).toBeInTheDocument()
+  })
+
+  it('stays quiet about World of Tanks for a member who never linked one', async () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    render(<Roster />)
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    expect(within(card).queryByText('World of Tanks')).not.toBeInTheDocument()
+  })
+
+  it('labels the score BVS-betyg on the card', async () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    render(<Roster />)
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    expect(within(card).getByText('BVS-betyg')).toBeInTheDocument()
   })
 })
 
