@@ -28,6 +28,12 @@ describe('routing', () => {
     expect(screen.queryByRole('heading', { name: 'Bravas' })).not.toBeInTheDocument()
   })
 
+  it('renders the info page on /kom-igang', () => {
+    renderAt('/kom-igang')
+    expect(screen.getByRole('heading', { name: 'Kom igång' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Bravas' })).not.toBeInTheDocument()
+  })
+
   it('redirects unknown paths to the start page', () => {
     renderAt('/finns-inte')
     expect(screen.getByRole('heading', { name: 'Bravas' })).toBeInTheDocument()
@@ -44,5 +50,11 @@ describe('routing', () => {
     renderAt('/')
     const links = screen.getAllByRole('link', { name: 'Manager' })
     expect(links[0]).toHaveAttribute('href', '/manager')
+  })
+
+  it('the nav links to the info page', () => {
+    renderAt('/')
+    const links = screen.getAllByRole('link', { name: 'Kom igång' })
+    expect(links[0]).toHaveAttribute('href', '/kom-igang')
   })
 })
