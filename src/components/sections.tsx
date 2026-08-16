@@ -75,6 +75,7 @@ const navLinks = [
   { to: '/manager', label: 'Manager' },
   { to: '/#om', label: 'Om oss' },
   { to: '/#discord', label: 'Discord' },
+  { to: '/kom-igang', label: 'Kom igång' },
 ]
 
 export function Nav() {

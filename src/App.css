@@ -462,7 +462,7 @@ a.steam-login:hover {
   margin-top: 2px;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 980px) {
   .nav-links {
     display: none;
   }
