@@ -213,7 +213,7 @@ describe("GET /api/stats/cards", () => {
       hasStats: true,
       overall: 74,
       tier: "silver",
-      position: "AWP",
+      position: "KAPTEN",
     });
     expect(res.body.cards[0].attributes).toHaveLength(6);
     expect(res.body.cards[0].comments.length).toBeGreaterThan(0);

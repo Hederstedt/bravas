@@ -1,14 +1,17 @@
-import { ATTR_ORDER, rateCard, tierFor, type DerivedCore, type PlayerCard } from "./cs2Cards.ts";
+import { rankFor } from "./bvsRank.ts";
+import { rateCard, tierFor, type DerivedCore, type PlayerCard } from "./cs2Cards.ts";
 import { assignQuips, type Derived } from "./cs2Quips.ts";
 import type { MemberStats } from "./cs2Stats.ts";
-import { rateWotCard, WOT_ATTR_ORDER, WOT_POSITIONS } from "./wotCards.ts";
+import { rateWotCard } from "./wotCards.ts";
 import type { WotMemberStats } from "./wotStats.ts";
 
-// CS2 är basen och WoT är ett tillägg — grunden ska aldrig kunna sjunka för
-// att någon länkat ett svagt WoT-konto. Ett rating på 99 (max) ger +5, vilket
-// är taket regeln landar på ändå — Math.min är bara ett uttryckligt skydd om
-// formeln ändras senare.
-const MAX_WOT_BONUS = 5;
+// CS2 är basen och varje ytterligare länkat och betygsatt spel — i dag bara
+// WoT, fler kan följa samma mönster senare — lägger på en rejäl bonus ovanpå,
+// aldrig ett avdrag. Meningen är att det ska synas: klanens eget betyg ska
+// löna sig att bygga ut, inte bara vara en CS2-siffra med ett stänk annat
+// spel i marginalen. Grunden kan aldrig sjunka för att någon länkat ett svagt
+// konto — Math.min är ett uttryckligt tak, inte bara vad formeln råkar landa på.
+const MAX_EXTRA_GAME_BONUS = 15;
 
 // Samma nollställda form som cs2Cards.ts:s egen derive() ger för en gubbe utan
 // statistik — men den behövs här även för någon som aldrig funnits i
@@ -67,7 +70,7 @@ export function buildCombinedCards(
 
     let overall = 0;
     if (cs2HasStats && wotHasStats) {
-      const bonus = Math.min(MAX_WOT_BONUS, Math.round(wotRating / 20));
+      const bonus = Math.min(MAX_EXTRA_GAME_BONUS, Math.round(wotRating / 7));
       overall = Math.min(99, cs2Overall + bonus);
     } else if (cs2HasStats) {
       overall = cs2Overall;
@@ -75,19 +78,9 @@ export function buildCombinedCards(
       overall = wotRating;
     }
 
-    // Rollen är det enskilt starkaste attributet, oavsett vilket spel det
-    // kommer ifrån. Lika höga avgörs till CS2:s fördel — det är basen.
-    const cs2Top = cs2HasStats ? Math.max(...ATTR_ORDER.map((k) => cs2Derived.ratings[k])) : 0;
-    const wotTop = wotHasStats ? Math.max(...WOT_ATTR_ORDER.map((k) => wotResult!.derived.ratings[k])) : 0;
-
-    let position = "OKÄND";
-    if (wotHasStats && wotTop > cs2Top) {
-      position = WOT_POSITIONS[wotResult!.card.topAttr!];
-    } else if (cs2HasStats) {
-      position = cs2Result!.card.position;
-    } else if (wotHasStats) {
-      position = WOT_POSITIONS[wotResult!.card.topAttr!];
-    }
+    // BVS egen rang, inte "AWP" eller "TAKTIKER" — samma titlar oavsett vilket
+    // spel betyget kom ifrån, se bvsRank.ts.
+    const position = hasStats ? rankFor(overall) : "OKÄND";
 
     const derived: Derived = {
       ...cs2Derived,

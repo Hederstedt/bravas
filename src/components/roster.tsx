@@ -346,13 +346,15 @@ export function Roster() {
               <div className="legend-body">
                 <p>
                   <strong>BVS-betyget</strong> är en viktad summa av dina attribut — den som väger
-                  tyngst (Frag) räknas mer än den som väger minst (Tid). Har du länkat ett till
-                  spel läggs det på som en bonus ovanpå, aldrig ett avdrag: ett svagt World of
-                  Tanks-konto kan bara höja betyget, aldrig sänka det.
+                  tyngst (Frag) räknas mer än den som väger minst (Tid). Länkar du fler spel läggs
+                  varje spel på som ett rejält tillägg ovanpå, aldrig ett avdrag: ju fler
+                  spelkonton du länkar, desto högre kan betyget bli — ett svagt konto kan bara
+                  höja betyget, aldrig sänka det.
                 </p>
                 <p>
-                  <strong>Rollen</strong> (t.ex. ENTRY eller KANON) är helt enkelt ditt starkaste
-                  attribut, oavsett vilket spel det kommer ifrån — inget mer mystiskt än så.
+                  <strong>Titeln</strong> (t.ex. KAPTEN eller GENERAL) är BVS egen rangordning och
+                  styrs bara av betyget, oavsett vilket spel poängen kom ifrån — samma titlar för
+                  alla, så ingen behöver gissa vad en förkortning betyder.
                   <strong> Tier</strong> (ikon/guld/silver/brons) är bara betyget i hinkar: 87+,
                   75+, 60+, annars brons.
                 </p>

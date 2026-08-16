@@ -269,7 +269,7 @@ describe('the attribute legend', () => {
     }
   })
 
-  it('explains that another game only ever adds to the score, never subtracts', async () => {
+  it('explains that another game only ever adds to the score, never subtracts, and that titles come from BVS itself', async () => {
     const user = userEvent.setup()
     stubApi({ members: [MAG], cards: [MAG_CARD] })
     render(<Roster />)
@@ -278,7 +278,8 @@ describe('the attribute legend', () => {
     await user.click(screen.getByRole('button', { name: 'Hur räknas betyget fram?' }))
 
     expect(screen.getByText(/aldrig ett avdrag/)).toBeInTheDocument()
-    expect(screen.getByText(/starkaste attribut/)).toBeInTheDocument()
+    expect(screen.getByText(/ju fler spelkonton/)).toBeInTheDocument()
+    expect(screen.getByText(/egen rangordning/)).toBeInTheDocument()
   })
 
   it('lists World of Tanks attributes separately once someone has linked one', async () => {
