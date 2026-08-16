@@ -36,30 +36,6 @@ inbjudningsknappen — vilket är ett giltigt läge, inte ett fel.
 
 ---
 
-## 2. Berätta för gubbarna att sidan finns
-
-Sajten har roster med riktiga spelarkort, statistik från CS2 och Valheim,
-citatvägg, serverstatus, Discord-närvaro och ett managerspel med botlag och
-säsonger. Ingen av dem vet om den.
-
-- [ ] Dela `https://www.bravas.se` i Discorden
-
-Delningskortet är byggt för just det — länken renderas med logga, rubrik och
-spelbrickor i stället för som en naken URL.
-
-Tre saker blir bättre av att fler loggar in:
-
-- **Statistiken** hämtas bara för den som har öppen spelinformation på sin
-  Steam-profil. Fler öppna profiler ger fler riktiga rekord och färre
-  demo-kort.
-- **World of Tanks-statistik** kräver att var och en klickar "Länka World of
-  Tanks" på sitt eget kort i rostern (inloggad med Steam) — ingen samlar in
-  nick åt någon annan längre.
-- **Managern** fyller i dag ut ligan med botlag eftersom du är ensam. Skapar
-  fler gubbar lag håller sig datorn undan, och serien blir er egen.
-
----
-
 ## Gjort och i drift
 
 Kvitteras här så listan inte blandar ihop det som väntar med det som redan
