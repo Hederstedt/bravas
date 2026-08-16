@@ -10,7 +10,8 @@ import {
   type Highlights,
   type ValheimStatus,
 } from '../api'
-import { members, games, statHighlights, statsIsMock } from '../data/clan'
+import { members, games, gameStatsBlurbs, statHighlights, statsIsMock } from '../data/clan'
+import { groupHighlights } from '../statsGrouping'
 import { useLiveEvent } from '../useLiveEvents'
 import { useSiteConfig } from '../useSiteConfig'
 import { SteamLogin } from './auth'
@@ -21,6 +22,7 @@ import {
   AxeIcon,
   FactoryIcon,
   LockIcon,
+  SteamIcon,
   TankIcon,
   TrophyIcon,
 } from './icons'
@@ -50,6 +52,17 @@ const gameArt: Record<string, { tint: string; art: string; icon: ReactNode }> = 
     art: 'linear-gradient(135deg, #3d3210, #14120b 70%)',
     icon: <FactoryIcon />,
   },
+  // Inget spel i sig — mock-datans "över alla spel"-post i Siffrorna
+  // (Mest speltid totalt). Finns bara här så gruppering inte spricker på den.
+  steam: {
+    tint: '#66c0f4',
+    art: 'linear-gradient(135deg, #16232e, #0b141a 70%)',
+    icon: <SteamIcon />,
+  },
+}
+
+function fallbackArt(gameId: string) {
+  return gameArt[gameId] ?? { tint: undefined, art: undefined, icon: <TrophyIcon /> }
 }
 
 // Sektionslänkarna pekar på /#ankare så att de fungerar även från /manager —
@@ -374,6 +387,7 @@ export function Stats() {
   // gjort det är märkt demo-data ärligare än en tom sektion.
   const real = live && live.highlights.length > 0
   const cards = real ? live.highlights : statHighlights
+  const groups = groupHighlights(cards)
 
   return (
     <section id="siffrorna">
@@ -383,52 +397,70 @@ export function Stats() {
           <h2>Siffrorna</h2>
           {!real && statsIsMock && <span className="demo-badge">Demo-data</span>}
         </div>
-        <div className="stats-grid">
-          {cards.map((s) => {
-            const id = `${s.gameId}-${s.label}`
-            const standings = s.standings ?? []
-            const isOpen = openRecord === id
-            return (
-              <article key={id} className="stat-card">
-                <div className="stat-card-head">
-                  <TrophyIcon />
-                  <span className="stat-game">{s.gameTitle}</span>
+        {groups.map((group) => {
+          const art = fallbackArt(group.gameId)
+          return (
+            <div
+              key={group.gameId}
+              className="stats-group"
+              style={{ '--game-tint': art.tint } as React.CSSProperties}
+            >
+              <div className="stats-group-head">
+                {art.icon}
+                <div>
+                  <h3>{group.gameTitle}</h3>
+                  {gameStatsBlurbs[group.gameId] && <p>{gameStatsBlurbs[group.gameId]}</p>}
                 </div>
-                <p className="stat-label">{s.label}</p>
-                <p className="stat-value">{s.value}</p>
-                <p className="stat-holder">{s.holder}</p>
-                <p className="stat-detail">{s.detail}</p>
+              </div>
+              <div className="stats-grid">
+                {group.cards.map((s) => {
+                  const id = `${s.gameId}-${s.label}`
+                  const standings = s.standings ?? []
+                  const isOpen = openRecord === id
+                  return (
+                    <article key={id} className="stat-card">
+                      <div className="stat-card-head">
+                        <TrophyIcon />
+                        <span className="stat-game">{s.gameTitle}</span>
+                      </div>
+                      <p className="stat-label">{s.label}</p>
+                      <p className="stat-value">{s.value}</p>
+                      <p className="stat-holder">{s.holder}</p>
+                      <p className="stat-detail">{s.detail}</p>
 
-                {/* Bara rekordhållaren syns i vila. Vill man veta vem som ligger
-                    tvåa fäller man ut listan — på klick, inte hover, så det
-                    fungerar lika bra med tumme som med mus. */}
-                {standings.length > 1 && (
-                  <>
-                    <button
-                      type="button"
-                      className="stat-expand"
-                      aria-expanded={isOpen}
-                      onClick={() => setOpenRecord(isOpen ? null : id)}
-                    >
-                      {isOpen ? 'Dölj listan' : `Visa alla ${standings.length}`}
-                    </button>
-                    {isOpen && (
-                      <ol className="stat-standings">
-                        {standings.map((row, i) => (
-                          <li key={row.name}>
-                            <span className="rank">{i + 1}</span>
-                            <span className="who">{row.name}</span>
-                            <span className="what">{row.value}</span>
-                          </li>
-                        ))}
-                      </ol>
-                    )}
-                  </>
-                )}
-              </article>
-            )
-          })}
-        </div>
+                      {/* Bara rekordhållaren syns i vila. Vill man veta vem som ligger
+                          tvåa fäller man ut listan — på klick, inte hover, så det
+                          fungerar lika bra med tumme som med mus. */}
+                      {standings.length > 1 && (
+                        <>
+                          <button
+                            type="button"
+                            className="stat-expand"
+                            aria-expanded={isOpen}
+                            onClick={() => setOpenRecord(isOpen ? null : id)}
+                          >
+                            {isOpen ? 'Dölj listan' : `Visa alla ${standings.length}`}
+                          </button>
+                          {isOpen && (
+                            <ol className="stat-standings">
+                              {standings.map((row, i) => (
+                                <li key={row.name}>
+                                  <span className="rank">{i + 1}</span>
+                                  <span className="who">{row.name}</span>
+                                  <span className="what">{row.value}</span>
+                                </li>
+                              ))}
+                            </ol>
+                          )}
+                        </>
+                      )}
+                    </article>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
         <p className="roster-note">
           {real
             ? `Hämtat live från Steam för ${live.withStats} av ${live.memberCount} gubbar — resten har stängd spelinformation på sin profil.`

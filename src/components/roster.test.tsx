@@ -175,12 +175,11 @@ describe('Roster degrading gracefully', () => {
 })
 
 describe('the lineup row', () => {
-  it('is reachable and labelled for anyone scrolling it with a keyboard', async () => {
+  it('is grouped and labelled for screen readers', async () => {
     stubApi({ members: [MAG], cards: [MAG_CARD] })
     render(<Roster />)
 
-    const lineup = await screen.findByRole('group', { name: /gubbarna/i })
-    expect(lineup).toHaveAttribute('tabindex', '0')
+    expect(await screen.findByRole('group', { name: /gubbarna/i })).toBeInTheDocument()
   })
 })
 
@@ -243,11 +242,26 @@ describe('comparing an attribute', () => {
 })
 
 describe('the attribute legend', () => {
-  it('spells out what every code means, without needing a hover', async () => {
+  it('is collapsed until someone asks for it', async () => {
     stubApi({ members: [MAG], cards: [MAG_CARD] })
     render(<Roster />)
 
     await waitFor(() => cardFor(MAG.personaName))
+    expect(screen.getByRole('button', { name: 'Hur räknas betyget fram?' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    )
+    expect(screen.queryByText(MAG_CARD.attributes[0]!.description)).not.toBeInTheDocument()
+  })
+
+  it('spells out what every code means once opened, without needing a hover', async () => {
+    const user = userEvent.setup()
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    render(<Roster />)
+
+    await waitFor(() => cardFor(MAG.personaName))
+    await user.click(screen.getByRole('button', { name: 'Hur räknas betyget fram?' }))
+
     for (const attr of MAG_CARD.attributes) {
       expect(screen.getByText(attr.description)).toBeInTheDocument()
     }

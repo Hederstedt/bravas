@@ -119,6 +119,17 @@ export const games: Game[] = [
   },
 ]
 
+// Egna rader för Siffrorna, skilda från game.blurb ovan — den står redan i
+// Spel-sektionen och skulle bara upprepa sig här. gameId 'steam' är inte ett
+// spel i sig utan mock-datans "över alla spel"-post (Mest speltid totalt).
+export const gameStatsBlurbs: Record<string, string> = {
+  cs2: 'Kulhål, kills och kvällens efternack — här är siffrorna skarpast.',
+  wot: 'Pansar, prickskytte och tålamodet att vänta ut hela striden.',
+  valheim: 'Vad servern faktiskt burit, mätt i gubbtimmar och trolldöd.',
+  satisfactory: 'Fabriken har inga siffror än — men transportbanden växer.',
+  steam: 'Räknat över alla spel, inte bara ett.',
+}
+
 // ------------------------------------------------------------------
 // MOCK-DATA för stats-sektionen. Ersätts av riktiga siffror via BFF:en
 // i Steam-sync-fasen. Strukturen speglar källorna:
