@@ -152,17 +152,19 @@ describe("POST /api/quotes", () => {
     await request(app).post("/api/quotes").send({ text: "Hej", saidBy: "Gubbe" }).expect(403);
   });
 
-  // Någon utanför rostern kan inte ens hämta ut en CSRF-token — den endpointen
-  // kräver medlemskap — så skrivningen stoppas redan av CSRF-skyddet.
+  // Någon utanför rostern får numera hämta ut en CSRF-token — en sökande måste
+  // kunna posta sin ansökan. Det ger honom ingenting här: citatväggen ligger
+  // kvar bakom requireAuth, som kräver en riktig members-rad.
   it("turns down a signed session for someone outside the roster", async () => {
     const session = sessionFor(OUTSIDER);
-    await request(app).get("/api/auth/csrf-token").set("Cookie", session).expect(401);
+    const { token, cookie } = await csrfFor(session);
 
     await request(app)
       .post("/api/quotes")
-      .set("Cookie", session)
+      .set("Cookie", [session, cookie])
+      .set("x-csrf-token", token)
       .send({ text: "Hej", saidBy: "Gubbe" })
-      .expect(403);
+      .expect(401);
 
     expect((db.prepare("SELECT COUNT(*) c FROM quotes").get() as { c: number }).c).toBe(0);
   });

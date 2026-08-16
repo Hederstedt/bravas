@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import cookieParser from "cookie-parser";
 import { doubleCsrfProtection } from "./csrf.ts";
 import { errorHandler, requestLogger } from "./middleware/errors.ts";
+import { adminRouter } from "./routes/admin.ts";
 import { authRouter } from "./routes/auth.ts";
 import { membersRouter } from "./routes/members.ts";
 import { presenceRouter } from "./routes/presence.ts";
@@ -32,6 +33,7 @@ export function createApp(): Express {
   });
 
   app.use("/api/auth", authRouter);
+  app.use("/api/admin", adminRouter);
   app.use("/api/members", membersRouter);
   app.use("/api/presence", presenceRouter);
   app.use("/api/quotes", quotesRouter);

@@ -69,9 +69,31 @@ describe('fetchMembers', () => {
 describe('fetchSession', () => {
   it('returns the session when logged in', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({ authenticated: true, steamid64: '76561198060166361' }),
+      jsonResponse({
+        authenticated: true,
+        steamid64: '76561198060166361',
+        isMember: true,
+        isAdmin: false,
+      }),
     )
-    await expect(fetchSession()).resolves.toEqual({ steamid64: '76561198060166361' })
+    await expect(fetchSession()).resolves.toEqual({
+      steamid64: '76561198060166361',
+      isMember: true,
+      isAdmin: false,
+    })
+  })
+
+  // En sökande har en giltig kaka men ingen rad i rostern. Missar frontenden
+  // skillnaden visar den kontosidan för någon som inte är med.
+  it('marks an applicant as signed in but not a member', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ authenticated: true, steamid64: '76561190000000000', isMember: false }),
+    )
+    await expect(fetchSession()).resolves.toEqual({
+      steamid64: '76561190000000000',
+      isMember: false,
+      isAdmin: false,
+    })
   })
 
   // Being logged out is a 200 with authenticated:false — the endpoint is a

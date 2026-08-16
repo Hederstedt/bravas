@@ -5,6 +5,7 @@ import {
   fetchDiscordStatus,
   fetchHighlights,
   fetchMembers,
+  fetchSession,
   fetchValheimStatus,
   type DiscordStatus,
   type Highlights,
@@ -80,7 +81,25 @@ const navLinks = [
 
 export function Nav() {
   const [open, setOpen] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const burgerRef = useRef<HTMLButtonElement>(null)
+
+  // Admin-länken är bekvämlighet, inte skydd — servern gatear varje
+  // admin-endpoint oavsett vad menyn visar. Men en död länk för alla andra
+  // vore bara skräp, så den ritas bara för den som faktiskt kan använda den.
+  useEffect(() => {
+    let cancelled = false
+    void fetchSession().then((s) => {
+      if (!cancelled) setIsAdmin(s?.isAdmin === true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // navLinks driver både desktopmenyn och mobilöverlägget, så en villkorad
+  // post räcker för båda.
+  const links = isAdmin ? [...navLinks, { to: '/admin', label: 'Admin' }] : navLinks
 
   // Escape stänger menyn och lämnar tillbaka fokus till hamburgaren — utan det
   // hamnar tangentbordsanvändaren i ingenmansland när menyn försvinner.
@@ -109,7 +128,7 @@ export function Nav() {
             <BvsMark className="mark" /> BVS
           </Link>
           <div className="nav-links">
-            {navLinks.map((l) => (
+            {links.map((l) => (
               <Link key={l.to} to={l.to}>
                 {l.label}
               </Link>
@@ -132,7 +151,7 @@ export function Nav() {
       </nav>
       {open && (
         <div className="nav-overlay" role="dialog" aria-modal="true" aria-label="Meny">
-          {navLinks.map((l) => (
+          {links.map((l) => (
             <Link key={l.to} to={l.to} onClick={() => setOpen(false)}>
               {l.label}
             </Link>

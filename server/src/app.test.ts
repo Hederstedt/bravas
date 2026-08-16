@@ -380,7 +380,10 @@ describe("GET /api/auth/steam/callback", () => {
     expect(res.headers.location).toBe("https://bravas.test/");
   });
 
-  it("still turns away someone who is not on the allowlist", async () => {
+  // Den som inte står i allowlisten kastades förut ut till en query-parameter
+  // frontenden aldrig läste. Nu får hen en session och skickas till ansökan —
+  // men fortfarande ingen members-rad, och därmed ingenting bakom requireAuth.
+  it("sends someone outside the allowlist to the application form", async () => {
     stubSteamIdentity(NOT_ALLOWED);
 
     const res = await request(app)
@@ -388,8 +391,29 @@ describe("GET /api/auth/steam/callback", () => {
       .query(claimedId(NOT_ALLOWED))
       .expect(302);
 
-    expect(res.headers.location).toBe("https://bravas.test/?auth=not_allowed");
+    expect(res.headers.location).toBe("https://bravas.test/ansok");
     expect(db.prepare("SELECT 1 FROM members WHERE steamid64 = ?").get(NOT_ALLOWED)).toBeUndefined();
+  });
+
+  it("gives the applicant a session to post the form with", async () => {
+    stubSteamIdentity(NOT_ALLOWED);
+
+    const res = await request(app)
+      .get("/api/auth/steam/callback")
+      .query(claimedId(NOT_ALLOWED))
+      .expect(302);
+
+    const setCookie = res.headers["set-cookie"] as unknown as string[] | undefined;
+    expect(setCookie?.some((c) => c.startsWith(`${sessionCookie.name}=`))).toBe(true);
+  });
+
+  it("does not put the applicant on the allowlist by letting them in", async () => {
+    stubSteamIdentity(NOT_ALLOWED);
+    await request(app).get("/api/auth/steam/callback").query(claimedId(NOT_ALLOWED)).expect(302);
+
+    expect(
+      db.prepare("SELECT 1 FROM allowlist WHERE steamid64 = ?").get(NOT_ALLOWED)
+    ).toBeUndefined();
   });
 });
 
@@ -463,7 +487,32 @@ describe("GET /api/auth/me", () => {
       .get("/api/auth/me")
       .set("Cookie", sessionFor(ALLOWED))
       .expect(200);
-    expect(res.body).toEqual({ authenticated: true, steamid64: ALLOWED });
+    expect(res.body).toEqual({
+      authenticated: true,
+      steamid64: ALLOWED,
+      isMember: true,
+      isAdmin: false,
+    });
+  });
+
+  // Sökande och medlemmar har båda en giltig kaka. Bara den ena har en
+  // members-rad, och frontenden måste kunna se skillnaden för att veta om den
+  // ska visa kontosidan eller ansökningsformuläret.
+  it("tells an applicant apart from a member", async () => {
+    const res = await request(app)
+      .get("/api/auth/me")
+      .set("Cookie", sessionFor(NOT_ALLOWED))
+      .expect(200);
+    expect(res.body).toMatchObject({ authenticated: true, isMember: false, isAdmin: false });
+  });
+
+  // Sidan frågar den här vid varje sidladdning, från flera komponenter
+  // samtidigt. Låg den kvar bakom inloggningstaket (30 per kvart) räckte ett
+  // vanligt klickande runt för att bli utlåst och plötsligt se utloggad ut.
+  it("survives more page loads than the login limit allows", async () => {
+    for (let i = 0; i < 40; i++) {
+      await request(app).get("/api/auth/me").set("Cookie", sessionFor(ALLOWED)).expect(200);
+    }
   });
 
   it("treats a tampered session cookie as anonymous", async () => {
@@ -488,7 +537,7 @@ describe("GET /api/auth/me", () => {
     expect(renewed).toBeDefined();
     expect(renewed).toContain("HttpOnly");
     expect(renewed).toContain("Max-Age=2592000");
-    expect(res.body).toEqual({ authenticated: true, steamid64: ALLOWED });
+    expect(res.body).toMatchObject({ authenticated: true, steamid64: ALLOWED });
   });
 
   it("leaves a fresh session alone instead of setting a cookie every page load", async () => {
@@ -529,12 +578,25 @@ describe("POST /api/members/link", () => {
       .expect(403);
   });
 
+  // En sökande kan hämta en CSRF-token — annars går ansökan inte att posta.
+  // Det ger honom ändå ingen väg in här: requireAuth kräver en members-rad, och
+  // en giltig token tar honom bara fram till 401 i stället för 403.
   it("rejects a non-member even when the CSRF token is valid", async () => {
     const agent = request.agent(app);
     const session = sessionFor(NOT_ALLOWED);
 
-    const tokenRes = await agent.get("/api/auth/csrf-token").set("Cookie", session).expect(401);
-    expect(tokenRes.body).toEqual({ error: "not_authenticated" });
+    const tokenRes = await agent.get("/api/auth/csrf-token").set("Cookie", session).expect(200);
+    const csrfCookie = (tokenRes.headers["set-cookie"] as unknown as string[])
+      .find((c) => c.startsWith("bvs_csrf="))!
+      .split(";")[0]!;
+
+    const res = await agent
+      .post("/api/members/link")
+      .set("Cookie", [session, csrfCookie])
+      .set("x-csrf-token", tokenRes.body.csrfToken as string)
+      .send({ discordName: "mag" })
+      .expect(401);
+    expect(res.body).toEqual({ error: "not_authenticated" });
   });
 });
 

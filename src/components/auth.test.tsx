@@ -41,7 +41,7 @@ describe('SteamLogin', () => {
   })
 
   it('greets the signed-in member by persona name', async () => {
-    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: MAG.steamid64 })
+    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: MAG.steamid64, isMember: true, isAdmin: false })
     vi.spyOn(api, 'fetchMembers').mockResolvedValue([MAG])
 
     renderLogin()
@@ -53,7 +53,7 @@ describe('SteamLogin', () => {
   // Namnet var förut en död text. Nu är det vägen till kontosidan — utan den
   // fanns ingenstans att koppla konton eller logga ut.
   it('makes the name a link to the account page', async () => {
-    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: MAG.steamid64 })
+    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: MAG.steamid64, isMember: true, isAdmin: false })
     vi.spyOn(api, 'fetchMembers').mockResolvedValue([MAG])
 
     renderLogin()

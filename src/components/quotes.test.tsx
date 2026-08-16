@@ -62,7 +62,7 @@ describe('Quotes', () => {
   it('lets a signed-in member add a quote and shows it straight away', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'fetchQuotes').mockResolvedValue([])
-    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '76561198060166361' })
+    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '76561198060166361', isMember: true, isAdmin: false })
     const add = vi.spyOn(api, 'addQuote').mockResolvedValue({
       id: 7,
       text: 'Rush B',
@@ -85,7 +85,7 @@ describe('Quotes', () => {
   it('refuses to submit an empty quote', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'fetchQuotes').mockResolvedValue([])
-    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1' })
+    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1', isMember: true, isAdmin: false })
     const add = vi.spyOn(api, 'addQuote').mockResolvedValue(null)
 
     render(<Quotes />)
@@ -97,7 +97,7 @@ describe('Quotes', () => {
   it('updates the count when a member votes', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'fetchQuotes').mockResolvedValue([QUOTE])
-    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1' })
+    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1', isMember: true, isAdmin: false })
     vi.spyOn(api, 'toggleQuoteVote').mockResolvedValue({ votes: 4, voted: true })
 
     render(<Quotes />)
@@ -110,7 +110,7 @@ describe('Quotes', () => {
   it('leaves the count alone when the vote fails', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'fetchQuotes').mockResolvedValue([QUOTE])
-    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1' })
+    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1', isMember: true, isAdmin: false })
     vi.spyOn(api, 'toggleQuoteVote').mockResolvedValue(null)
 
     render(<Quotes />)
@@ -136,7 +136,7 @@ describe('Quotes', () => {
   describe('removing your own quote', () => {
     it('offers the button only on your own quotes', async () => {
       vi.spyOn(api, 'fetchQuotes').mockResolvedValue([QUOTE, MY_QUOTE])
-      vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1' })
+      vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1', isMember: true, isAdmin: false })
 
       render(<Quotes />)
 
@@ -150,7 +150,7 @@ describe('Quotes', () => {
     it('asks once before actually removing it', async () => {
       const user = userEvent.setup()
       vi.spyOn(api, 'fetchQuotes').mockResolvedValue([MY_QUOTE])
-      vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1' })
+      vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1', isMember: true, isAdmin: false })
       const remove = vi.spyOn(api, 'deleteQuote').mockResolvedValue(true)
 
       render(<Quotes />)
@@ -168,7 +168,7 @@ describe('Quotes', () => {
     it('keeps the quote and says so when the removal fails', async () => {
       const user = userEvent.setup()
       vi.spyOn(api, 'fetchQuotes').mockResolvedValue([MY_QUOTE])
-      vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1' })
+      vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1', isMember: true, isAdmin: false })
       vi.spyOn(api, 'deleteQuote').mockResolvedValue(false)
 
       render(<Quotes />)
