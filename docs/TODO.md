@@ -30,44 +30,7 @@ inbjudningsknappen — vilket är ett giltigt läge, inte ett fel.
 
 ---
 
-## 2. Kontrollera Valheim-uppgifterna
-
-Går inte att se utifrån: namn och lösenord lämnas bara ut till inloggade
-medlemmar, så en utloggad kontroll säger ingenting. Logga in på sajten och
-titta på Valheim-kortet.
-
-- [ ] Går kortet att vända? Då är det klart — hoppa över resten.
-- [ ] Står det *"Serverns namn och lösenord är inte ifyllda än"*: sätt
-      `VALHEIM_SERVER_NAME` och `VALHEIM_PASSWORD` i `/srv/bravas-api/.env`
-      och starta om API:et.
-
-Se `server/src/routes/valheim.ts`. Själva serverstatusen fungerar oavsett —
-den svarade `online: true` senast den kollades.
-
----
-
-## 3. Kolla vad Valheim faktiskt exponerar
-
-Avgör om spelarstatistik för Valheim går att bygga, och i så fall vilken.
-Gissningen är att spelet bara har achievements och inga räknare — men det är
-en gissning, och schemat svarar på fem sekunder.
-
-- [ ] Kör mot Steam med den skarpa nyckeln (körs där nyckeln finns, klistra
-      bara in **svaret** — det innehåller ingen nyckel):
-
-```bash
-curl -s "https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key=$STEAM_API_KEY&appid=892970" | jq '{stats: [.game.availableGameStats.stats[]?.name], antalAchievements: ([.game.availableGameStats.achievements[]?] | length), exempel: [.game.availableGameStats.achievements[]?.displayName][0:10]}'
-```
-
-Kommer `stats` tillbaka med namn → "mest dödade troll" går att bygga.
-Kommer den tom → det blir "först i klanen att fälla Bonemass" i stället.
-
-Serverrekorden (flest inne samtidigt, uptime, gubbtimmar, primetime) finns
-redan och påverkas inte av det här.
-
----
-
-## 4. Wargaming-konto för World of Tanks-statistik
+## 2. Wargaming-konto för World of Tanks-statistik
 
 **Utan det här:** "Siffrorna" visar CS2 och Valheim, aldrig WoT.
 
@@ -79,7 +42,7 @@ Först när båda finns går integrationen att bygga.
 
 ---
 
-## 5. Berätta för gubbarna att sidan finns
+## 3. Berätta för gubbarna att sidan finns
 
 Sajten har roster med riktiga spelarkort, statistik från CS2 och Valheim,
 citatvägg, serverstatus, Discord-närvaro och ett managerspel med botlag och
@@ -107,3 +70,10 @@ rullar:
 
 - [x] nginx `try_files`-blocket för SPA-rutter (`server/deploy/nginx-spa-location.conf`)
 - [x] `DISCORD_INVITE_URL` satt — hero-knappen och Discord-sektionen visas
+- [x] Valheim-uppgifterna kontrollerade — `VALHEIM_SERVER_NAME` och
+      `VALHEIM_PASSWORD` satta i `/srv/bravas-api/.env`, kortet går att vända
+      för inloggade
+- [x] Valheim-schemat kollat — `GetSchemaForGame` gav `availableGameStats: {}`,
+      alltså varken räknare eller achievements. Gissningen i `PLAN.md` (bara
+      achievements, inga räknare) var för optimistisk — spelet exponerar
+      inget av vare sig sorten. Se `docs/PLAN.md`, "Kvar att bygga".

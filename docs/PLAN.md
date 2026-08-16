@@ -55,10 +55,11 @@ blockerade av var sin post där.
    nere. Blockerad av application ID *och* av att gubbarnas WoT-nick måste
    samlas in — de går inte att härleda ur SteamID.
 2. **Valheim-statistik, del 2 — spelardelen.** Serverrekorden är byggda (se
-   Status). Valheim exponerar sannolikt **achievements, inte räknare**, så
-   "mest dödade troll" går troligen inte att få, medan "först i klanen att
-   fälla Bonemass" och speltid via `GetOwnedGames` gör det. Blockerad av
-   schemakontrollen, som avgör vilket av spåren som gäller.
+   Status). Schemakontrollen är gjord: `GetSchemaForGame` svarar
+   `availableGameStats: {}` — **varken räknare eller achievements**, så
+   "mest dödade troll" och "först i klanen att fälla Bonemass" är båda
+   uteslutna. Enda kvarvarande spåret är speltid via `GetOwnedGames`, samma
+   källa rostern redan använder för CS2.
 3. **Klipp-galleri:** bästa klippen som embeds. Inget är byggt.
 4. **Låt botlagen utvecklas** — de står still medan managern tränar och
    handlar, så serien blir lättare för varje omgång. Först aktuellt om den
