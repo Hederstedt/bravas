@@ -262,6 +262,10 @@ export interface ManagerTeam {
   funds: number
   transfersLeft: number
   trainingLeft: number
+  // Vad du lirat ihop sedan förra omgången, och vad det gav. Speglar
+  // server/src/activity.ts — verklig speltid ger managerresurser, aldrig
+  // ändrade spelarbetyg.
+  activity: ActivityBonus
 }
 
 // Speglar server/src/league.ts.
@@ -292,6 +296,14 @@ export interface PublicFixture {
 // Speglar server/src/seasonService.ts (SeasonView). season: null är ett giltigt
 // svar — ingen säsong igång — och skiljer sig från att API:et är nere (null
 // från fetchManagerView).
+// Tvärspelspoäng: timmar i klanens spel sedan förra omgången, och de extra
+// resurser de gav. Poolen är fryst och rörs aldrig — se docs/manager.md.
+export interface ActivityBonus {
+  hours: { cs2: number; other: number }
+  training: number
+  transfer: number
+}
+
 // Sluttabellen från förra säsongen, så att den inte försvinner spårlöst när
 // serien tar slut och lobbyn tar över.
 export interface FinishedSeason {

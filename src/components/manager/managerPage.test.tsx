@@ -203,6 +203,7 @@ describe('ManagerPage', () => {
         funds: 13_800,
         transfersLeft: 0,
         trainingLeft: 0,
+    activity: { hours: { cs2: 0, other: 0 }, training: 0, transfer: 0 },
       },
     })
 
@@ -230,6 +231,7 @@ describe('ManagerPage', () => {
         funds: 13_800,
         transfersLeft: 1,
         trainingLeft: 2,
+    activity: { hours: { cs2: 0, other: 0 }, training: 0, transfer: 0 },
       },
     })
 

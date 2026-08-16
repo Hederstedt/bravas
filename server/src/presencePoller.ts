@@ -1,6 +1,7 @@
-import { listMembers } from "./db.ts";
+import { lastPresenceSample, listMembers, recordPresenceSample } from "./db.ts";
 import { broadcast } from "./events.ts";
 import { fetchPresence, type Presence } from "./presence.ts";
+import { HEARTBEAT_MS } from "./sampleSpans.ts";
 
 export const POLL_MS = 45_000;
 
@@ -59,7 +60,25 @@ export async function refreshPresence(): Promise<boolean> {
 
   const changed = presenceChanged(snapshot, next);
   snapshot = next;
+  remember(next, Date.now());
   return changed;
+}
+
+// Sparar vem som är inne i vilket spel. En rad när spelet byts, plus en
+// pulsrad med jämna mellanrum så att tiden går att mäta — samma regel som
+// valheimPoller, av samma skäl.
+//
+// Bara den som faktiskt är i ett spel loggas. "Online men står i menyn" är
+// inte aktivitet och ska inte ge managerpoäng.
+function remember(presence: Record<string, Presence>, at: number): void {
+  for (const [steamid64, p] of Object.entries(presence)) {
+    if (p.status !== "in-game" || !p.game) continue;
+
+    const last = lastPresenceSample(steamid64);
+    if (!last || last.game !== p.game || at - last.at >= HEARTBEAT_MS) {
+      recordPresenceSample(at, steamid64, p.game);
+    }
+  }
 }
 
 export async function pollOnce(): Promise<void> {

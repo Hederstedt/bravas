@@ -33,6 +33,7 @@ function view(overrides: Partial<api.ManagerView> = {}): api.ManagerView {
       funds: 1000,
       transfersLeft: 1,
       trainingLeft: 2,
+    activity: { hours: { cs2: 0, other: 0 }, training: 0, transfer: 0 },
     },
     lastFinished: null,
     teams: [],
@@ -87,7 +88,9 @@ describe('TrainingDesk', () => {
       />,
     )
 
-    expect(screen.getByText(/gubbarna vilar till nästa match/)).toBeInTheDocument()
+    // Sedan tvärspelspoängen finns är kvoten inte längre slutgiltig — lirar
+    // man CS2 före nästa omgång öppnar fler pass, och beskedet säger det.
+    expect(screen.getByText(/lira lite CS2 så öppnar fler/)).toBeInTheDocument()
     expect(attrButton('Bärarn', /^70/)).toBeDisabled()
   })
 

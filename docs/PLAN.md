@@ -27,6 +27,7 @@ Klansida för BVS — ett gäng goa gubbar från Västra Götaland som lirar CS2
 - [x] **Spelserver-status:** live Valheim-widget med pulserande kort och anslutningsuppgifter för inloggade (#33, #34)
 - [x] **Citat går att ta bort** — egna citat, med bekräftelse. `mine`-flaggan avgör vilka kort som får knappen utan att avslöja vem som skrivit någon annans.
 - [x] **Discord-namn på spelarkortet** — Steam vet vad du heter i Steam, inte i Discorden, så kopplingen skrivs in för hand.
+- [x] **Tvärspelspoäng:** timmar i klanens spel sedan förra omgången ger extra träningspass och affärer i managern. Rör aldrig de frysta betygen — se [manager.md](manager.md).
 - [x] **Valheim-serverrekord:** flest inne samtidigt, längsta uptime, gubbtimmar och primetime — räknat ur vår egen poller, som förut kastade bort varje svar. Ingen tredje part inblandad; det här är statistik om *er* server som inte finns någon annanstans. Serverfrågan ger antal, inte namn, så rekorden är serverns och inte enskilda gubbars.
 - [x] **Discord-widget:** vilka som hänger i Discorden just nu. Widgeten hämtas av BFF:en var 60:e sekund, så server-ID:t stannar i backend och besökarna delar på ett anrop. Kräver `DISCORD_SERVER_ID` och att widgeten är påslagen i Discord — annars visas bara inbjudningsknappen som förut.
 
@@ -38,29 +39,34 @@ Klansida för BVS — ett gäng goa gubbar från Västra Götaland som lirar CS2
 - [x] **Transfermarknad + lagkassa:** persistent kassa (`funds`), trupplåsning när serien startat, byt-mot-poolen med säljkurs 70 %.
 - [x] **Träning:** deterministisk kurva med avtagande avkastning, 2 pass per omgång, höjer spelarens värde.
 - [x] **Botlag:** en ensam manager fylls upp till fyra lag med datorstyrt motstånd, så serien går att spela från dag ett.
+- [x] **Säsongscykel:** serien tar slut när sista omgången spelats, och lobbyn kommer tillbaka med förra sluttabellen kvar så att en ny säsong kan startas.
 
 Speldesignen i detalj: [manager.md](manager.md).
 
-- [x] **Säsongscykel:** serien tar slut när sista omgången spelats, och lobbyn kommer tillbaka med förra sluttabellen kvar så att en ny säsong kan startas.
+### Kvar att bygga
 
-Nästa steg om serien känns för lätt: låt botlagen träna och göra affärer mellan
-omgångarna — i dag står de still medan managern utvecklar sin trupp.
+I prioritetsordning, med underlaget utrett. Den här listan är **kod**. Det som
+i stället väntar på konfiguration, konton eller att någon frågar gubbarna står
+i [TODO.md](TODO.md) — listorna överlappar inte, och punkt 1 och 2 nedan är
+blockerade av var sin post där.
 
-### Senare — Mikaels önskelista (aug 2026)
+1. **World of Tanks-statistik** via Wargaming API. Spegla `statsService`:
+   egen cachetabell med TTL, degradera till senast kända värde när API:et är
+   nere. Blockerad av application ID *och* av att gubbarnas WoT-nick måste
+   samlas in — de går inte att härleda ur SteamID.
+2. **Valheim-statistik, del 2 — spelardelen.** Serverrekorden är byggda (se
+   Status). Valheim exponerar sannolikt **achievements, inte räknare**, så
+   "mest dödade troll" går troligen inte att få, medan "först i klanen att
+   fälla Bonemass" och speltid via `GetOwnedGames` gör det. Blockerad av
+   schemakontrollen, som avgör vilket av spåren som gäller.
+3. **Klipp-galleri:** bästa klippen som embeds. Inget är byggt.
+4. **Låt botlagen utvecklas** — de står still medan managern tränar och
+   handlar, så serien blir lättare för varje omgång. Först aktuellt om den
+   känns för lätt i praktiken.
 
-I prioritetsordning, med underlag utrett:
-
-1. ~~Småfix med färdig backend~~ — klart, se Status ovan.
-2. ~~Discord-widget~~ — klart, se Status ovan.
-3. **World of Tanks-statistik** via Wargaming API — kräver application ID och att gubbarna anger sina WoT-nick, de går inte att härleda ur SteamID.
-4. **Valheim-statistik, del 2:** serverrekorden är byggda (se Status). Kvar är spelardelen: Valheim exponerar **achievements, inte räknare**, så "mest dödade troll" går inte att få — men "först i klanen att fälla Bonemass" och speltid via `GetOwnedGames` gör det. Verifiera först med `GetSchemaForGame` för appid 892970 med den skarpa nyckeln.
-5. **Vikingafigurer:** procedurella SVG-figurer per gubbe, seedade på SteamID via `rng.ts` och varierade med attribut och tier. Passar regeln om egen CSS/SVG utan fan art.
-6. **Tvärspelspoäng:** verklig speltid ger **managerresurser** (extra träningspass, pengar, transfers) — aldrig ändrade spelarbetyg, eftersom den frysta poolen är invarianten hela transfermarknaden vilar på.
-
-### Senare
-
-- **Klipp-galleri:** bästa klippen (embeds).
-- **World of Tanks-statistik:** via Wargaming API.
+**Avfört:** procedurella vikingafigurer per gubbe. Byggdes i PR #40 och
+skrotades — de ersatte gubbarnas Steam-avatarer som porträtt, och meningen var
+aldrig att byta ut folks profilbilder.
 
 ## Utveckling
 

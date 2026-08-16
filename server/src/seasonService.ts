@@ -32,6 +32,8 @@ import {
 import { SELL_RATE } from "./market.ts";
 import { transfersLeft } from "./marketService.ts";
 import { trainingLeft } from "./trainingService.ts";
+import { bonusFor } from "./activityService.ts";
+import type { ActivityBonus } from "./activity.ts";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -124,6 +126,9 @@ export interface SeasonView {
     funds: number;
     transfersLeft: number;
     trainingLeft: number;
+    // Vad han lirat ihop sedan förra omgången, och vad det gav. Utan det här
+    // dyker ett extra träningspass upp utan förklaring.
+    activity: ActivityBonus;
   } | null;
   teams: { id: number; name: string; manager: string | null; bot: boolean }[];
   table: TableRow[];
@@ -187,8 +192,9 @@ export function seasonView(steamid64: string | null): SeasonView {
           squad,
           spent: squad.reduce((s, p) => s + p.value, 0),
           funds: mine.funds,
-          transfersLeft: transfersLeft(season.id, mine.id),
-          trainingLeft: trainingLeft(season.id, mine.id),
+          transfersLeft: transfersLeft(season, mine),
+          trainingLeft: trainingLeft(season, mine),
+          activity: bonusFor(season, mine),
         }
       : null,
     teams: teams.map((t) => ({

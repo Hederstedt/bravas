@@ -102,6 +102,8 @@ function view(state: StubState) {
           funds: state.funds,
           transfersLeft: windowOpen ? Math.max(0, 1 - state.transfersUsed) : 0,
           trainingLeft: windowOpen ? Math.max(0, 2 - state.trainingUsed) : 0,
+          // Ingen tvärspelsaktivitet i stubben — grundkvoten gäller.
+          activity: { hours: { cs2: 0, other: 0 }, training: 0, transfer: 0 },
         }
       : null,
     teams,

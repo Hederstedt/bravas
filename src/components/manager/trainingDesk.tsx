@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ActivityNote } from './activityNote'
 import {
   TRAINING_CAP,
   trainPlayer,
@@ -42,12 +43,15 @@ export function TrainingDesk({
   return (
     <div className="manager-block">
       <h3>Träningen</h3>
+      {/* Utan förklaringen dyker ett extra pass upp ur tomma intet. */}
 
       <p className="manager-budget">
         {windowOpen
           ? `${team.trainingLeft} pass kvar före nästa omgång — låga betyg växer snabbast, vid ${TRAINING_CAP} är det stopp`
-          : 'omgångens pass är gjorda — gubbarna vilar till nästa match'}
+          : 'omgångens pass är gjorda — lira lite CS2 så öppnar fler'}
       </p>
+
+      <ActivityNote activity={team.activity} />
       {error && <p className="quote-error">{error}</p>}
 
       <div className="pool-wrap">
