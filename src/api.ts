@@ -46,6 +46,8 @@ export interface PlayerCard {
   tier: CardTier
   position: string
   attributes: CardAttribute[]
+  // Bara ifyllt för den som länkat World of Tanks — se server/src/playerCards.ts.
+  wotAttributes: CardAttribute[]
   comments: string[]
 }
 

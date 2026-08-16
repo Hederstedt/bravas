@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { computeWotHighlights, type WotMemberStats } from "./wotStats.ts";
 
 function member(personaName: string, stats: Record<string, number>): WotMemberStats {
-  return { wotAccountId: personaName, personaName, stats };
+  return { wotAccountId: personaName, steamid64: personaName, personaName, stats };
 }
 
 describe("computeWotHighlights", () => {

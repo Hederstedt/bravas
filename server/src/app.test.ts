@@ -213,21 +213,30 @@ describe("GET /api/stats/cards", () => {
       hasStats: true,
       overall: 74,
       tier: "silver",
-      position: "AWP",
+      position: "KAPTEN",
     });
     expect(res.body.cards[0].attributes).toHaveLength(6);
     expect(res.body.cards[0].comments.length).toBeGreaterThan(0);
   });
 
   it("still returns a card for a member whose profile Steam won't share", async () => {
-    // Sektionen får inte tappa en gubbe bara för att profilen är stängd.
+    // Sektionen får inte tappa en gubbe bara för att profilen är stängd — nu
+    // med ett riktigt "okänd"-kort i stället för att helt saknas ur listan,
+    // eftersom samma gubbe ändå kan ha länkat World of Tanks.
     addMember(ALLOWED, "[BVS] #Mag");
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("{}", { status: 403, headers: { "Content-Type": "application/json" } })
     );
 
     const res = await request(app).get("/api/stats/cards").expect(200);
-    expect(res.body).toMatchObject({ memberCount: 1, withStats: 0, cards: [] });
+    expect(res.body).toMatchObject({ memberCount: 1, withStats: 0 });
+    expect(res.body.cards).toHaveLength(1);
+    expect(res.body.cards[0]).toMatchObject({
+      steamid64: ALLOWED,
+      hasStats: false,
+      tier: "okänd",
+      position: "OKÄND",
+    });
   });
 
   it("shares the cache with the highlights endpoint instead of refetching", async () => {

@@ -21,6 +21,13 @@ export interface Derived {
   pistolWinRate: number;
   blindKills: number;
   topWeapon: string | null;
+  // Ofyllda för den som inte länkat World of Tanks — reglerna som tittar på
+  // dem kollar hasWotStats först, se matchingRules.
+  hasWotStats?: boolean;
+  wotBattles?: number;
+  wotWinRate?: number;
+  wotDamagePerBattle?: number;
+  wotSurvivalRate?: number;
 }
 
 export interface Quip {
@@ -175,6 +182,53 @@ export const QUIP_RULES: QuipRule[] = [
     ],
   },
   {
+    id: "wot-only",
+    // Inte "profilen är låst" — det är fel besked till någon som bara aldrig
+    // rört CS2. matchingRules hoppar över private-regeln när det här stämmer.
+    when: (d) => !d.hasStats && !!d.hasWotStats,
+    lines: [
+      "Har aldrig loggat CS-tid som räknas. Pansarvagnar är hela hans grej.",
+      "CS2 är inte hans spel. Han lever i tornet på en Tiger.",
+      "Ingen CS-statistik att tala om. Det mesta av honom finns i garaget.",
+    ],
+  },
+  {
+    id: "wot-ace",
+    when: (d) => !!d.hasWotStats && (d.wotWinRate ?? 0) >= 0.58,
+    lines: [
+      "Vinner striden innan den ens börjat. Nån läser kartan bättre än laget.",
+      "Segerprocenten sticker ut. Han ropar aldrig ut positioner, men vinner ändå.",
+      "Har koll på var striden avgörs innan den gör det.",
+    ],
+  },
+  {
+    id: "wot-brawler",
+    when: (d) => !!d.hasWotStats && (d.wotDamagePerBattle ?? 0) >= 1600 && (d.wotSurvivalRate ?? 1) <= 0.3,
+    lines: [
+      "Delar ut stryk och tar emot lika mycket. Överlever sällan, ångrar aldrig.",
+      "Kör in mitt i striden och skjuter tills nån går sönder. Ofta han själv, till slut.",
+      "Skadan är hög, livslängden inte. Prioriteringar.",
+    ],
+  },
+  {
+    id: "wot-turtle",
+    when: (d) => !!d.hasWotStats && (d.wotSurvivalRate ?? 0) >= 0.5,
+    lines: [
+      "Överlever nästan varje strid. Vagnen har mer buskage än pansar vid det här laget.",
+      "Sist kvar, som vanligt. Nån måste ju städa upp.",
+      "Håller sig vid liv längre än de flesta. Buskkrigare, uttalat.",
+    ],
+  },
+  {
+    id: "dual-game",
+    when: (d) => d.hasStats && !!d.hasWotStats,
+    lines: [
+      "Byter mellan crosshair och periskop utan att blinka. Skiftesarbete på västgötska.",
+      "Lirar både CS och pansar. Ingen vet vilket han hellre är i.",
+      "Har statistik i två spel och tid över till ett tredje. Imponerande, eller oroväckande.",
+    ],
+  },
+  {
     id: "fallback",
     when: () => true,
     // Här hamnar alla utan särdrag, så poolen måste vara den största av alla —
@@ -212,9 +266,11 @@ function quipFrom(rule: QuipRule, index: number, d: Derived): Quip {
 }
 
 // Reglerna en gubbe faktiskt kan få något ur. En låst profil har bara en sak
-// att säga om sig, så den kortsluter resten.
+// att säga om sig, så den kortsluter resten — men bara om han inte har WoT att
+// visa upp i stället. "Profilen är låst" vore fel besked till någon som bara
+// aldrig rört CS2.
 function matchingRules(d: Derived): QuipRule[] {
-  if (PRIVATE_RULE.when(d)) return [PRIVATE_RULE];
+  if (PRIVATE_RULE.when(d) && !d.hasWotStats) return [PRIVATE_RULE];
   return QUIP_RULES.filter((r) => r.id !== "private" && r.id !== "fallback" && r.when(d));
 }
 

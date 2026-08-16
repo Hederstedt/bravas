@@ -33,6 +33,7 @@ interface LineupEntry {
   tier: CardTier
   position: string
   attributes: CardAttribute[]
+  wotAttributes: CardAttribute[]
   comments: string[]
   presence: Presence | null
   pending: boolean
@@ -71,9 +72,14 @@ function buildLineup(
       tier: card.tier,
       position: card.position,
       attributes: card.attributes,
+      wotAttributes: card.wotAttributes,
       comments: card.comments,
       presence: presence[card.steamid64] ?? null,
-      pending: false,
+      // "Kika in igen om en stund" var förr bara för den som saknades helt ur
+      // cards-listan. Nu får den som inte har någon statistik alls (stängd
+      // profil, inget länkat) ändå ett kort — men ska fortfarande visa "—",
+      // inte ett missvisande "0".
+      pending: !card.hasStats,
     })
   }
 
@@ -88,6 +94,7 @@ function buildLineup(
       tier: 'okänd' as CardTier,
       position: '',
       attributes: [],
+      wotAttributes: [],
       comments: ['Statistiken hämtas från Steam. Kika in igen om en stund.'],
       presence: presence[m.steamid64] ?? null,
       pending: true,
@@ -106,6 +113,7 @@ function placeholderLineup(): LineupEntry[] {
     tier: m.tier,
     position: m.position,
     attributes: m.attributes,
+    wotAttributes: [],
     comments: [m.flavor],
     presence: null,
     pending: false,
@@ -122,6 +130,7 @@ function placeholderCards(): PlayerCard[] {
     tier: m.tier,
     position: m.position,
     attributes: m.attributes,
+    wotAttributes: [],
     comments: [m.flavor],
   }))
 }
@@ -136,7 +145,10 @@ function PlayerCardView({ entry, crew }: { entry: LineupEntry; crew: PlayerCard[
   return (
     <article className="player-card" data-tier={entry.tier}>
       <div className="card-top">
-        <span className="overall">{entry.pending ? '—' : entry.overall}</span>
+        <div className="overall-wrap">
+          <span className="overall-label">BVS-betyg</span>
+          <span className="overall">{entry.pending ? '—' : entry.overall}</span>
+        </div>
         {entry.position && <span className="position">{entry.position}</span>}
         <BvsMark className="card-mark" />
       </div>
@@ -189,6 +201,24 @@ function PlayerCardView({ entry, crew }: { entry: LineupEntry; crew: PlayerCard[
             )
           })}
         </ul>
+      )}
+
+      {entry.wotAttributes.length > 0 && (
+        <>
+          <p className="card-attrs-label">World of Tanks</p>
+          <ul className="card-attrs card-attrs-wot">
+            {entry.wotAttributes.map((a) => (
+              <li key={a.key} className="attr attr-static">
+                <span className="attr-head">
+                  <span className="attr-key">{a.key}</span>
+                  <span className="attr-rating">{a.rating}</span>
+                </span>
+                <span className="sr-only">{a.label}</span>
+                <span className="attr-bar" style={{ '--pct': `${a.rating}%` } as CSSProperties} />
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       {openAttr && (
@@ -267,8 +297,11 @@ export function Roster() {
   const crew = isLive ? cards : placeholderCards()
 
   // Förklaringarna kommer från API:et tillsammans med betygen, så koden här
-  // slipper hålla en egen kopia som kan glida isär från uträkningen.
+  // slipper hålla en egen kopia som kan glida isär från uträkningen. WoT-
+  // attributen läggs på separat — bara CS2 har alla sex på varenda gubbe, WoT
+  // finns bara hos den som länkat.
   const legend = lineup.find((e) => e.attributes.length > 0)?.attributes ?? []
+  const wotLegend = lineup.find((e) => e.wotAttributes.length > 0)?.wotAttributes ?? []
 
   // Delas av både Discord- och WoT-länkningen: samma inloggade besökares egen
   // rad i rostern, om hen finns med.
@@ -298,7 +331,7 @@ export function Roster() {
           ))}
         </div>
 
-        {legend.length > 0 && (
+        {(legend.length > 0 || wotLegend.length > 0) && (
           <div className="legend-toggle-wrap">
             <button
               type="button"
@@ -310,16 +343,49 @@ export function Roster() {
               {legendOpen ? 'Dölj hur betyget räknas' : 'Hur räknas betyget fram?'}
             </button>
             {legendOpen && (
-              <dl className="attr-legend">
-                {legend.map((a) => (
-                  <div key={a.key}>
-                    <dt>
-                      <span className="attr-legend-key">{a.key}</span> {a.label}
-                    </dt>
-                    <dd>{a.description}</dd>
-                  </div>
-                ))}
-              </dl>
+              <div className="legend-body">
+                <p>
+                  <strong>BVS-betyget</strong> är en viktad summa av dina attribut — den som väger
+                  tyngst (Frag) räknas mer än den som väger minst (Tid). Länkar du fler spel läggs
+                  varje spel på som ett rejält tillägg ovanpå, aldrig ett avdrag: ju fler
+                  spelkonton du länkar, desto högre kan betyget bli — ett svagt konto kan bara
+                  höja betyget, aldrig sänka det.
+                </p>
+                <p>
+                  <strong>Titeln</strong> (t.ex. KAPTEN eller GENERAL) är BVS egen rangordning och
+                  styrs bara av betyget, oavsett vilket spel poängen kom ifrån — samma titlar för
+                  alla, så ingen behöver gissa vad en förkortning betyder.
+                  <strong> Tier</strong> (ikon/guld/silver/brons) är bara betyget i hinkar: 87+,
+                  75+, 60+, annars brons.
+                </p>
+                {legend.length > 0 && (
+                  <dl className="attr-legend">
+                    {legend.map((a) => (
+                      <div key={a.key}>
+                        <dt>
+                          <span className="attr-legend-key">{a.key}</span> {a.label}
+                        </dt>
+                        <dd>{a.description}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+                {wotLegend.length > 0 && (
+                  <>
+                    <p className="legend-subhead">World of Tanks</p>
+                    <dl className="attr-legend">
+                      {wotLegend.map((a) => (
+                        <div key={a.key}>
+                          <dt>
+                            <span className="attr-legend-key">{a.key}</span> {a.label}
+                          </dt>
+                          <dd>{a.description}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </>
+                )}
+              </div>
             )}
           </div>
         )}

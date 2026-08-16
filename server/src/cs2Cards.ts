@@ -4,8 +4,11 @@ import type { MemberStats } from "./cs2Stats.ts";
 export type AttrKey = "SIK" | "SKA" | "FRA" | "TÅL" | "NYT" | "TID";
 export type Tier = "ikon" | "guld" | "silver" | "brons" | "okänd";
 
+// key är en sträng, inte AttrKey — kortet bär numera även World of Tanks-
+// attribut (wotCards.ts har sin egen nyckeltyp), och båda ska kunna renderas
+// av samma komponent på frontend.
 export interface CardAttribute {
-  key: AttrKey;
+  key: string;
   label: string;
   description: string;
   rating: number;
@@ -19,6 +22,11 @@ export interface PlayerCard {
   tier: Tier;
   position: string;
   attributes: CardAttribute[];
+  // Bara ifyllt för den som länkat World of Tanks — se playerCards.ts, som är
+  // den som faktiskt kombinerar CS2- och WoT-betyg. Tomt här betyder bara att
+  // den här funktionen (CS2 för sig) inte vet något om WoT, inte att spelaren
+  // saknar det.
+  wotAttributes: CardAttribute[];
   comments: string[];
 }
 
@@ -28,7 +36,7 @@ const MIN_ROUNDS = 100;
 type Anchors = readonly (readonly [number, number])[];
 
 // Reglerna i cs2Quips behöver inte objektiv-kvoten, men betygsmodellen gör det.
-interface DerivedCore extends Derived {
+export interface DerivedCore extends Derived {
   objectiveRate: number;
 }
 
@@ -217,12 +225,12 @@ function derive(m: MemberStats): DerivedCore {
   };
 }
 
-type RatedCard = Omit<PlayerCard, "comments">;
+export type RatedCard = Omit<PlayerCard, "comments">;
 
 // Betygsättningen är helt oberoende av kommentarerna. De hålls isär eftersom
 // kommentarerna måste väljas med hela laget i åtanke medan betygen bara beror
 // på gubben själv.
-function rateCard(m: MemberStats): { card: RatedCard; derived: DerivedCore } {
+export function rateCard(m: MemberStats): { card: RatedCard; derived: DerivedCore } {
   const d = derive(m);
 
   if (!d.hasStats) {
@@ -236,6 +244,7 @@ function rateCard(m: MemberStats): { card: RatedCard; derived: DerivedCore } {
         tier: "okänd",
         position: "OKÄND",
         attributes: [],
+        wotAttributes: [],
       },
     };
   }
@@ -269,6 +278,7 @@ function rateCard(m: MemberStats): { card: RatedCard; derived: DerivedCore } {
       tier: tierFor(overall),
       position: POSITIONS[top],
       attributes,
+      wotAttributes: [],
     },
   };
 }

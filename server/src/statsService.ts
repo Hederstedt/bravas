@@ -13,7 +13,8 @@ import { valheimHighlights } from "./valheimHistory.ts";
 import { computeValheimPlaytimeHighlight, type MemberPlaytime } from "./valheimPlaytime.ts";
 import { computeHighlights, type MemberStats, type StatHighlight } from "./cs2Stats.ts";
 import { computeWotHighlights, type WotMemberStats } from "./wotStats.ts";
-import { buildCards, type PlayerCard } from "./cs2Cards.ts";
+import type { PlayerCard } from "./cs2Cards.ts";
+import { buildCombinedCards } from "./playerCards.ts";
 
 const CS2_APP_ID = 730;
 const VALHEIM_APP_ID = 892970;
@@ -170,7 +171,7 @@ async function refreshStaleWotStats(wotAccountIds: string[]): Promise<void> {
 // Bara de som faktiskt länkat ett konto räknas med — ingen wot_account_id,
 // inget att fråga Wargaming om.
 async function getCrewWotStats(
-  members: { wot_account_id: string | null; persona_name: string }[]
+  members: { steamid64: string; wot_account_id: string | null; persona_name: string }[]
 ): Promise<WotMemberStats[]> {
   const linked = members.filter((m) => m.wot_account_id !== null);
   if (linked.length === 0) return [];
@@ -186,6 +187,7 @@ async function getCrewWotStats(
     .filter((m) => statsById.has(m.wot_account_id!))
     .map((m) => ({
       wotAccountId: m.wot_account_id!,
+      steamid64: m.steamid64,
       personaName: m.persona_name,
       stats: statsById.get(m.wot_account_id!)!,
     }));
@@ -243,10 +245,20 @@ export async function getHighlights(): Promise<HighlightsResult> {
 }
 
 export async function getCards(): Promise<CardsResult> {
-  const { memberCount, withStats } = await getCrewStats();
+  const members = listMembers();
+  const { withStats: cs2WithStats } = await getCrewStats();
+  const wotStats = await getCrewWotStats(members);
+
+  const cs2ById = new Map(cs2WithStats.map((m) => [m.steamid64, m]));
+  const wotById = new Map(wotStats.map((m) => [m.steamid64, m]));
+  const crew = members.map((m) => ({ steamid64: m.steamid64, personaName: m.persona_name }));
+  const cards = buildCombinedCards(crew, cs2ById, wotById);
+
   return {
-    cards: buildCards(withStats),
-    memberCount,
-    withStats: withStats.length,
+    cards,
+    memberCount: members.length,
+    // Räknar nu med båda spelen — en gubbe med bara ett länkat WoT-konto ska
+    // räknas som "har statistik" precis som en med öppen CS2-profil.
+    withStats: cards.filter((c) => c.hasStats).length,
   };
 }
