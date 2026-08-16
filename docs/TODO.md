@@ -17,8 +17,14 @@ Roadmapen i övrigt: [PLAN.md](PLAN.md). Speldesignen: [manager.md](manager.md).
 plats men hittar ingen widget att fråga efter, så sektionen "Häng med i
 Discorden" ser ut precis som förut.
 
-- [ ] Hämta server-ID:t i Discord: **Server Settings → Widget → Server ID**
-- [ ] Slå på **Enable Server Widget** på samma skärm
+**Blockerad — kräver admin på Discord-servern.** Mikaels konto saknar Manage
+Server-behörighet (vänstermenyn i Server Settings visar bara Server
+Profile/Engagement/Boost Perks/Emoji m.m., ingen Widget-sida). Vem som helst
+med admin behöver:
+
+- [ ] Fråga admin: hämta server-ID:t i Discord: **Server Settings → Widget →
+      Server ID**, och skicka det till oss
+- [ ] Fråga admin: slå på **Enable Server Widget** på samma skärm
 - [ ] Sätt `DISCORD_SERVER_ID` i `/srv/bravas-api/.env`
 - [ ] Starta om API:et
 

@@ -37,6 +37,15 @@ db.exec(`
     fetched_at INTEGER NOT NULL
   );
 
+  -- Valheim exponerar varken räknare eller achievements (kollat mot Steams
+  -- schema), så speltid är den enda per-gubbe-siffran som finns att hämta —
+  -- Steams eget livstidsräkneverk (GetOwnedGames), inte vår serverpoller.
+  CREATE TABLE IF NOT EXISTS valheim_playtime (
+    steamid64 TEXT PRIMARY KEY,
+    minutes INTEGER NOT NULL,
+    fetched_at INTEGER NOT NULL
+  );
+
   -- Spelservern frågas var 45:e sekund och svaret kastades förr bort. Sparat
   -- blir det statistik ingen annan klan har: när är det fullast, hur länge
   -- håller servern, hur många gubbtimmar har det blivit.
@@ -358,6 +367,28 @@ export function readCs2Stats(): CachedStats[] {
     stats: JSON.parse(r.stats_json) as Record<string, number>,
     fetchedAt: r.fetched_at,
   }));
+}
+
+export function saveValheimPlaytime(steamid64: string, minutes: number): void {
+  db.prepare(
+    `INSERT INTO valheim_playtime (steamid64, minutes, fetched_at) VALUES (?, ?, ?)
+     ON CONFLICT(steamid64) DO UPDATE SET minutes = excluded.minutes, fetched_at = excluded.fetched_at`
+  ).run(steamid64, minutes, Date.now());
+}
+
+export interface CachedPlaytime {
+  steamid64: string;
+  minutes: number;
+  fetchedAt: number;
+}
+
+export function readValheimPlaytime(): CachedPlaytime[] {
+  const rows = db.prepare("SELECT steamid64, minutes, fetched_at FROM valheim_playtime").all() as {
+    steamid64: string;
+    minutes: number;
+    fetched_at: number;
+  }[];
+  return rows.map((r) => ({ steamid64: r.steamid64, minutes: r.minutes, fetchedAt: r.fetched_at }));
 }
 
 // ---------- Managerspelet ----------

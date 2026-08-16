@@ -1,10 +1,19 @@
 import { config } from "./config.ts";
-import { listMembers, listValheimSamples, readCs2Stats, saveCs2Stats } from "./db.ts";
+import {
+  listMembers,
+  listValheimSamples,
+  readCs2Stats,
+  saveCs2Stats,
+  readValheimPlaytime,
+  saveValheimPlaytime,
+} from "./db.ts";
 import { valheimHighlights } from "./valheimHistory.ts";
+import { computeValheimPlaytimeHighlight, type MemberPlaytime } from "./valheimPlaytime.ts";
 import { computeHighlights, type MemberStats, type StatHighlight } from "./cs2Stats.ts";
 import { buildCards, type PlayerCard } from "./cs2Cards.ts";
 
 const CS2_APP_ID = 730;
+const VALHEIM_APP_ID = 892970;
 const TTL_MS = 30 * 60 * 1000;
 
 export interface HighlightsResult {
@@ -58,6 +67,62 @@ async function refreshStale(steamids: string[]): Promise<void> {
   }
 }
 
+// GetOwnedGames svarar 200 även för en stängd profil — bara utan "games" i
+// svaret — så ett saknat 892970 i listan betyder "inget att visa", inte fel.
+async function fetchValheimPlaytimeMinutes(steamid64: string): Promise<number | null> {
+  const url = new URL("https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/");
+  url.searchParams.set("key", config.steamApiKey);
+  url.searchParams.set("steamid", steamid64);
+  url.searchParams.set("format", "json");
+
+  const res = await fetch(url);
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as {
+    response?: { games?: { appid: number; playtime_forever: number }[] };
+  };
+  const valheim = data.response?.games?.find((g) => g.appid === VALHEIM_APP_ID);
+  return valheim ? valheim.playtime_forever : null;
+}
+
+let refreshingValheimPlaytime: Promise<void> | null = null;
+
+async function refreshStaleValheimPlaytime(steamids: string[]): Promise<void> {
+  const cached = new Map(readValheimPlaytime().map((c) => [c.steamid64, c.fetchedAt]));
+  const cutoff = Date.now() - TTL_MS;
+  const stale = steamids.filter((id) => (cached.get(id) ?? 0) < cutoff);
+  if (stale.length === 0) return;
+
+  for (const steamid64 of stale) {
+    try {
+      const minutes = await fetchValheimPlaytimeMinutes(steamid64);
+      if (minutes !== null) saveValheimPlaytime(steamid64, minutes);
+    } catch {
+      // Steam is unreachable — keep whatever we cached last time.
+    }
+  }
+}
+
+// Egen cache och eget lås, skild från CS2-vägen ovan: olika endpoint, och en
+// medlem utan CS2-profil kan mycket väl ha öppen speltid, eller tvärtom.
+async function getCrewPlaytime(members: { steamid64: string; persona_name: string }[]): Promise<MemberPlaytime[]> {
+  if (members.length === 0) return [];
+
+  refreshingValheimPlaytime ??= refreshStaleValheimPlaytime(members.map((m) => m.steamid64)).finally(() => {
+    refreshingValheimPlaytime = null;
+  });
+  await refreshingValheimPlaytime;
+
+  const minutesById = new Map(readValheimPlaytime().map((c) => [c.steamid64, c.minutes]));
+  return members
+    .filter((m) => minutesById.has(m.steamid64))
+    .map((m) => ({
+      steamid64: m.steamid64,
+      personaName: m.persona_name,
+      minutes: minutesById.get(m.steamid64)!,
+    }));
+}
+
 interface CrewStats {
   memberCount: number;
   withStats: MemberStats[];
@@ -89,11 +154,18 @@ async function getCrewStats(): Promise<CrewStats> {
 
 export async function getHighlights(): Promise<HighlightsResult> {
   const { memberCount, withStats } = await getCrewStats();
+  const playtime = await getCrewPlaytime(listMembers());
+  const valheimPlaytime = computeValheimPlaytimeHighlight(playtime);
+
   return {
     // Valheim-rekorden kommer ur vår egen poller och beror varken på Steam
     // eller på att någon har öppen profil — de finns även när CS2-listan är
     // tom, och det är hela poängen: "Siffrorna" ska inte vara en CS2-sektion.
-    highlights: [...computeHighlights(withStats), ...valheimHighlights(listValheimSamples())],
+    highlights: [
+      ...computeHighlights(withStats),
+      ...valheimHighlights(listValheimSamples()),
+      ...(valheimPlaytime ? [valheimPlaytime] : []),
+    ],
     memberCount,
     withStats: withStats.length,
   };

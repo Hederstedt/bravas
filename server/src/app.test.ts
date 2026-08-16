@@ -88,6 +88,24 @@ function steamStats(stats: Record<string, number>) {
   );
 }
 
+function ownedGames(minutes: number) {
+  return new Response(
+    JSON.stringify({ response: { games: [{ appid: 892970, playtime_forever: minutes }] } }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
+}
+
+// getHighlights slår mot både CS2- och Valheim-speltidsvägen, som har varsin
+// Steam-endpoint. Ett enda mockat svar för alla anrop skulle göra
+// GetOwnedGames-frågan ogiltig och få den att räknas som stale i all evighet.
+function steamCallsFor(stats: Record<string, number>, minutes = 0) {
+  return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    if (url.includes("GetOwnedGames")) return ownedGames(minutes);
+    return steamStats(stats);
+  });
+}
+
 function addMember(steamid64: string, personaName: string) {
   db.prepare("INSERT OR IGNORE INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(
     steamid64,
@@ -130,9 +148,7 @@ describe("GET /api/stats/highlights", () => {
 
   it("serves cached stats instead of calling Steam again", async () => {
     addMember(ALLOWED, "[BVS] #Mag");
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(steamStats({ total_kills: 47821 }));
+    const fetchSpy = steamCallsFor({ total_kills: 47821 }, 600);
 
     await request(app).get("/api/stats/highlights").expect(200);
     const callsAfterFirst = fetchSpy.mock.calls.length;
@@ -144,7 +160,7 @@ describe("GET /api/stats/highlights", () => {
 
   it("keeps serving the cached numbers when Steam goes down", async () => {
     addMember(ALLOWED, "[BVS] #Mag");
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(steamStats({ total_kills: 47821 }));
+    steamCallsFor({ total_kills: 47821 }, 600);
     await request(app).get("/api/stats/highlights").expect(200);
 
     db.prepare("UPDATE cs2_stats SET fetched_at = 0").run();
