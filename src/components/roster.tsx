@@ -20,7 +20,7 @@ import { compareAttribute } from '../cardStats'
 import { useLiveEvent } from '../useLiveEvents'
 import { members } from '../data/clan'
 import { BvsMark } from './BvsMark'
-import { DiscordIcon } from './icons'
+import { ChevronIcon, DiscordIcon } from './icons'
 
 // Allt kortkomponenten behöver, oavsett om raden kom från Steam eller från
 // platshållarna. Utan den skulle kortet behöva känna till båda källorna.
@@ -222,6 +222,9 @@ export function Roster() {
   const [live, setLive] = useState<RosterMember[]>([])
   const [cards, setCards] = useState<PlayerCard[]>([])
   const [presence, setPresence] = useState<PresenceMap>({})
+  // Stängd som standard — ingen fattade "65 ENTRY" förut, men förklaringen
+  // ska gå att hitta, inte tvinga sig på alla som bara vill se korten.
+  const [legendOpen, setLegendOpen] = useState(false)
   const [session, setSession] = useState<Session | null>(null)
 
   useEffect(() => {
@@ -278,31 +281,47 @@ export function Roster() {
           <span className="index">01</span>
           <h2>Gubbarna</h2>
         </div>
-      </div>
 
-      {/* Raden scrollar i sidled och måste därför gå att nå med tangentbord. */}
-      <div className="lineup-wrap">
-        <div className="lineup" role="group" aria-label="Gubbarna i BVS" tabIndex={0}>
+        {/* Högt upp, inte gömt under kortraden — annars missar man att den
+            finns, vilket den gjorde när den låg sist i sektionen. */}
+        {mine && (
+          <div className="account-links">
+            <h3>Koppla dina konton</h3>
+            <DiscordLink mine={mine} onLinked={reloadMembers} />
+            <WotLink mine={mine} />
+          </div>
+        )}
+
+        <div className="lineup" role="group" aria-label="Gubbarna i BVS">
           {lineup.map((entry) => (
             <PlayerCardView key={entry.id} entry={entry} crew={crew} />
           ))}
         </div>
-      </div>
-
-      <div className="container">
-        {lineup.length > 1 && <span className="lineup-hint">◀ dra i sidled ▶</span>}
 
         {legend.length > 0 && (
-          <dl className="attr-legend">
-            {legend.map((a) => (
-              <div key={a.key}>
-                <dt>
-                  <span className="attr-legend-key">{a.key}</span> {a.label}
-                </dt>
-                <dd>{a.description}</dd>
-              </div>
-            ))}
-          </dl>
+          <div className="legend-toggle-wrap">
+            <button
+              type="button"
+              className="legend-toggle"
+              aria-expanded={legendOpen}
+              onClick={() => setLegendOpen(!legendOpen)}
+            >
+              <ChevronIcon />
+              {legendOpen ? 'Dölj hur betyget räknas' : 'Hur räknas betyget fram?'}
+            </button>
+            {legendOpen && (
+              <dl className="attr-legend">
+                {legend.map((a) => (
+                  <div key={a.key}>
+                    <dt>
+                      <span className="attr-legend-key">{a.key}</span> {a.label}
+                    </dt>
+                    <dd>{a.description}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </div>
         )}
 
         <p className="roster-note">
@@ -310,9 +329,6 @@ export function Roster() {
             ? 'Betygen räknas fram ur gubbarnas riktiga CS2-statistik från Steam. Kommentarerna skriver sig själva.'
             : 'Rostern fylls på med riktiga nick, Steam-avatarer och betyg — logga in med Steam för att synas här.'}
         </p>
-
-        <DiscordLink mine={mine} onLinked={reloadMembers} />
-        <WotLink mine={mine} />
       </div>
     </section>
   )

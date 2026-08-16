@@ -55,7 +55,10 @@ test('all sections are present, with the crew first', async ({ page }) => {
   for (const heading of sections) {
     await expect(page.getByRole('heading', { name: heading })).toBeAttached()
   }
-  await expect(page.getByRole('heading', { name: 'World of Tanks' })).toBeAttached()
+  // "World of Tanks" är rubrik både på spelkortet och på dess Siffror-grupp
+  // sedan Siffrorna grupperas per spel — låst till Spel-sektionen för att inte
+  // bli tvetydig.
+  await expect(page.locator('#spel').getByRole('heading', { name: 'World of Tanks' })).toBeAttached()
   await expect(page.getByText('Demo-data')).toBeAttached()
 
   // Gubbarna är sidans huvudnummer och ska ligga före spelen, inte efter.
@@ -211,8 +214,7 @@ test.describe('the mobile menu', () => {
   })
 })
 
-// Laguppställningen scrollar avsiktligt i sidled, men den scrollen ska stanna
-// inne i raden. Sidan som helhet får aldrig gå att dra i sidled.
+// Sidan som helhet får aldrig gå att dra i sidled.
 test('no horizontal overflow', async ({ page }) => {
   await page.goto('/')
   const overflow = await page.evaluate(
@@ -221,9 +223,9 @@ test('no horizontal overflow', async ({ page }) => {
   expect(overflow).toBe(false)
 })
 
-// Panelen låg först i flödet. Korten i raden är flex-items som sträcker sig
-// till det högsta syskonet, så ett öppnat attribut växte varenda kort samtidigt
-// och knuffade hela sidan nedåt.
+// Panelen ligger absolut positionerad ovanpå kortet, inte i flödet — annars
+// hade ett öppnat attribut vuxit varenda kort i raden samtidigt (grid-items
+// sträcker sig till det högsta syskonet som standard) och knuffat sidan nedåt.
 test('opening an attribute does not resize the lineup', async ({ page }) => {
   await page.goto('/')
 
@@ -249,17 +251,4 @@ test('opening an attribute does not resize the lineup', async ({ page }) => {
     return p.top >= c.top && p.bottom <= c.bottom
   })
   expect(fits).toBe(true)
-})
-
-test('the lineup scrolls sideways without dragging the page with it', async ({ page }) => {
-  await page.goto('/')
-  const lineup = page.getByRole('group', { name: 'Gubbarna i BVS' })
-  await expect(lineup).toBeVisible()
-
-  const scrollable = await lineup.evaluate((el) => el.scrollWidth > el.clientWidth)
-  expect(scrollable).toBe(true)
-
-  await lineup.evaluate((el) => el.scrollBy(300, 0))
-  const pageScrolledSideways = await page.evaluate(() => window.scrollX > 0)
-  expect(pageScrolledSideways).toBe(false)
 })

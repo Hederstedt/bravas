@@ -56,6 +56,16 @@ export function LockIcon() {
   )
 }
 
+// Pekar neråt i vila, roteras 180° i CSS via [aria-expanded='true'] —
+// samma mönster som redan används för att öppna/stänga saker på sajten.
+export function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function TrophyIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">

@@ -174,6 +174,27 @@ describe('Stats', () => {
       expect(screen.getByText(s.label)).toBeInTheDocument()
     }
   })
+
+  it('groups highlights under a heading per game', () => {
+    render(<Stats />)
+    // Mock-datan har cs2, wot, valheim, satisfactory och steam — varje spel
+    // som faktiskt har kort ska få en egen rubrik.
+    for (const title of ['Counter-Strike 2', 'World of Tanks', 'Valheim', 'Steam']) {
+      expect(screen.getByRole('heading', { name: title, level: 3 })).toBeInTheDocument()
+    }
+  })
+
+  it('keeps each game group together, cards under their own heading', () => {
+    render(<Stats />)
+    const cs2Heading = screen.getByRole('heading', { name: 'Counter-Strike 2', level: 3 })
+    const group = cs2Heading.closest<HTMLElement>('.stats-group')!
+    for (const s of statHighlights.filter((h) => h.gameId === 'cs2')) {
+      expect(within(group).getByText(s.label)).toBeInTheDocument()
+    }
+    // Ett WoT-rekord ska inte dyka upp i CS2-gruppen.
+    const wotOnly = statHighlights.find((h) => h.gameId === 'wot')!
+    expect(within(group).queryByText(wotOnly.label)).not.toBeInTheDocument()
+  })
 })
 
 // Widgeten hämtas av BFF:en, inte av webbläsaren — server-ID:t stannar i
