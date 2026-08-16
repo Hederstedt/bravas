@@ -31,6 +31,7 @@ Klansida för BVS — ett gäng goa gubbar från Västra Götaland som lirar CS2
 - [x] **Valheim-serverrekord:** flest inne samtidigt, längsta uptime, gubbtimmar och primetime — räknat ur vår egen poller, som förut kastade bort varje svar. Ingen tredje part inblandad; det här är statistik om *er* server som inte finns någon annanstans. Serverfrågan ger antal, inte namn, så rekorden är serverns och inte enskilda gubbars.
 - [x] **Discord-widget:** vilka som hänger i Discorden just nu. Widgeten hämtas av BFF:en var 60:e sekund, så server-ID:t stannar i backend och besökarna delar på ett anrop. Kräver `DISCORD_SERVER_ID` och att widgeten är påslagen i Discord — annars visas bara inbjudningsknappen som förut.
 - [x] **Valheim-statistik, del 2 — spelardelen:** `GetSchemaForGame` gav `availableGameStats: {}` (varken räknare eller achievements), så enda spåret är speltid via `IPlayerService/GetOwnedGames` (`playtime_forever` för appid 892970) — en helt egen Steam-endpoint, cachad i en egen tabell (`valheim_playtime`) med samma TTL-mönster som `cs2_stats`. Highlighten ("Mest speltid i Valheim") döljs helt tills någon faktiskt har registrerad speltid, precis som CS2-korten.
+- [x] **World of Tanks-statistik:** kontolänkning via Wargaming.net ID — samma OpenID 2.0-protokoll som Steam, så gubbarna länkar själva med en redirect ut och tillbaka i stället för att skriva in ett nick för hand. Callbacken litar aldrig på sina egna querysträngsparametrar; den kollar access_token mot Wargamings eget `account/info` innan något länkas, annars hade vem som helst kunnat anropa callback-URL:en direkt med ett gissat konto-ID. Statistik (strider, vinstprocent, tillfogad skada) cachas som CS2- och Valheim-statsen: egen tabell, egen TTL, degraderar till senast kända värde.
 
 ## Roadmap
 
@@ -48,15 +49,10 @@ Speldesignen i detalj: [manager.md](manager.md).
 
 I prioritetsordning, med underlaget utrett. Den här listan är **kod**. Det som
 i stället väntar på konfiguration, konton eller att någon frågar gubbarna står
-i [TODO.md](TODO.md) — listorna överlappar inte. Punkt 1 nedan är blockerad
-av två poster där.
+i [TODO.md](TODO.md) — listorna överlappar inte.
 
-1. **World of Tanks-statistik** via Wargaming API. Spegla `statsService`:
-   egen cachetabell med TTL, degradera till senast kända värde när API:et är
-   nere. Blockerad av application ID *och* av att gubbarnas WoT-nick måste
-   samlas in — de går inte att härleda ur SteamID.
-2. **Klipp-galleri:** bästa klippen som embeds. Inget är byggt.
-3. **Låt botlagen utvecklas** — de står still medan managern tränar och
+1. **Klipp-galleri:** bästa klippen som embeds. Inget är byggt.
+2. **Låt botlagen utvecklas** — de står still medan managern tränar och
    handlar, så serien blir lättare för varje omgång. Först aktuellt om den
    känns för lätt i praktiken.
 
