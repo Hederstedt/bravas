@@ -55,7 +55,10 @@ test('all sections are present, with the crew first', async ({ page }) => {
   for (const heading of sections) {
     await expect(page.getByRole('heading', { name: heading })).toBeAttached()
   }
-  await expect(page.getByRole('heading', { name: 'World of Tanks' })).toBeAttached()
+  // "World of Tanks" är rubrik både på spelkortet och på dess Siffror-grupp
+  // sedan Siffrorna grupperas per spel — låst till Spel-sektionen för att inte
+  // bli tvetydig.
+  await expect(page.locator('#spel').getByRole('heading', { name: 'World of Tanks' })).toBeAttached()
   await expect(page.getByText('Demo-data')).toBeAttached()
 
   // Gubbarna är sidans huvudnummer och ska ligga före spelen, inte efter.
