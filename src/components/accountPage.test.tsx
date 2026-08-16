@@ -190,6 +190,23 @@ describe('linking a Discord name', () => {
 
 // Ingen egen inloggning eller formulär att fylla i — bara en länk ut till
 // Wargaming och tillbaka, så testerna kollar länken snarare än ett anrop.
+// Så var och en ser var hen ligger — se monthlyStandings.test.tsx för
+// komponentens eget beteende, det här bara verifierar att kontosidan visar den.
+describe('the monthly standings', () => {
+  it('are shown to a signed-in member', async () => {
+    stubApi(signedIn)
+    vi.spyOn(api, 'fetchMonthlyStatus').mockResolvedValue({
+      month: '2026-08',
+      standings: [{ steamid64: MAG.steamid64, personaName: MAG.personaName, score: 5 }],
+      lastMonth: null,
+    })
+
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: 'Månadens BVS:are' })).toBeInTheDocument()
+  })
+})
+
 describe('linking a World of Tanks account', () => {
   it('offers to link an account for a member who has not linked one', async () => {
     stubApi(signedIn)

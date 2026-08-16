@@ -9,6 +9,7 @@ import {
   type AdminMember,
   type Application,
 } from '../api'
+import { MonthlyStandings } from './monthlyStandings'
 
 type State =
   | { status: 'loading' }
@@ -148,6 +149,8 @@ export function AdminPage() {
                   </li>
                 ))}
               </ul>
+
+              <MonthlyStandings />
             </>
           )}
         </div>

@@ -343,6 +343,90 @@ a.steam-login:hover {
   color: #12100d;
 }
 
+/* Stjärnraden för Månadens BVS:are, staplad under .card-name precis som
+   .card-discord — kalla det inte en titel, "position" äger det ordet. */
+.card-of-month {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #e0b352;
+}
+
+.card-of-month svg {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
+  flex: none;
+}
+
+/* Guldram runt hela kortet för den regerande vinnaren — samma knep som
+   Valheim-kortets live-ram (App.css, .game-card.live): .player-card har
+   clip-path, som klipper bort allt som målas utanför kortkanten, så en vanlig
+   utåtriktad box-shadow hade försvunnit. inset håller sig innanför. */
+.player-card.member-of-month {
+  border-color: rgba(224, 179, 82, 0.85);
+  animation: month-glow 3.2s ease-in-out infinite;
+}
+
+@keyframes month-glow {
+  0%,
+  100% {
+    box-shadow: inset 0 0 30px -10px rgba(224, 179, 82, 0.55);
+  }
+  50% {
+    box-shadow: inset 0 0 14px -10px rgba(224, 179, 82, 0.15);
+  }
+}
+
+/* Glittret för Månadens BVS:are — samma idiom som hero:ns .embers (guld i
+   stället för --accent, ändligt antal varv i stället för infinite), spelat en
+   gång per webbläsarsession i stället för vid varje sidladdning. Kortets
+   clip-path klipper konturen automatiskt, ingen egen overflow:hidden behövs. */
+.card-glitter {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.card-glitter span {
+  --i: 0;
+  position: absolute;
+  bottom: 6%;
+  left: calc((var(--i) * 11%) + 4%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff3d0, #e0b352 60%, rgba(224, 179, 82, 0));
+  opacity: 0;
+  box-shadow:
+    0 0 6px 1px rgba(224, 179, 82, 0.6),
+    0 0 14px 3px rgba(224, 179, 82, 0.25);
+  animation: card-glitter-rise 2.6s cubic-bezier(0.35, 0, 0.6, 1) 1;
+  animation-delay: calc(var(--i) * 0.18s);
+  animation-fill-mode: forwards;
+}
+
+@keyframes card-glitter-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(var(--i) * 1px - 4px), -120%, 0) scale(0.5);
+  }
+}
+
 /* Discord-namnet under gubbens nick på kortet. */
 .card-discord {
   display: flex;
@@ -456,6 +540,60 @@ a.steam-login:hover {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+/* Löpande ställning för Månadens BVS:are — kontosidan och admin-sidan. */
+.monthly-standings {
+  margin-top: 32px;
+  padding-top: 22px;
+  border-top: 1px solid var(--panel-edge);
+}
+
+.monthly-winner {
+  color: var(--text);
+}
+
+.monthly-winner strong {
+  color: #e0b352;
+}
+
+.monthly-standings-list {
+  list-style: none;
+  counter-reset: standing;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.monthly-standings-list li {
+  counter-increment: standing;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+}
+
+.monthly-standings-list li::before {
+  content: counter(standing);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 1.4em;
+}
+
+.monthly-standings-list .who {
+  flex: 1;
+}
+
+.monthly-standings-list .what {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--accent);
 }
 
 .admin-member {
@@ -1442,6 +1580,13 @@ a.steam-login:hover {
 @media (prefers-reduced-motion: reduce) {
   .player-card:hover {
     transform: none;
+  }
+  .player-card.member-of-month {
+    animation: none;
+    box-shadow: inset 0 0 20px -10px rgba(224, 179, 82, 0.4);
+  }
+  .card-glitter {
+    display: none;
   }
 }
 

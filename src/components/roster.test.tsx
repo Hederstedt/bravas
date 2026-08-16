@@ -10,6 +10,9 @@ import { Roster } from './roster'
 
 beforeEach(() => {
   installLiveEvents()
+  // Glittret spelas högst en gång per webbläsarsession — utan att nollställa
+  // den här skulle det andra testet i samma fil se den föregåendes flagga.
+  sessionStorage.clear()
 })
 
 afterEach(() => {
@@ -48,6 +51,7 @@ const MAG_CARD: PlayerCard = {
   ],
   wotAttributes: [],
   comments: ['Smyger runt mest. Dyker upp när röken lagt sig.'],
+  memberOfMonth: false,
 }
 
 // Standardläget för varje test: inget API svarar. Enskilda tester stubbar om
@@ -153,6 +157,7 @@ describe('Roster degrading gracefully', () => {
       attributes: [],
       wotAttributes: [],
       comments: ['Steam-profilen är låst.'],
+      memberOfMonth: false,
     }
     stubApi({ members: [HIDDEN], cards: [locked] })
     renderRoster()
@@ -419,5 +424,77 @@ describe('live presence updates', () => {
     act(() => emitLiveEvent('presence', null))
 
     expect(within(card).getByRole('status')).toHaveAccessibleName('Online')
+  })
+})
+
+// Sätts inte i cs2Cards.ts/playerCards.ts — inte betygshärlett — utan
+// dekoreras på i statsService.getCards(). Här testas bara att kortet ritar
+// vad API:et säger.
+describe('the member of the month', () => {
+  it('gets a star instead of the ordinary card without one', async () => {
+    stubApi({ members: [MAG], cards: [{ ...MAG_CARD, memberOfMonth: true }] })
+    renderRoster()
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    expect(within(card).getByText('Månadens BVS:are')).toBeInTheDocument()
+  })
+
+  it('says nothing about it for anyone who is not the reigning winner', async () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    renderRoster()
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    expect(within(card).queryByText('Månadens BVS:are')).not.toBeInTheDocument()
+  })
+
+  // "Titel" är upptaget av position (KAPTEN, GENERAL) — stjärnan får inte
+  // kallas det.
+  it('never calls the star a title', async () => {
+    stubApi({ members: [MAG], cards: [{ ...MAG_CARD, memberOfMonth: true }] })
+    renderRoster()
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    expect(within(card).queryByText(/titel/i)).not.toBeInTheDocument()
+  })
+
+  it('refetches the cards when the crowning job announces a new month', async () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    renderRoster()
+
+    await waitFor(() => cardFor(MAG.personaName))
+    vi.spyOn(api, 'fetchCards').mockResolvedValue([{ ...MAG_CARD, memberOfMonth: true }])
+    act(() => emitLiveEvent('bvs-month', { month: '2026-08', steamid64: MAG.steamid64, score: 12 }))
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    await waitFor(() => expect(within(card).getByText('Månadens BVS:are')).toBeInTheDocument())
+  })
+})
+
+describe('the once-per-session glitter', () => {
+  it('plays for the reigning winner the first time the roster is seen this session', async () => {
+    stubApi({ members: [MAG], cards: [{ ...MAG_CARD, memberOfMonth: true }] })
+    renderRoster()
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    await waitFor(() => expect(card.querySelector('.card-glitter')).not.toBeNull())
+  })
+
+  it('does not play again once this session has already seen it', async () => {
+    sessionStorage.setItem('bvs-month-glitter-played', '1')
+    stubApi({ members: [MAG], cards: [{ ...MAG_CARD, memberOfMonth: true }] })
+    renderRoster()
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    // Stjärnan syns fortfarande — bara animationen är engångs.
+    expect(within(card).getByText('Månadens BVS:are')).toBeInTheDocument()
+    expect(card.querySelector('.card-glitter')).toBeNull()
+  })
+
+  it('stays quiet on the placeholder lineup — there is no real winner in demo data', async () => {
+    stubApi()
+    renderRoster()
+
+    await waitFor(() => screen.getByRole('heading', { name: members[0].nick }))
+    expect(document.querySelector('.card-glitter')).toBeNull()
   })
 })

@@ -18,6 +18,7 @@ function card(steamid64: string, sik: number, hasStats = true): PlayerCard {
       : [],
     wotAttributes: [],
     comments: ['nåt'],
+    memberOfMonth: false,
   }
 }
 
