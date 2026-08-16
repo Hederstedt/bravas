@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "./app.ts";
 import { broadcast, closeAllSubscribers, subscriberCount } from "./events.ts";
 import { resetPresenceSnapshot } from "./presencePoller.ts";
-import { db } from "./db.ts";
+import { crownBvsMonth, db } from "./db.ts";
 import { resetRateLimits } from "./middleware/rateLimit.ts";
 import { createSessionCookieValue } from "./session.ts";
 import { sessionCookie } from "./session.ts";
@@ -26,7 +26,7 @@ beforeEach(() => {
   resetPresenceSnapshot();
   closeAllSubscribers();
   resetRateLimits();
-  db.exec("DELETE FROM members; DELETE FROM allowlist; DELETE FROM cs2_stats;");
+  db.exec("DELETE FROM members; DELETE FROM allowlist; DELETE FROM cs2_stats; DELETE FROM bvs_month;");
   db.prepare("INSERT INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(ALLOWED, "[BVS] #Mag", Date.now());
 });
 
@@ -252,6 +252,35 @@ describe("GET /api/stats/cards", () => {
 
     expect(fetchSpy.mock.calls.length).toBe(callsAfterHighlights);
     expect(res.body.withStats).toBe(1);
+  });
+
+  // Stjärnan sätts inte i cs2Cards.ts/playerCards.ts — den är inte
+  // betygshärledd — utan dekoreras på här, mot den regerande vinnaren.
+  it("marks the reigning member of the month on their card", async () => {
+    addMember(ALLOWED, "[BVS] #Mag");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(steamStats(FULL_STATS));
+    crownBvsMonth({ month: "2026-07", steamid64: ALLOWED, score: 12.5 });
+
+    const res = await request(app).get("/api/stats/cards").expect(200);
+    expect(res.body.cards[0]).toMatchObject({ steamid64: ALLOWED, memberOfMonth: true });
+  });
+
+  it("marks nobody when there is no reigning winner yet", async () => {
+    addMember(ALLOWED, "[BVS] #Mag");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(steamStats(FULL_STATS));
+
+    const res = await request(app).get("/api/stats/cards").expect(200);
+    expect(res.body.cards[0]).toMatchObject({ memberOfMonth: false });
+  });
+
+  it("does not mark someone who won an earlier month but not the most recent one", async () => {
+    addMember(ALLOWED, "[BVS] #Mag");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(steamStats(FULL_STATS));
+    crownBvsMonth({ month: "2026-06", steamid64: ALLOWED, score: 9 });
+    crownBvsMonth({ month: "2026-07", steamid64: "76561198060166361", score: 11 });
+
+    const res = await request(app).get("/api/stats/cards").expect(200);
+    expect(res.body.cards[0]).toMatchObject({ steamid64: ALLOWED, memberOfMonth: false });
   });
 });
 

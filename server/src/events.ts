@@ -18,7 +18,8 @@ export type EventName =
   | "transfer"
   | "training"
   | "valheim"
-  | "discord";
+  | "discord"
+  | "bvs-month";
 
 export interface Subscriber {
   ip: string;

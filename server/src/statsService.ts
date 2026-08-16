@@ -1,5 +1,6 @@
 import { config } from "./config.ts";
 import {
+  getReigningBvsMonth,
   listMembers,
   listValheimSamples,
   readCs2Stats,
@@ -27,8 +28,13 @@ export interface HighlightsResult {
   withStats: number;
 }
 
+// Stjärnan är inte betygshärledd — den sätts inte i cs2Cards.ts/playerCards.ts,
+// som handlar uteslutande om betyg. Dekoreras på här i stället, mot den
+// regerande vinnaren (senast avgjorda månaden).
+export type DecoratedCard = PlayerCard & { memberOfMonth: boolean };
+
 export interface CardsResult {
-  cards: PlayerCard[];
+  cards: DecoratedCard[];
   memberCount: number;
   withStats: number;
 }
@@ -253,9 +259,11 @@ export async function getCards(): Promise<CardsResult> {
   const wotById = new Map(wotStats.map((m) => [m.steamid64, m]));
   const crew = members.map((m) => ({ steamid64: m.steamid64, personaName: m.persona_name }));
   const cards = buildCombinedCards(crew, cs2ById, wotById);
+  const reigning = getReigningBvsMonth();
+  const decorated = cards.map((c) => ({ ...c, memberOfMonth: c.steamid64 === reigning?.steamid64 }));
 
   return {
-    cards,
+    cards: decorated,
     memberCount: members.length,
     // Räknar nu med båda spelen — en gubbe med bara ett länkat WoT-konto ska
     // räknas som "har statistik" precis som en med öppen CS2-profil.

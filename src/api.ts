@@ -56,6 +56,10 @@ export interface PlayerCard {
   // Bara ifyllt för den som länkat World of Tanks — se server/src/playerCards.ts.
   wotAttributes: CardAttribute[]
   comments: string[]
+  // Inte betygshärlett — dekoreras på i server/src/statsService.ts mot den
+  // regerande Månadens BVS:are. Kalla det inte en titel: "position" äger det
+  // ordet på kortet (KAPTEN, GENERAL).
+  memberOfMonth: boolean
 }
 
 // The site is a static page that stays up even if the API is down, so every
@@ -309,6 +313,27 @@ export async function rejectApplication(steamid64: string): Promise<boolean> {
 
 export async function removeMember(steamid64: string): Promise<boolean> {
   return (await send<Record<string, never>>(`/api/admin/members/${steamid64}`, 'DELETE')) !== null
+}
+
+// ---------- Månadens BVS:are ----------
+
+export interface MonthStanding {
+  steamid64: string
+  personaName: string
+  score: number
+}
+
+export interface MonthlyStatus {
+  month: string
+  // Fallande på poäng, alla medlemmar med — inte bara de aktiva, så var och
+  // en ser var hen ligger.
+  standings: MonthStanding[]
+  lastMonth: (MonthStanding & { month: string }) | null
+}
+
+export async function fetchMonthlyStatus(): Promise<MonthlyStatus> {
+  const empty: MonthlyStatus = { month: '', standings: [], lastMonth: null }
+  return (await getJson<MonthlyStatus>('/api/stats/month')) ?? empty
 }
 
 export async function fetchPresence(): Promise<PresenceMap> {

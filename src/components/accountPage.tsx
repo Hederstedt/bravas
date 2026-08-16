@@ -11,6 +11,7 @@ import {
   type RosterMember,
 } from '../api'
 import { SteamIcon } from './icons'
+import { MonthlyStandings } from './monthlyStandings'
 
 type State =
   | { status: 'loading' }
@@ -105,6 +106,8 @@ export function AccountPage() {
                   <WotLink mine={state.mine} />
                 </div>
               )}
+
+              <MonthlyStandings />
 
               <SignOut />
             </>

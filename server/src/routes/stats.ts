@@ -2,6 +2,7 @@ import { Router } from "express";
 import { config } from "../config.ts";
 import { isAllowlisted } from "../db.ts";
 import { readLimiter } from "../middleware/rateLimit.ts";
+import { getMonthlyStatus } from "../bvsMonthService.ts";
 import { getCards, getHighlights } from "../statsService.ts";
 
 export const statsRouter = Router();
@@ -17,6 +18,13 @@ statsRouter.get("/highlights", readLimiter, async (_req, res) => {
 // Samma sak här — "cards" är inget steam-id och får inte hamna i den routen.
 statsRouter.get("/cards", readLimiter, async (_req, res) => {
   res.json(await getCards());
+});
+
+// Samma sak: "month" är inget steam-id och får inte hamna i /:steamId.
+// Publik precis som highlights/cards — ingen hemlighet i speltimmar, och
+// kontosidan behöver kunna visa den även innan medlemmen hunnit logga in.
+statsRouter.get("/month", readLimiter, (_req, res) => {
+  res.json(getMonthlyStatus());
 });
 
 statsRouter.get("/:steamId", readLimiter, async (req, res) => {

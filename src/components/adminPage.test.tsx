@@ -41,6 +41,7 @@ function stubApi(
   )
   vi.spyOn(api, 'fetchApplications').mockResolvedValue(overrides.applications ?? [WAITING])
   vi.spyOn(api, 'fetchAdminMembers').mockResolvedValue(overrides.members ?? MEMBERS)
+  vi.spyOn(api, 'fetchMonthlyStatus').mockResolvedValue({ month: '2026-08', standings: [], lastMonth: null })
 }
 
 function renderPage() {
@@ -159,6 +160,17 @@ describe('deciding on an application', () => {
     renderPage()
 
     expect(await screen.findByText(/nästa gång de loggar in/)).toBeInTheDocument()
+  })
+})
+
+// Uttryckligen efterfrågat: admin ska se att mätningen fungerar innan
+// kröningen faktiskt sker.
+describe('the monthly standings', () => {
+  it('are shown on the admin page', async () => {
+    stubApi()
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: 'Månadens BVS:are' })).toBeInTheDocument()
   })
 })
 

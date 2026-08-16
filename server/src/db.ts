@@ -103,6 +103,16 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_presence_samples_member ON presence_samples(steamid64, at);
 
+  -- Månadens BVS:are. Ett kryss per månad — tabellen är sin egen markör:
+  -- kröningsjobbet räknar om en avslutad månad bara om den saknar en rad här,
+  -- vilket gör hela mekaniken omstartssäker utan extra state.
+  CREATE TABLE IF NOT EXISTS bvs_month (
+    month TEXT PRIMARY KEY,          -- 'YYYY-MM'
+    steamid64 TEXT NOT NULL,
+    score REAL NOT NULL,
+    decided_at INTEGER NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS quotes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,
@@ -489,6 +499,35 @@ export function listPresenceSamples(steamid64: string, since = 0): PresenceSampl
   return db
     .prepare("SELECT * FROM presence_samples WHERE steamid64 = ? AND at >= ? ORDER BY at")
     .all(steamid64, since) as PresenceSample[];
+}
+
+// ---------- Månadens BVS:are ----------
+
+export interface BvsMonthWinner {
+  month: string;
+  steamid64: string;
+  score: number;
+  decided_at: number;
+}
+
+export function getBvsMonthWinner(month: string): BvsMonthWinner | undefined {
+  return db.prepare("SELECT * FROM bvs_month WHERE month = ?").get(month) as
+    | BvsMonthWinner
+    | undefined;
+}
+
+// Den regerande vinnaren: senast avgjorda månaden. Kortets stjärna och
+// glittret pekar på den här, inte på innevarande (ännu inte avgjorda) månad.
+export function getReigningBvsMonth(): BvsMonthWinner | undefined {
+  return db.prepare("SELECT * FROM bvs_month ORDER BY month DESC LIMIT 1").get() as
+    | BvsMonthWinner
+    | undefined;
+}
+
+export function crownBvsMonth(input: { month: string; steamid64: string; score: number }): void {
+  db.prepare(
+    "INSERT INTO bvs_month (month, steamid64, score, decided_at) VALUES (?, ?, ?, ?)"
+  ).run(input.month, input.steamid64, input.score, Date.now());
 }
 
 // När den senast spelade omgången avgjordes. Fönstret för tvärspelspoängen

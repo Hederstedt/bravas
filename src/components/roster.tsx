@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router'
 import {
@@ -18,7 +18,23 @@ import { compareAttribute } from '../cardStats'
 import { useLiveEvent } from '../useLiveEvents'
 import { members } from '../data/clan'
 import { BvsMark } from './BvsMark'
-import { ChevronIcon, DiscordIcon } from './icons'
+import { ChevronIcon, DiscordIcon, StarIcon } from './icons'
+
+// Glittret ska visas en gång per webbläsarsession, inte vid varenda
+// sidladdning. Nytt precedensfall — sessionStorage finns inte någon
+// annanstans i src/ i dag — men motiverat och litet: en enda flagga.
+const MONTH_GLITTER_KEY = 'bvs-month-glitter-played'
+
+function shouldPlayMonthGlitter(): boolean {
+  try {
+    if (sessionStorage.getItem(MONTH_GLITTER_KEY)) return false
+    sessionStorage.setItem(MONTH_GLITTER_KEY, '1')
+    return true
+  } catch {
+    // Privat läge kan neka sessionStorage — då spelas glittret helt enkelt inte.
+    return false
+  }
+}
 
 // Allt kortkomponenten behöver, oavsett om raden kom från Steam eller från
 // platshållarna. Utan den skulle kortet behöva känna till båda källorna.
@@ -35,6 +51,9 @@ interface LineupEntry {
   comments: string[]
   presence: Presence | null
   pending: boolean
+  // Inte betygshärlett — se PlayerCard i api.ts. Platshållarna är alltid
+  // false: det finns ingen regerande vinnare i demodata.
+  memberOfMonth: boolean
 }
 
 function presenceLabel(p: Presence): string {
@@ -78,6 +97,7 @@ function buildLineup(
       // profil, inget länkat) ändå ett kort — men ska fortfarande visa "—",
       // inte ett missvisande "0".
       pending: !card.hasStats,
+      memberOfMonth: card.memberOfMonth,
     })
   }
 
@@ -96,6 +116,7 @@ function buildLineup(
       comments: ['Statistiken hämtas från Steam. Kika in igen om en stund.'],
       presence: presence[m.steamid64] ?? null,
       pending: true,
+      memberOfMonth: false,
     }))
 
   return [...rated, ...pending]
@@ -115,6 +136,7 @@ function placeholderLineup(): LineupEntry[] {
     comments: [m.flavor],
     presence: null,
     pending: false,
+    memberOfMonth: false,
   }))
 }
 
@@ -130,10 +152,19 @@ function placeholderCards(): PlayerCard[] {
     attributes: m.attributes,
     wotAttributes: [],
     comments: [m.flavor],
+    memberOfMonth: false,
   }))
 }
 
-function PlayerCardView({ entry, crew }: { entry: LineupEntry; crew: PlayerCard[] }) {
+function PlayerCardView({
+  entry,
+  crew,
+  glitter,
+}: {
+  entry: LineupEntry
+  crew: PlayerCard[]
+  glitter: boolean
+}) {
   const [open, setOpen] = useState<string | null>(null)
   const p = entry.presence
 
@@ -141,7 +172,18 @@ function PlayerCardView({ entry, crew }: { entry: LineupEntry; crew: PlayerCard[
   const comparison = openAttr ? compareAttribute(crew, entry.id, openAttr.key) : null
 
   return (
-    <article className="player-card" data-tier={entry.tier}>
+    <article
+      className={`player-card${entry.memberOfMonth ? ' member-of-month' : ''}`}
+      data-tier={entry.tier}
+    >
+      {glitter && (
+        <div className="card-glitter" aria-hidden="true">
+          {Array.from({ length: 10 }, (_, i) => (
+            <span key={i} style={{ '--i': i } as CSSProperties} />
+          ))}
+        </div>
+      )}
+
       <div className="card-top">
         <div className="overall-wrap">
           <span className="overall-label">BVS-betyg</span>
@@ -165,6 +207,12 @@ function PlayerCardView({ entry, crew }: { entry: LineupEntry; crew: PlayerCard[
       </div>
 
       <h3 className="card-name">{entry.name}</h3>
+      {entry.memberOfMonth && (
+        <p className="card-of-month">
+          <StarIcon />
+          Månadens BVS:are
+        </p>
+      )}
       {entry.discordName && (
         <p className="card-discord">
           <DiscordIcon />
@@ -254,6 +302,9 @@ export function Roster() {
   // ska gå att hitta, inte tvinga sig på alla som bara vill se korten.
   const [legendOpen, setLegendOpen] = useState(false)
   const [session, setSession] = useState<Session | null>(null)
+  // Regerande vinnarens glitter, en gång per webbläsarsession — se
+  // shouldPlayMonthGlitter ovan. Blir true högst en gång och stannar där.
+  const [glitter, setGlitter] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -282,6 +333,13 @@ export function Roster() {
   }, [])
   useLiveEvent('presence', onPresence)
 
+  // Kröningsjobbet sänder den här när en ny månad avgörs. Bara korten hämtas
+  // om — betygen rörs inte, precis som presence-uppdateringen ovan.
+  const onBvsMonth = useCallback(() => {
+    void fetchCards().then(setCards)
+  }, [])
+  useLiveEvent('bvs-month', onBvsMonth)
+
   const isLive = live.length > 0
   const lineup = isLive ? buildLineup(live, cards, presence) : placeholderLineup()
   // Jämförelsen räknas mot samma uppsättning som visas, så platshållarkorten
@@ -298,6 +356,17 @@ export function Roster() {
   // Den inloggade besökarens egen rad i rostern, om hen finns med — avgör om
   // hänvisningen till kontosidan är värd att visa.
   const mine = session ? (live.find((m) => m.steamid64 === session.steamid64) ?? null) : null
+
+  // Avgörs högst en gång per montering: så fort en regerande vinnare synts
+  // till (eller konstaterats saknas) rör vi inte sessionStorage igen.
+  const checkedGlitter = useRef(false)
+  useEffect(() => {
+    if (checkedGlitter.current) return
+    const hasWinner = lineup.some((e) => e.memberOfMonth)
+    if (!hasWinner) return
+    checkedGlitter.current = true
+    if (shouldPlayMonthGlitter()) setGlitter(true)
+  }, [lineup])
 
   return (
     <section id="gubbarna">
@@ -318,7 +387,12 @@ export function Roster() {
 
         <div className="lineup" role="group" aria-label="Gubbarna i BVS">
           {lineup.map((entry) => (
-            <PlayerCardView key={entry.id} entry={entry} crew={crew} />
+            <PlayerCardView
+              key={entry.id}
+              entry={entry}
+              crew={crew}
+              glitter={glitter && entry.memberOfMonth}
+            />
           ))}
         </div>
 

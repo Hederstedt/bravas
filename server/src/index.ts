@@ -1,5 +1,6 @@
 import { createApp } from "./app.ts";
 import { config } from "./config.ts";
+import { startMonthlyRollover } from "./monthlyPoller.ts";
 import { startPresencePolling } from "./presencePoller.ts";
 import { startValheimPolling } from "./valheimPoller.ts";
 import { startDiscordPolling } from "./discordPoller.ts";
@@ -12,4 +13,5 @@ createApp().listen(config.port, () => {
   startValheimPolling();
   // Hoppar över sig själv om DISCORD_SERVER_ID saknas.
   startDiscordPolling();
+  startMonthlyRollover();
 });
