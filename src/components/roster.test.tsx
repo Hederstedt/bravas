@@ -1,6 +1,7 @@
 ﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router'
 import * as api from '../api'
 import type { PlayerCard, RosterMember } from '../api'
 import { members } from '../data/clan'
@@ -63,6 +64,16 @@ function stubApi(overrides: {
   vi.spyOn(api, 'fetchSession').mockResolvedValue(overrides.session ?? null)
 }
 
+// Hänvisningen till kontosidan är en Link, och en Link utan router kraschar —
+// routern bor i main.tsx, så testet får bära med sig en egen.
+function renderRoster() {
+  return render(
+    <MemoryRouter>
+      <Roster />
+    </MemoryRouter>,
+  )
+}
+
 function cardFor(name: string) {
   return screen.getByRole('heading', { name }).closest('article')!
 }
@@ -70,7 +81,7 @@ function cardFor(name: string) {
 describe('Roster with live members', () => {
   it('renders a card per member with rating, position and every attribute', async () => {
     stubApi({ members: [MAG], cards: [MAG_CARD] })
-    render(<Roster />)
+    renderRoster()
 
     const card = await waitFor(() => cardFor(MAG.personaName))
     expect(within(card).getByText('84')).toBeInTheDocument()
@@ -82,7 +93,7 @@ describe('Roster with live members', () => {
 
   it('prints the generated comment on the card', async () => {
     stubApi({ members: [MAG], cards: [MAG_CARD] })
-    render(<Roster />)
+    renderRoster()
 
     const card = await waitFor(() => cardFor(MAG.personaName))
     expect(within(card).getByText(MAG_CARD.comments[0])).toBeInTheDocument()
@@ -90,7 +101,7 @@ describe('Roster with live members', () => {
 
   it('shows the Steam avatar when there is one', async () => {
     stubApi({ members: [MAG], cards: [MAG_CARD] })
-    render(<Roster />)
+    renderRoster()
 
     const card = await waitFor(() => cardFor(MAG.personaName))
     expect(within(card).getByRole('img', { name: MAG.personaName })).toHaveAttribute(
@@ -105,7 +116,7 @@ describe('Roster with live members', () => {
       cards: [MAG_CARD],
       presence: { [MAG.steamid64]: { status: 'in-game', game: 'Counter-Strike 2' } },
     })
-    render(<Roster />)
+    renderRoster()
 
     const card = await waitFor(() => cardFor(MAG.personaName))
     expect(within(card).getByRole('status')).toHaveAccessibleName('Spelar Counter-Strike 2')
@@ -121,7 +132,7 @@ describe('Roster with live members', () => {
       tier: 'brons',
     }
     stubApi({ members: [MAG, HIDDEN], cards: [hiddenCard, MAG_CARD] })
-    render(<Roster />)
+    renderRoster()
 
     await waitFor(() => cardFor(MAG.personaName))
     const names = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
@@ -144,7 +155,7 @@ describe('Roster degrading gracefully', () => {
       comments: ['Steam-profilen är låst.'],
     }
     stubApi({ members: [HIDDEN], cards: [locked] })
-    render(<Roster />)
+    renderRoster()
 
     const card = await waitFor(() => cardFor(HIDDEN.personaName))
     expect(within(card).getByText('OKÄND')).toBeInTheDocument()
@@ -155,7 +166,7 @@ describe('Roster degrading gracefully', () => {
   it('renders the card shell when the stats endpoint gives nothing back', async () => {
     // Medlemmarna laddade men statistiken inte — namnet ska synas ändå.
     stubApi({ members: [MAG], cards: [] })
-    render(<Roster />)
+    renderRoster()
 
     const card = await waitFor(() => cardFor(MAG.personaName))
     expect(within(card).getByText(/statistik/i)).toBeInTheDocument()
@@ -163,7 +174,7 @@ describe('Roster degrading gracefully', () => {
 
   it('falls back to the placeholder lineup when nobody has logged in', async () => {
     stubApi()
-    render(<Roster />)
+    renderRoster()
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: members[0].nick })).toBeInTheDocument()
@@ -179,7 +190,7 @@ describe('Roster degrading gracefully', () => {
 describe('the lineup row', () => {
   it('is grouped and labelled for screen readers', async () => {
     stubApi({ members: [MAG], cards: [MAG_CARD] })
-    render(<Roster />)
+    renderRoster()
 
     expect(await screen.findByRole('group', { name: /gubbarna/i })).toBeInTheDocument()
   })
@@ -204,7 +215,7 @@ describe('comparing an attribute', () => {
   it('explains the attribute and places him against the crew on click', async () => {
     const user = userEvent.setup()
     stubApi({ members: [MAG, RIVAL], cards: [MAG_CARD, RIVAL_CARD] })
-    render(<Roster />)
+    renderRoster()
 
     const card = await waitFor(() => cardFor(MAG.personaName))
     await user.click(within(card).getByRole('button', { name: /SIK/ }))
@@ -218,7 +229,7 @@ describe('comparing an attribute', () => {
   it('closes again when the same attribute is clicked twice', async () => {
     const user = userEvent.setup()
     stubApi({ members: [MAG], cards: [MAG_CARD] })
-    render(<Roster />)
+    renderRoster()
 
     const card = await waitFor(() => cardFor(MAG.personaName))
     const toggle = within(card).getByRole('button', { name: /SIK/ })
@@ -233,7 +244,7 @@ describe('comparing an attribute', () => {
   it('works on the placeholder lineup too', async () => {
     const user = userEvent.setup()
     stubApi()
-    render(<Roster />)
+    renderRoster()
 
     await waitFor(() => cardFor(members[0].nick))
     const card = cardFor(members[0].nick)
@@ -246,7 +257,7 @@ describe('comparing an attribute', () => {
 describe('the attribute legend', () => {
   it('is collapsed until someone asks for it', async () => {
     stubApi({ members: [MAG], cards: [MAG_CARD] })
-    render(<Roster />)
+    renderRoster()
 
     await waitFor(() => cardFor(MAG.personaName))
     expect(screen.getByRole('button', { name: 'Hur räknas betyget fram?' })).toHaveAttribute(
@@ -259,7 +270,7 @@ describe('the attribute legend', () => {
   it('spells out what every code means once opened, without needing a hover', async () => {
     const user = userEvent.setup()
     stubApi({ members: [MAG], cards: [MAG_CARD] })
-    render(<Roster />)
+    renderRoster()
 
     await waitFor(() => cardFor(MAG.personaName))
     await user.click(screen.getByRole('button', { name: 'Hur räknas betyget fram?' }))
@@ -272,7 +283,7 @@ describe('the attribute legend', () => {
   it('explains that another game only ever adds to the score, never subtracts, and that titles come from BVS itself', async () => {
     const user = userEvent.setup()
     stubApi({ members: [MAG], cards: [MAG_CARD] })
-    render(<Roster />)
+    renderRoster()
 
     await waitFor(() => cardFor(MAG.personaName))
     await user.click(screen.getByRole('button', { name: 'Hur räknas betyget fram?' }))
@@ -289,7 +300,7 @@ describe('the attribute legend', () => {
       wotAttributes: [{ key: 'SEG', label: 'Segerprocent', description: 'Andel vunna strider', rating: 70 }],
     }
     stubApi({ members: [MAG], cards: [withWot] })
-    render(<Roster />)
+    renderRoster()
 
     await waitFor(() => cardFor(MAG.personaName))
     await user.click(screen.getByRole('button', { name: 'Hur räknas betyget fram?' }))
@@ -305,7 +316,7 @@ describe('World of Tanks attributes on the card', () => {
       wotAttributes: [{ key: 'SEG', label: 'Segerprocent', description: 'Andel vunna strider', rating: 70 }],
     }
     stubApi({ members: [MAG], cards: [withWot] })
-    render(<Roster />)
+    renderRoster()
 
     const card = await waitFor(() => cardFor(MAG.personaName))
     expect(within(card).getByText('World of Tanks')).toBeInTheDocument()
@@ -315,7 +326,7 @@ describe('World of Tanks attributes on the card', () => {
 
   it('stays quiet about World of Tanks for a member who never linked one', async () => {
     stubApi({ members: [MAG], cards: [MAG_CARD] })
-    render(<Roster />)
+    renderRoster()
 
     const card = await waitFor(() => cardFor(MAG.personaName))
     expect(within(card).queryByText('World of Tanks')).not.toBeInTheDocument()
@@ -323,106 +334,50 @@ describe('World of Tanks attributes on the card', () => {
 
   it('labels the score BVS-betyg on the card', async () => {
     stubApi({ members: [MAG], cards: [MAG_CARD] })
-    render(<Roster />)
+    renderRoster()
 
     const card = await waitFor(() => cardFor(MAG.personaName))
     expect(within(card).getByText('BVS-betyg')).toBeInTheDocument()
   })
 })
 
-// Steam vet vad du heter i Steam, inte i Discorden. Backenden har kunnat spara
-// kopplingen hela tiden — den gick bara inte att nå från sajten.
-describe('linking a Discord name', () => {
+// Kopplingarna bodde här förut. Nu bor de på kontosidan, men den som letar
+// där de låg ska hitta vägen dit i stället för ingenting.
+describe('the account links moving out of Gubbarna', () => {
   const session = { steamid64: MAG.steamid64 }
 
-  it('shows the name on the card once it is set', async () => {
-    stubApi({ members: [MAG], cards: [MAG_CARD] })
-    render(<Roster />)
+  it('points a signed-in member to the account page', async () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD], session })
+    renderRoster()
 
-    const card = await waitFor(() => cardFor(MAG.personaName))
-    expect(within(card).getByText('mag')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Mitt konto' })).toHaveAttribute(
+      'href',
+      '/mitt-konto',
+    )
   })
 
-  it('leaves the card clean for someone who has not linked one', async () => {
-    stubApi({ members: [HIDDEN], cards: [] })
-    render(<Roster />)
-
-    const card = await waitFor(() => cardFor(HIDDEN.personaName))
-    expect(within(card).queryByText('mag')).not.toBeInTheDocument()
-  })
-
-  it('hides the form from anonymous visitors', async () => {
-    stubApi({ members: [MAG], cards: [MAG_CARD], session: null })
-    render(<Roster />)
+  it('no longer carries the linking forms itself', async () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD], session })
+    renderRoster()
 
     await waitFor(() => cardFor(MAG.personaName))
-    expect(screen.queryByRole('button', { name: /Koppla till kortet/ })).not.toBeInTheDocument()
-  })
-
-  it('saves the name and refreshes the roster so the card updates', async () => {
-    const user = userEvent.setup()
-    stubApi({ members: [{ ...MAG, discordName: null , wotNickname: null}], cards: [MAG_CARD], session })
-    const link = vi.spyOn(api, 'linkDiscord').mockResolvedValue(true)
-
-    render(<Roster />)
-
-    await user.type(await screen.findByLabelText(/Vad heter du i Discorden/), 'magge')
-    await user.click(screen.getByRole('button', { name: 'Koppla till kortet' }))
-
-    expect(link).toHaveBeenCalledWith('magge')
-    expect(await screen.findByText(/Sparat — namnet syns på ditt kort/)).toBeInTheDocument()
-  })
-
-  it('says so when the name could not be saved', async () => {
-    const user = userEvent.setup()
-    stubApi({ members: [MAG], cards: [MAG_CARD], session })
-    vi.spyOn(api, 'linkDiscord').mockResolvedValue(false)
-
-    render(<Roster />)
-
-    await user.type(await screen.findByLabelText(/Byt Discord-namn/), 'magge')
-    await user.click(screen.getByRole('button', { name: 'Koppla till kortet' }))
-
-    expect(await screen.findByText(/kunde inte sparas/)).toBeInTheDocument()
-  })
-})
-
-// Ingen egen inloggning eller formulär att fylla i — bara en länk ut till
-// Wargaming och tillbaka, så testerna kollar länken snarare än ett anrop.
-describe('linking a World of Tanks account', () => {
-  const session = { steamid64: MAG.steamid64 }
-
-  it('offers to link an account for a signed-in member who has not linked one', async () => {
-    stubApi({ members: [MAG], cards: [MAG_CARD], session })
-    render(<Roster />)
-
-    const link = await screen.findByRole('link', { name: 'Länka World of Tanks' })
-    expect(link).toHaveAttribute('href', api.WOT_LOGIN_URL)
-  })
-
-  it('shows the linked nickname instead of the invitation once linked', async () => {
-    stubApi({ members: [{ ...MAG, wotNickname: 'GubbeIRL' }], cards: [MAG_CARD], session })
-    render(<Roster />)
-
-    expect(await screen.findByText(/Länkad mot World of Tanks som/)).toBeInTheDocument()
-    expect(screen.getByText('GubbeIRL')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Koppla till kortet' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Länka World of Tanks' })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Byt konto' })).toHaveAttribute('href', api.WOT_LOGIN_URL)
   })
 
-  it('hides the link from anonymous visitors', async () => {
+  it('says nothing to an anonymous visitor', async () => {
     stubApi({ members: [MAG], cards: [MAG_CARD], session: null })
-    render(<Roster />)
+    renderRoster()
 
     await waitFor(() => cardFor(MAG.personaName))
-    expect(screen.queryByRole('link', { name: /World of Tanks/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Mitt konto' })).not.toBeInTheDocument()
   })
 })
 
 describe('live presence updates', () => {
   it('moves the dot when the server says someone started a game', async () => {
     stubApi({ members: [MAG], cards: [MAG_CARD] })
-    render(<Roster />)
+    renderRoster()
 
     const card = await waitFor(() => cardFor(MAG.personaName))
     expect(within(card).queryByRole('status')).not.toBeInTheDocument()
@@ -439,7 +394,7 @@ describe('live presence updates', () => {
 
   it('leaves the ratings alone so the lineup does not jump', async () => {
     stubApi({ members: [MAG], cards: [MAG_CARD] })
-    render(<Roster />)
+    renderRoster()
 
     const card = await waitFor(() => cardFor(MAG.personaName))
     act(() => {
@@ -458,7 +413,7 @@ describe('live presence updates', () => {
       cards: [MAG_CARD],
       presence: { [MAG.steamid64]: { status: 'online', game: null } },
     })
-    render(<Roster />)
+    renderRoster()
 
     const card = await waitFor(() => cardFor(MAG.personaName))
     act(() => emitLiveEvent('presence', null))

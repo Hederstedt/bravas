@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
 import { fetchMembers, fetchSession, STEAM_LOGIN_URL } from '../api'
 import { SteamIcon } from './icons'
 
@@ -48,10 +49,12 @@ export function SteamLogin() {
     )
   }
 
+  // Namnet är vägen till kontosidan — det var förut en död text, och då fanns
+  // ingenstans att gå för den som ville koppla konton eller logga ut.
   return (
-    <span className="steam-me">
+    <Link to="/mitt-konto" className="steam-me">
       {state.avatarUrl && <img src={state.avatarUrl} alt={state.personaName} />}
       <span>{state.personaName}</span>
-    </span>
+    </Link>
   )
 }

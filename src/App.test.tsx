@@ -34,6 +34,14 @@ describe('routing', () => {
     expect(screen.queryByRole('heading', { name: 'Bravas' })).not.toBeInTheDocument()
   })
 
+  // Kontosidan koddelas inte — den är för lätt för en egen chunk, så den finns
+  // direkt i stället för efter en Suspense-runda.
+  it('renders the account page on /mitt-konto', () => {
+    renderAt('/mitt-konto')
+    expect(screen.getByRole('heading', { name: 'Mitt konto' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Bravas' })).not.toBeInTheDocument()
+  })
+
   it('redirects unknown paths to the start page', () => {
     renderAt('/finns-inte')
     expect(screen.getByRole('heading', { name: 'Bravas' })).toBeInTheDocument()

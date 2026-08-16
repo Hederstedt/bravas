@@ -1,8 +1,19 @@
 ﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import { SteamLogin } from './auth'
 import * as api from '../api'
 import { resetSiteConfigCache } from '../useSiteConfig'
+
+// Det inloggade namnet är en Link till kontosidan, och en Link utan router
+// kraschar — routern bor i main.tsx, så testet får bära med sig en egen.
+function renderLogin() {
+  return render(
+    <MemoryRouter>
+      <SteamLogin />
+    </MemoryRouter>,
+  )
+}
 
 beforeEach(() => {
   resetSiteConfigCache()
@@ -13,41 +24,56 @@ afterEach(() => {
 })
 
 describe('SteamLogin', () => {
+  const MAG = {
+    steamid64: '76561198053832683',
+    personaName: '[BVS] #Mag',
+    avatarUrl: 'https://avatars.example/mag.jpg',
+    discordName: null,
+    wotNickname: null,
+  }
+
   it('offers a Steam login link when nobody is signed in', async () => {
     vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
-    render(<SteamLogin />)
+    renderLogin()
 
     const link = await screen.findByRole('link', { name: /logga in med steam/i })
     expect(link).toHaveAttribute('href', '/api/auth/steam/login')
   })
 
   it('greets the signed-in member by persona name', async () => {
-    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '76561198053832683' })
-    vi.spyOn(api, 'fetchMembers').mockResolvedValue([
-      {
-        steamid64: '76561198053832683',
-        personaName: '[BVS] #Mag',
-        avatarUrl: 'https://avatars.example/mag.jpg',
-        discordName: null, wotNickname: null,
-      },
-    ])
+    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: MAG.steamid64 })
+    vi.spyOn(api, 'fetchMembers').mockResolvedValue([MAG])
 
-    render(<SteamLogin />)
+    renderLogin()
 
     expect(await screen.findByText('[BVS] #Mag')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /logga in med steam/i })).not.toBeInTheDocument()
   })
 
+  // Namnet var förut en död text. Nu är det vägen till kontosidan — utan den
+  // fanns ingenstans att koppla konton eller logga ut.
+  it('makes the name a link to the account page', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: MAG.steamid64 })
+    vi.spyOn(api, 'fetchMembers').mockResolvedValue([MAG])
+
+    renderLogin()
+
+    expect(await screen.findByRole('link', { name: /\[BVS\] #Mag/ })).toHaveAttribute(
+      'href',
+      '/mitt-konto',
+    )
+  })
+
   it('falls back to the login link if the session lookup fails', async () => {
     vi.spyOn(api, 'fetchSession').mockRejectedValue(new Error('offline'))
-    render(<SteamLogin />)
+    renderLogin()
 
     expect(await screen.findByRole('link', { name: /logga in med steam/i })).toBeInTheDocument()
   })
 
   it('renders nothing while the session is still loading', () => {
     vi.spyOn(api, 'fetchSession').mockReturnValue(new Promise(() => {}))
-    const { container } = render(<SteamLogin />)
+    const { container } = renderLogin()
     expect(container).toBeEmptyDOMElement()
   })
 })

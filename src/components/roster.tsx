@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
+import { Link } from 'react-router'
 import {
   fetchCards,
   fetchMembers,
   fetchPresence,
   fetchSession,
-  linkDiscord,
-  MAX_DISCORD_NAME,
-  WOT_LOGIN_URL,
   type CardAttribute,
   type CardTier,
   type PlayerCard,
@@ -276,12 +274,6 @@ export function Roster() {
     }
   }, [])
 
-  // Efter en Discord-koppling: hämta om rostern så namnet dyker upp på kortet
-  // utan att sidan behöver laddas om.
-  const reloadMembers = useCallback(() => {
-    void fetchMembers().then(setLive)
-  }, [])
-
   // Pollern på servern säger till när någon loggat in i ett spel. Bara
   // prickarna byts — korten och betygen rörs inte, så raden hoppar inte till.
   const onPresence = useCallback((data: unknown) => {
@@ -303,8 +295,8 @@ export function Roster() {
   const legend = lineup.find((e) => e.attributes.length > 0)?.attributes ?? []
   const wotLegend = lineup.find((e) => e.wotAttributes.length > 0)?.wotAttributes ?? []
 
-  // Delas av både Discord- och WoT-länkningen: samma inloggade besökares egen
-  // rad i rostern, om hen finns med.
+  // Den inloggade besökarens egen rad i rostern, om hen finns med — avgör om
+  // hänvisningen till kontosidan är värd att visa.
   const mine = session ? (live.find((m) => m.steamid64 === session.steamid64) ?? null) : null
 
   return (
@@ -315,14 +307,13 @@ export function Roster() {
           <h2>Gubbarna</h2>
         </div>
 
-        {/* Högt upp, inte gömt under kortraden — annars missar man att den
-            finns, vilket den gjorde när den låg sist i sektionen. */}
+        {/* Kopplingarna bor på kontosidan sedan de fick en egen. En rad kvar
+            här ändå, så den som letar där de låg förut inte går bet. */}
         {mine && (
-          <div className="account-links">
-            <h3>Koppla dina konton</h3>
-            <DiscordLink mine={mine} onLinked={reloadMembers} />
-            <WotLink mine={mine} />
-          </div>
+          <p className="roster-note account-pointer">
+            Discord- och World of Tanks-kopplingen finns på{' '}
+            <Link to="/mitt-konto">Mitt konto</Link>.
+          </p>
         )}
 
         <div className="lineup" role="group" aria-label="Gubbarna i BVS">
@@ -397,87 +388,5 @@ export function Roster() {
         </p>
       </div>
     </section>
-  )
-}
-
-// Steam vet vad du heter i Steam, inte i Discorden — kopplingen får skrivas in
-// för hand. Visas bara för den som är inloggad och finns i rostern; namnet
-// hamnar sedan på hans eget spelarkort.
-function DiscordLink({
-  mine,
-  onLinked,
-}: {
-  mine: RosterMember | null
-  onLinked: () => void
-}) {
-  const [name, setName] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [saved, setSaved] = useState(false)
-
-  if (!mine) return null
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault()
-    const value = name.trim()
-    if (!value || saving) return
-
-    setSaving(true)
-    setError('')
-    const ok = await linkDiscord(value)
-    setSaving(false)
-
-    if (!ok) {
-      setError('Namnet kunde inte sparas. Försök igen.')
-      return
-    }
-    setName('')
-    setSaved(true)
-    onLinked()
-  }
-
-  return (
-    <form className="quote-form discord-link" onSubmit={submit}>
-      <label>
-        {mine.discordName ? 'Byt Discord-namn' : 'Vad heter du i Discorden?'}
-        <input
-          value={name}
-          maxLength={MAX_DISCORD_NAME}
-          onChange={(e) => {
-            setName(e.target.value)
-            setSaved(false)
-          }}
-          placeholder={mine.discordName ?? 'gubbe'}
-        />
-      </label>
-      <button type="submit" className="btn btn-primary" disabled={saving}>
-        {saving ? 'Sparar…' : 'Koppla till kortet'}
-      </button>
-      {error && <p className="quote-error">{error}</p>}
-      {saved && !error && <p className="roster-note">Sparat — namnet syns på ditt kort.</p>}
-    </form>
-  )
-}
-
-// Ingen egen inloggning — bara en länk till ett riktigt Wargaming-konto, samma
-// idé som Discord-namnet men med en kontokoll i stället för fritext. En hel
-// sidnavigering, inte ett fetch-anrop: det är en OAuth-liknande redirect ut
-// till Wargaming och tillbaka.
-function WotLink({ mine }: { mine: RosterMember | null }) {
-  if (!mine) return null
-
-  return (
-    <p className="roster-note wot-link">
-      {mine.wotNickname ? (
-        <>
-          Länkad mot World of Tanks som <strong>{mine.wotNickname}</strong>.{' '}
-          <a href={WOT_LOGIN_URL}>Byt konto</a>
-        </>
-      ) : (
-        <a className="btn btn-ghost" href={WOT_LOGIN_URL}>
-          Länka World of Tanks
-        </a>
-      )}
-    </p>
   )
 }

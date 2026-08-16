@@ -273,8 +273,17 @@ export function isAllowlisted(steamid64: string): boolean {
   return db.prepare("SELECT 1 FROM allowlist WHERE steamid64 = ?").get(steamid64) !== undefined;
 }
 
-export function upsertMemberLogin(input: { steamid64: string; personaName: string; avatarUrl: string | null }): Member {
+// isNew skiljer den allra första inloggningen från alla senare. Callbacken
+// använder den för att skicka en ny gubbe till kontosidan i stället för hem —
+// servern vet det här, så frontenden behöver ingen egen minnesanteckning.
+export function upsertMemberLogin(input: {
+  steamid64: string;
+  personaName: string;
+  avatarUrl: string | null;
+}): { member: Member; isNew: boolean } {
   const now = Date.now();
+  const existed =
+    db.prepare("SELECT 1 FROM members WHERE steamid64 = ?").get(input.steamid64) !== undefined;
   db.prepare(
     `INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login)
      VALUES (@steamid64, @personaName, @avatarUrl, @now, @now)
@@ -283,7 +292,10 @@ export function upsertMemberLogin(input: { steamid64: string; personaName: strin
        avatar_url = @avatarUrl,
        last_login = @now`
   ).run({ ...input, now });
-  return db.prepare("SELECT * FROM members WHERE steamid64 = ?").get(input.steamid64) as Member;
+  const member = db
+    .prepare("SELECT * FROM members WHERE steamid64 = ?")
+    .get(input.steamid64) as Member;
+  return { member, isNew: !existed };
 }
 
 export function setWotAccount(steamid64: string, wotAccountId: string, wotNickname: string): void {

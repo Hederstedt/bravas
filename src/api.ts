@@ -151,6 +151,13 @@ async function send<T>(path: string, method: 'POST' | 'DELETE'): Promise<T | nul
   }
 }
 
+// Servern kan bara rensa kakorna — sessionen är signerad och stateless, det
+// finns ingen rad att återkalla. Misslyckas anropet är false det enda vi vet,
+// och anroparen får säga det med ett eget besked.
+export async function logout(): Promise<boolean> {
+  return (await send<Record<string, never>>('/api/auth/logout', 'POST')) !== null
+}
+
 export async function addQuote(text: string, saidBy: string): Promise<Quote | null> {
   const token = await csrfToken()
   if (!token) return null

@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import { WOT_LOGIN_URL } from '../api'
 
 // Statisk textsida, ingen data att hämta — riktad till den som inte är så
@@ -34,16 +35,16 @@ export function InfoPage() {
           <h3>3. Discord-namn</h3>
           <p className="roster-note">
             Steam vet inte vad du heter i Discorden, så den kopplingen görs för hand — skriv in
-            ditt Discord-namn där sidan ber om det, så hamnar det på kortet bredvid
-            Steam-profilen.
+            ditt Discord-namn under <Link to="/mitt-konto">Mitt konto</Link>, så hamnar det på
+            kortet bredvid Steam-profilen.
           </p>
 
           <h3>4. Länka World of Tanks</h3>
           <p className="roster-note">
             Kör du strider i World of Tanks räknas det också in. Tryck{' '}
-            <a href={WOT_LOGIN_URL}>Länka World of Tanks</a> i kontosektionen ovanför Gubbarna och
-            logga in med ditt Wargaming.net-konto — inget nick eller lösenord skickas till oss,
-            bara en bekräftelse på vem du är.
+            <a href={WOT_LOGIN_URL}>Länka World of Tanks</a> under{' '}
+            <Link to="/mitt-konto">Mitt konto</Link> och logga in med ditt Wargaming.net-konto —
+            inget nick eller lösenord skickas till oss, bara en bekräftelse på vem du är.
           </p>
 
           <h3>5. Hur betyget och titeln räknas fram</h3>

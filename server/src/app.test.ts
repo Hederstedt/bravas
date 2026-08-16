@@ -5,8 +5,10 @@ import { createApp } from "./app.ts";
 import { broadcast, closeAllSubscribers, subscriberCount } from "./events.ts";
 import { resetPresenceSnapshot } from "./presencePoller.ts";
 import { db } from "./db.ts";
+import { resetRateLimits } from "./middleware/rateLimit.ts";
 import { createSessionCookieValue } from "./session.ts";
 import { sessionCookie } from "./session.ts";
+import * as steamAuth from "./steamAuth.ts";
 import * as wotAuth from "./wotAuth.ts";
 
 const app = createApp();
@@ -19,10 +21,11 @@ function sessionFor(steamid64: string) {
 }
 
 beforeEach(() => {
-  // Pollerns ögonblicksbild och de öppna strömmarna är modultillstånd som
-  // annars läcker mellan fall.
+  // Pollerns ögonblicksbild, de öppna strömmarna och räknarna i rate-limitern
+  // är modultillstånd som annars läcker mellan fall.
   resetPresenceSnapshot();
   closeAllSubscribers();
+  resetRateLimits();
   db.exec("DELETE FROM members; DELETE FROM allowlist; DELETE FROM cs2_stats;");
   db.prepare("INSERT INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(ALLOWED, "[BVS] #Mag", Date.now());
 });
@@ -334,6 +337,114 @@ describe("GET /api/auth/steam/login", () => {
       "https://bravas.test/api/auth/steam/callback"
     );
     expect(target.searchParams.get("openid.realm")).toBe("https://bravas.test");
+  });
+});
+
+describe("GET /api/auth/steam/callback", () => {
+  const claimedId = (steamid64: string) => ({
+    "openid.claimed_id": `https://steamcommunity.com/openid/id/${steamid64}`,
+  });
+
+  function stubSteamIdentity(steamid64: string) {
+    vi.spyOn(steamAuth, "verifyCallback").mockResolvedValue(steamid64);
+    vi.spyOn(steamAuth, "fetchPlayerSummaries").mockResolvedValue([
+      { steamid: steamid64, personaname: "[BVS] #Mag", avatarfull: "https://avatars.example/mag.jpg" },
+    ]);
+  }
+
+  // Den som precis loggat in för första gången har ett tomt kort och vet inte
+  // om att det går att länka fler spel. Kontosidan är där det görs, så dit
+  // skickas hen — resten av gänget vill hem till startsidan som förut.
+  it("sends a first-time member to the account page", async () => {
+    stubSteamIdentity(ALLOWED);
+
+    const res = await request(app)
+      .get("/api/auth/steam/callback")
+      .query(claimedId(ALLOWED))
+      .expect(302);
+
+    expect(res.headers.location).toBe("https://bravas.test/mitt-konto?ny=1");
+  });
+
+  it("sends a returning member to the start page", async () => {
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+    stubSteamIdentity(ALLOWED);
+
+    const res = await request(app)
+      .get("/api/auth/steam/callback")
+      .query(claimedId(ALLOWED))
+      .expect(302);
+
+    expect(res.headers.location).toBe("https://bravas.test/");
+  });
+
+  it("still turns away someone who is not on the allowlist", async () => {
+    stubSteamIdentity(NOT_ALLOWED);
+
+    const res = await request(app)
+      .get("/api/auth/steam/callback")
+      .query(claimedId(NOT_ALLOWED))
+      .expect(302);
+
+    expect(res.headers.location).toBe("https://bravas.test/?auth=not_allowed");
+    expect(db.prepare("SELECT 1 FROM members WHERE steamid64 = ?").get(NOT_ALLOWED)).toBeUndefined();
+  });
+});
+
+describe("POST /api/auth/logout", () => {
+  // Utloggningen behöver en giltig CSRF-token som alla andra skrivningar, så
+  // testet går hela vägen: hämta token, posta, läs kakorna som kom tillbaka.
+  async function logOut() {
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+
+    const agent = request.agent(app);
+    const session = sessionFor(ALLOWED);
+    const tokenRes = await agent.get("/api/auth/csrf-token").set("Cookie", session).expect(200);
+    const csrfCookie = (tokenRes.headers["set-cookie"] as unknown as string[])
+      .find((c) => c.startsWith("bvs_csrf="))!
+      .split(";")[0]!;
+
+    const res = await agent
+      .post("/api/auth/logout")
+      .set("Cookie", [session, csrfCookie])
+      .set("x-csrf-token", tokenRes.body.csrfToken as string)
+      .expect(204);
+
+    const cleared = (res.headers["set-cookie"] as unknown as string[]) ?? [];
+    return {
+      session: cleared.find((c) => c.startsWith(`${sessionCookie.name}=`)),
+      csrf: cleared.find((c) => c.startsWith("bvs_csrf=")),
+    };
+  }
+
+  it("clears the session cookie", async () => {
+    const { session } = await logOut();
+    expect(session).toBeDefined();
+    expect(session).toContain("Expires=Thu, 01 Jan 1970");
+  });
+
+  // Lämnas CSRF-kakan kvar ligger en token från förra inloggningen bunden till
+  // ett steamid som webbläsaren inte längre har någon session för.
+  it("clears the CSRF cookie too", async () => {
+    const { csrf } = await logOut();
+    expect(csrf).toBeDefined();
+    expect(csrf).toContain("Expires=Thu, 01 Jan 1970");
+  });
+
+  // En kaka satt med andra flaggor ersätter inte den gamla utan lägger sig
+  // bredvid — raderingen måste bära samma inställningar som inloggningen.
+  it("clears them with the same flags they were set with", async () => {
+    const { session, csrf } = await logOut();
+    for (const cookie of [session, csrf]) {
+      expect(cookie).toContain("HttpOnly");
+      expect(cookie).toContain("Secure");
+      expect(cookie).toContain("SameSite=Lax");
+      expect(cookie).toContain("Path=/");
+    }
   });
 });
 
