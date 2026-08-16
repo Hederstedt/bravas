@@ -93,7 +93,7 @@ function renderPage() {
   )
 }
 
-const SESSION = { steamid64: '76561198000000001' }
+const SESSION = { steamid64: '76561198000000001', isMember: true, isAdmin: false }
 
 describe('ManagerPage', () => {
   it('pitches the game when no season is running', async () => {

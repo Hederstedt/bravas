@@ -1,13 +1,43 @@
 import { Router } from "express";
+import { parseApplicationInput } from "../applications.ts";
 import { config } from "../config.ts";
-import { listMembers, setDiscordName, setWotAccount } from "../db.ts";
+import {
+  getApplication,
+  getMember,
+  listMembers,
+  setDiscordName,
+  setWotAccount,
+  upsertApplication,
+} from "../db.ts";
 import { authLimiter, mutationLimiter, readLimiter } from "../middleware/rateLimit.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
+import { requireSteamIdentity } from "../middleware/requireSteamIdentity.ts";
+import { fetchPlayerSummaries } from "../steamAuth.ts";
 import { buildLoginRedirectUrl, verifyCallback } from "../wotAuth.ts";
 
 export const membersRouter = Router();
 
 const WOT_CALLBACK_PATH = "/api/members/wot/callback";
+
+// Namn och avatar kommer från Steam, aldrig från formuläret — annars kan vem
+// som helst ansöka i någon annans namn. Svarar Steam inte får steamid:t duga:
+// en ansökan som försvinner för att Steam låg nere är sämre än ett fult namn.
+async function steamIdentity(
+  steamid64: string
+): Promise<{ personaName: string; avatarUrl: string | null }> {
+  try {
+    const [summary] = await fetchPlayerSummaries([steamid64]);
+    if (summary) {
+      return {
+        personaName: summary.personaname || steamid64,
+        avatarUrl: summary.avatarfull || null,
+      };
+    }
+  } catch {
+    // Faller igenom till steamid:t som namn.
+  }
+  return { personaName: steamid64, avatarUrl: null };
+}
 
 membersRouter.get("/", readLimiter, (_req, res) => {
   const members = listMembers().map((m) => ({
@@ -28,6 +58,51 @@ membersRouter.post("/link", mutationLimiter, requireAuth, (req, res) => {
   }
   setDiscordName(req.member!.steamid64, discordName);
   res.status(204).end();
+});
+
+// Vem sidan skulle ansöka som, och hur det gick förra gången. En sökande finns
+// inte i /api/members, så identiteten får hämtas här — från den egna ansökan om
+// det finns en, annars från Steam. Ett Steam-anrop per besök på en sida ingen
+// besöker ofta, och bara för den som inte redan ansökt.
+membersRouter.get("/apply", readLimiter, requireSteamIdentity, async (req, res) => {
+  const steamid64 = req.steamid64!;
+  const existing = getApplication(steamid64);
+  if (existing) {
+    res.json({
+      status: existing.status,
+      personaName: existing.persona_name,
+      avatarUrl: existing.avatar_url,
+    });
+    return;
+  }
+
+  const identity = await steamIdentity(steamid64);
+  res.json({ status: "none", ...identity });
+});
+
+// Vägen in för den som inte står i allowlisten. requireSteamIdentity i stället
+// för requireAuth: en sökande har en giltig Steam-session men medvetet ingen
+// members-rad, och skulle aldrig ta sig förbi requireAuth.
+//
+// Ligger här och inte i authRouter, som har authLimiter router-brett (30 per
+// kvart) — ett formulär hör hemma bakom mutationLimiter som resten av
+// skrivningarna.
+membersRouter.post("/apply", mutationLimiter, requireSteamIdentity, async (req, res) => {
+  const steamid64 = req.steamid64!;
+  if (getMember(steamid64)) {
+    res.status(400).json({ error: "already_member" });
+    return;
+  }
+
+  const parsed = parseApplicationInput(req.body);
+  if (!parsed.ok) {
+    res.status(400).json({ error: parsed.error });
+    return;
+  }
+
+  const { personaName, avatarUrl } = await steamIdentity(steamid64);
+  upsertApplication({ steamid64, personaName, avatarUrl, message: parsed.value.message });
+  res.status(201).json({ status: "pending" });
 });
 
 // Ingen egen inloggning — Steam är och förblir identiteten. Det här länkar

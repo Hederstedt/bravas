@@ -344,7 +344,7 @@ describe('World of Tanks attributes on the card', () => {
 // Kopplingarna bodde här förut. Nu bor de på kontosidan, men den som letar
 // där de låg ska hitta vägen dit i stället för ingenting.
 describe('the account links moving out of Gubbarna', () => {
-  const session = { steamid64: MAG.steamid64 }
+  const session = { steamid64: MAG.steamid64, isMember: true, isAdmin: false }
 
   it('points a signed-in member to the account page', async () => {
     stubApi({ members: [MAG], cards: [MAG_CARD], session })

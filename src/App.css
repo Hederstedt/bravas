@@ -399,6 +399,75 @@ a.steam-login:hover {
   margin-bottom: 24px;
 }
 
+/* Beskedet när Steam-inloggningen inte gick igenom. Ligger överst i main, så
+   den som just blev tillbakaskickad ser det utan att leta. */
+.auth-notice {
+  max-width: 1120px;
+  margin: 24px auto 0;
+  padding: 14px 18px;
+  background: var(--panel);
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+}
+
+/* Ansökningsformuläret: samma form som citatformuläret, men med plats för
+   några rader text i stället för en enrading. */
+.apply-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+/* Admin-listorna: ansökningar med sin text, och medlemmarna med en
+   borttagningsknapp som kräver ett andra klick. */
+.admin-list {
+  list-style: none;
+  margin: 12px 0 32px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-application {
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-left: 3px solid var(--accent);
+  padding: 16px 20px;
+}
+
+.admin-application .account-who {
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+/* Ansökningstexten är skriven av någon annan — radbrytningarna är deras. */
+.admin-message {
+  margin: 0 0 14px;
+  white-space: pre-wrap;
+  color: var(--muted);
+}
+
+.admin-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-member {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+}
+
 /* En egen panel så kopplingarna syns som en tydlig åtgärd, inte bara ännu en
    rad text. Bodde i Gubbarna förut — se accountPage.tsx. */
 .account-links {

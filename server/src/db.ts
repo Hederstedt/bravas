@@ -29,6 +29,22 @@ db.exec(`
     last_login INTEGER NOT NULL
   );
 
+  -- Den som inte står i allowlisten kan ansöka i stället för att mötas av en
+  -- vägg. persona_name och avatar_url hämtas från Steam vid ansökan, aldrig
+  -- från formuläret, så ingen kan utge sig för någon annan.
+  --
+  -- Ansökningar raderas aldrig, bara statusmärks (pending/approved/rejected),
+  -- så historiken finns kvar. Ett godkännande skriver bara allowlisten —
+  -- members-raden skapas av inloggningen som vanligt.
+  CREATE TABLE IF NOT EXISTS applications (
+    steamid64 TEXT PRIMARY KEY,
+    persona_name TEXT NOT NULL,
+    avatar_url TEXT,
+    message TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL
+  );
+
   -- Steams stats-anrop är ett per medlem och tar tid. Svaren cachas här så
   -- sidan svarar direkt, och så att en Steam-nedgång inte tömmer Siffrorna.
   CREATE TABLE IF NOT EXISTS cs2_stats (
@@ -296,6 +312,101 @@ export function upsertMemberLogin(input: {
     .prepare("SELECT * FROM members WHERE steamid64 = ?")
     .get(input.steamid64) as Member;
   return { member, isNew: !existed };
+}
+
+export type ApplicationStatus = "pending" | "approved" | "rejected";
+
+export interface Application {
+  steamid64: string;
+  persona_name: string;
+  avatar_url: string | null;
+  message: string;
+  status: ApplicationStatus;
+  created_at: number;
+}
+
+// En andra ansökan ersätter den första i stället för att kollidera på
+// primärnyckeln — den som skrivit slarvigt ska kunna förtydliga sig, och en
+// avslagen ansökan ska gå att göra om.
+export function upsertApplication(input: {
+  steamid64: string;
+  personaName: string;
+  avatarUrl: string | null;
+  message: string;
+}): void {
+  db.prepare(
+    `INSERT INTO applications (steamid64, persona_name, avatar_url, message, status, created_at)
+     VALUES (@steamid64, @personaName, @avatarUrl, @message, 'pending', @now)
+     ON CONFLICT(steamid64) DO UPDATE SET
+       persona_name = @personaName,
+       avatar_url = @avatarUrl,
+       message = @message,
+       status = 'pending',
+       created_at = @now`
+  ).run({ ...input, now: Date.now() });
+}
+
+// Väntande först: det är de som kräver en handling. Resten är historik.
+export function listApplications(): Application[] {
+  return db
+    .prepare(
+      `SELECT * FROM applications
+       ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, created_at DESC`
+    )
+    .all() as Application[];
+}
+
+export function getApplication(steamid64: string): Application | undefined {
+  return db.prepare("SELECT * FROM applications WHERE steamid64 = ?").get(steamid64) as
+    | Application
+    | undefined;
+}
+
+// Godkännande skriver allowlisten och inget mer. Members-raden skapas av
+// Steam-callbacken nästa gång de loggar in, precis som för alla andra.
+export function approveApplication(steamid64: string): boolean {
+  const application = getApplication(steamid64);
+  if (!application) return false;
+
+  db.transaction(() => {
+    db.prepare("INSERT OR IGNORE INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(
+      steamid64,
+      application.persona_name,
+      Date.now()
+    );
+    db.prepare("UPDATE applications SET status = 'approved' WHERE steamid64 = ?").run(steamid64);
+  })();
+  return true;
+}
+
+export function rejectApplication(steamid64: string): boolean {
+  const info = db
+    .prepare("UPDATE applications SET status = 'rejected' WHERE steamid64 = ?")
+    .run(steamid64);
+  return info.changes > 0;
+}
+
+// Ordningen är tvingande, inte en stilfråga: members.steamid64 är en främmande
+// nyckel in i allowlist och teams.manager_steamid64 en in i members, med
+// foreign_keys = ON. Lagen släpper därför sin manager först, sedan går medlemmen
+// och sist allowlist-raden.
+//
+// Laget självt blir kvar utan ägare i stället för att raderas — tabellen och
+// matchhistoriken ska inte skrivas om för att någon slutat. Citat
+// (quotes.submitted_by) och säsongsdata (season_players.steamid64) har ingen
+// främmande nyckel alls och överlever av samma skäl.
+export function removeMember(steamid64: string): boolean {
+  return db.transaction(() => {
+    const exists = db.prepare("SELECT 1 FROM members WHERE steamid64 = ?").get(steamid64);
+    if (!exists) return false;
+
+    db.prepare("UPDATE teams SET manager_steamid64 = NULL WHERE manager_steamid64 = ?").run(
+      steamid64
+    );
+    db.prepare("DELETE FROM members WHERE steamid64 = ?").run(steamid64);
+    db.prepare("DELETE FROM allowlist WHERE steamid64 = ?").run(steamid64);
+    return true;
+  })();
 }
 
 export function setWotAccount(steamid64: string, wotAccountId: string, wotNickname: string): void {

@@ -2,6 +2,8 @@ import './App.css'
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 import { AccountPage } from './components/accountPage'
+import { AdminPage } from './components/adminPage'
+import { ApplyPage } from './components/applyPage'
 import { HomePage } from './components/home'
 import { InfoPage } from './components/infoPage'
 import { Nav, Footer } from './components/sections'
@@ -27,6 +29,8 @@ function App() {
           <Route path="/kom-igang" element={<InfoPage />} />
           {/* Utan lazy() — sidan är för lätt för att vara värd en egen chunk. */}
           <Route path="/mitt-konto" element={<AccountPage />} />
+          <Route path="/ansok" element={<ApplyPage />} />
+          <Route path="/admin" element={<AdminPage />} />
           <Route path="/manager" element={<ManagerPage />} />
           <Route path="/manager/match/:id" element={<MatchReportPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

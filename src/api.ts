@@ -10,8 +10,15 @@ export interface RosterMember {
 
 export const WOT_LOGIN_URL = '/api/members/wot/login'
 
+// Sessionen är en signerad kaka och säger bara vem du är. Att du är *med* är
+// en separat fråga — en sökande har en giltig kaka men ingen rad i rostern —
+// och admin är en tredje, som servern avgör mot sin egen lista. Frontenden
+// använder flaggorna för att veta vad den ska visa; servern gatear ändå
+// oberoende av vad som ritas.
 export interface Session {
   steamid64: string
+  isMember: boolean
+  isAdmin: boolean
 }
 
 export type PresenceStatus = 'offline' | 'online' | 'in-game'
@@ -71,9 +78,18 @@ export async function fetchMembers(): Promise<RosterMember[]> {
 // The endpoint answers 200 either way — an anonymous visitor is a normal
 // result, not a failed request — so the logged-out case is a flag in the body.
 export async function fetchSession(): Promise<Session | null> {
-  const data = await getJson<{ authenticated: boolean; steamid64?: string }>('/api/auth/me')
+  const data = await getJson<{
+    authenticated: boolean
+    steamid64?: string
+    isMember?: boolean
+    isAdmin?: boolean
+  }>('/api/auth/me')
   if (!data?.authenticated || !data.steamid64) return null
-  return { steamid64: data.steamid64 }
+  return {
+    steamid64: data.steamid64,
+    isMember: data.isMember === true,
+    isAdmin: data.isAdmin === true,
+  }
 }
 
 export interface Standing {
@@ -203,6 +219,96 @@ export async function linkDiscord(discordName: string): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+// ---------- Ansökan och admin ----------
+
+// Speglar MAX_APPLICATION_MESSAGE i server/src/applications.ts, så formuläret
+// stoppar för lång text direkt i stället för att låta backend avvisa den.
+export const MAX_APPLICATION_MESSAGE = 500
+
+export type ApplicationStatus = 'pending' | 'approved' | 'rejected'
+
+// Namn och avatar kommer från Steam vid ansökan, inte från formuläret — därför
+// går det inte att ansöka i någon annans namn.
+export interface Application {
+  steamid64: string
+  personaName: string
+  avatarUrl: string | null
+  message: string
+  status: ApplicationStatus
+  createdAt: number
+}
+
+// Vem sidan skulle ansöka som, och hur det gick förra gången. En sökande finns
+// inte i /api/members — servern hämtar identiteten från Steam eller från den
+// egna ansökan.
+export interface MyApplication {
+  status: ApplicationStatus | 'none'
+  personaName: string
+  avatarUrl: string | null
+}
+
+export async function fetchMyApplication(): Promise<MyApplication | null> {
+  return await getJson<MyApplication>('/api/members/apply')
+}
+
+export async function applyForMembership(message: string): Promise<boolean> {
+  const token = await csrfToken()
+  if (!token) return false
+  try {
+    const res = await fetch('/api/members/apply', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'x-csrf-token': token },
+      body: JSON.stringify({ message }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+export async function fetchApplications(): Promise<Application[]> {
+  const data = await getJson<{ applications: Application[] }>('/api/admin/applications')
+  return data?.applications ?? []
+}
+
+// Admin-sidan visar medlemmarna bredvid ansökningarna. Egen endpoint i stället
+// för publika /api/members: sidan är en vy, och BFF:en levererar den samlat.
+export interface AdminMember {
+  steamid64: string
+  personaName: string
+  avatarUrl: string | null
+}
+
+export async function fetchAdminMembers(): Promise<AdminMember[]> {
+  const data = await getJson<{ members: AdminMember[] }>('/api/admin/members')
+  return data?.members ?? []
+}
+
+// Godkännande skriver bara allowlisten — medlemsraden skapas när den godkände
+// loggar in nästa gång, av samma kod som för alla andra.
+export async function approveApplication(steamid64: string): Promise<boolean> {
+  return (
+    (await send<Record<string, never>>(
+      `/api/admin/applications/${steamid64}/approve`,
+      'POST',
+    )) !== null
+  )
+}
+
+export async function rejectApplication(steamid64: string): Promise<boolean> {
+  return (
+    (await send<Record<string, never>>(
+      `/api/admin/applications/${steamid64}/reject`,
+      'POST',
+    )) !== null
+  )
+}
+
+export async function removeMember(steamid64: string): Promise<boolean> {
+  return (await send<Record<string, never>>(`/api/admin/members/${steamid64}`, 'DELETE')) !== null
 }
 
 export async function fetchPresence(): Promise<PresenceMap> {

@@ -27,4 +27,13 @@ export const config = {
   // Utan den här är WoT-länkningen bara osynlig — precis som med
   // discordServerId, inget krav vid uppstart.
   wargamingApplicationId: process.env.WARGAMING_APPLICATION_ID ?? "",
+
+  // Vilka steamid:n som får se och använda admin-sidan. I env, inte i
+  // databasen: en felskrivning i en tabell ska aldrig kunna låsa ut gänget från
+  // sin egen admin-sida. Saknad variabel betyder "ingen admin", inte kraschande
+  // uppstart — samma valfria mönster som discordServerId.
+  adminSteamIds: (process.env.ADMIN_STEAMIDS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
 };

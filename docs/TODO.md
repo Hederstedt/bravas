@@ -36,6 +36,26 @@ inbjudningsknappen — vilket är ett giltigt läge, inte ett fel.
 
 ---
 
+## 2. Peka ut vilka som är admin
+
+**Läget nu:** `/admin` finns i koden — godkänna eller avslå ansökningar, ta bort
+medlemmar — men ingen är admin förrän någon står i `ADMIN_STEAMIDS`. Tills dess
+är sidan osynlig i menyn och svarar `403` för alla, och en ansökan blir liggande
+utan att någon kan godkänna den.
+
+- [ ] Sätt `ADMIN_STEAMIDS` i `/srv/bravas-api/.env` — ditt eget steamid64, och
+      gärna en till så en enda glömd inloggning inte låser sidan
+- [ ] Starta om API:et
+
+Kommaseparerat om ni är flera. Behörigheten bor i env och inte i databasen just
+för att en felskrivning i en tabell aldrig ska kunna låsa ut er från er egen
+adminsida — och en admin kan därför inte heller ta bort sig själv.
+
+**Kolla att det tog:** logga in och gå till `/admin` — menyn ska visa "Admin"
+och sidan ska svara. Gör den inte det står fel id i variabeln.
+
+---
+
 ## Gjort och i drift
 
 Kvitteras här så listan inte blandar ihop det som väntar med det som redan

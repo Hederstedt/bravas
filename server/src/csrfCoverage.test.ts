@@ -20,7 +20,7 @@ const session = () => `${sessionCookie.name}=${createSessionCookieValue(MEMBER)}
 beforeEach(() => {
   resetRateLimits();
   db.exec(
-    "DELETE FROM training_sessions; DELETE FROM transfers; DELETE FROM fixtures; DELETE FROM squads; DELETE FROM teams; DELETE FROM season_players; DELETE FROM seasons; DELETE FROM quote_votes; DELETE FROM quotes; DELETE FROM members; DELETE FROM allowlist;"
+    "DELETE FROM training_sessions; DELETE FROM transfers; DELETE FROM fixtures; DELETE FROM squads; DELETE FROM teams; DELETE FROM season_players; DELETE FROM seasons; DELETE FROM quote_votes; DELETE FROM quotes; DELETE FROM applications; DELETE FROM members; DELETE FROM allowlist;"
   );
   db.prepare("INSERT INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(
     MEMBER,
@@ -37,6 +37,10 @@ beforeEach(() => {
 const WRITES: { method: "post" | "put" | "delete"; path: string; body?: unknown }[] = [
   { method: "post", path: "/api/auth/logout" },
   { method: "post", path: "/api/members/link", body: { discordName: "mag" } },
+  { method: "post", path: "/api/members/apply", body: { message: "Släpp in mig" } },
+  { method: "post", path: `/api/admin/applications/${MEMBER}/approve` },
+  { method: "post", path: `/api/admin/applications/${MEMBER}/reject` },
+  { method: "delete", path: `/api/admin/members/${MEMBER}` },
   { method: "post", path: "/api/quotes", body: { text: "Rush B", saidBy: "Gubbe #1" } },
   { method: "post", path: "/api/quotes/1/vote" },
   { method: "delete", path: "/api/quotes/1" },

@@ -44,7 +44,7 @@ function renderPage(path = '/mitt-konto') {
   )
 }
 
-const signedIn = { members: [MAG], session: { steamid64: MAG.steamid64 } }
+const signedIn = { members: [MAG], session: { steamid64: MAG.steamid64, isMember: true, isAdmin: false } }
 
 describe('AccountPage', () => {
   it('has a page heading', async () => {
@@ -154,7 +154,7 @@ describe('logging out', () => {
 describe('linking a Discord name', () => {
   it('saves the name and refreshes so the card updates', async () => {
     const user = userEvent.setup()
-    stubApi({ members: [{ ...MAG, discordName: null }], session: { steamid64: MAG.steamid64 } })
+    stubApi({ members: [{ ...MAG, discordName: null }], session: { steamid64: MAG.steamid64, isMember: true, isAdmin: false } })
     const link = vi.spyOn(api, 'linkDiscord').mockResolvedValue(true)
 
     renderPage()
@@ -202,7 +202,7 @@ describe('linking a World of Tanks account', () => {
   it('shows the linked nickname instead of the invitation once linked', async () => {
     stubApi({
       members: [{ ...MAG, wotNickname: 'GubbeIRL' }],
-      session: { steamid64: MAG.steamid64 },
+      session: { steamid64: MAG.steamid64, isMember: true, isAdmin: false },
     })
     renderPage()
 
