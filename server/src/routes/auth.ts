@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { config } from "../config.ts";
-import { generateCsrfToken } from "../csrf.ts";
+import { csrfCookie, generateCsrfToken } from "../csrf.ts";
 import { isAllowlisted, upsertMemberLogin } from "../db.ts";
 import { authLimiter } from "../middleware/rateLimit.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
@@ -36,18 +36,26 @@ authRouter.get("/steam/callback", async (req, res) => {
   }
 
   const [summary] = await fetchPlayerSummaries([steamid64]);
-  upsertMemberLogin({
+  const { isNew } = upsertMemberLogin({
     steamid64,
     personaName: summary?.personaname ?? steamid64,
     avatarUrl: summary?.avatarfull ?? null,
   });
 
   res.cookie(sessionCookie.name, createSessionCookieValue(steamid64), sessionCookie.options);
-  res.redirect(`${config.publicOrigin}/`);
+  // Första inloggningen landar på kontosidan i stället för hem: där finns
+  // kopplingarna till Discord och World of Tanks, och utan en knuff dit är det
+  // ingen som hittar dem. ?ny=1 låter sidan välkomna i stället för att bara
+  // stå där.
+  res.redirect(`${config.publicOrigin}${isNew ? "/mitt-konto?ny=1" : "/"}`);
 });
 
 authRouter.post("/logout", (_req, res) => {
-  res.clearCookie(sessionCookie.name, { path: "/" });
+  // Båda kakorna, med samma flaggor de sattes med. Lämnas CSRF-kakan kvar
+  // ligger en token bunden till ett steamid som webbläsaren inte längre har
+  // någon session för.
+  res.clearCookie(sessionCookie.name, sessionCookie.options);
+  res.clearCookie(csrfCookie.name, csrfCookie.options);
   res.status(204).end();
 });
 
