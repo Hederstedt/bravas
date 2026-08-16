@@ -7,6 +7,7 @@ import { resetPresenceSnapshot } from "./presencePoller.ts";
 import { db } from "./db.ts";
 import { createSessionCookieValue } from "./session.ts";
 import { sessionCookie } from "./session.ts";
+import * as wotAuth from "./wotAuth.ts";
 
 const app = createApp();
 const ALLOWED = "76561198053832683";
@@ -414,6 +415,69 @@ describe("POST /api/members/link", () => {
 
     const tokenRes = await agent.get("/api/auth/csrf-token").set("Cookie", session).expect(401);
     expect(tokenRes.body).toEqual({ error: "not_authenticated" });
+  });
+});
+
+// GET-baserat precis som Steam-inloggningen: en redirect ut och en tillbaka,
+// ingen CSRF-token inblandad — samma resonemang som för /api/auth/steam/*.
+describe("GET /api/members/wot/login", () => {
+  it("rejects an anonymous caller", async () => {
+    await request(app).get("/api/members/wot/login").expect(401);
+  });
+
+  it("sends a signed-in member to Wargaming", async () => {
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+
+    const res = await request(app)
+      .get("/api/members/wot/login")
+      .set("Cookie", sessionFor(ALLOWED))
+      .expect(302);
+
+    expect(res.headers.location).toContain("api.worldoftanks.eu/wot/auth/login/");
+  });
+});
+
+describe("GET /api/members/wot/callback", () => {
+  it("rejects an anonymous caller", async () => {
+    await request(app).get("/api/members/wot/callback").expect(401);
+  });
+
+  it("links the account when Wargaming confirms it, then sends the browser home", async () => {
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+    vi.spyOn(wotAuth, "verifyCallback").mockResolvedValue({ accountId: "500123456", nickname: "GubbeIRL" });
+
+    const res = await request(app)
+      .get("/api/members/wot/callback")
+      .set("Cookie", sessionFor(ALLOWED))
+      .query({ status: "ok", account_id: "500123456", access_token: "tok" })
+      .expect(302);
+
+    expect(res.headers.location).toBe("https://bravas.test/?wot=linked");
+    const stored = db.prepare("SELECT wot_account_id, wot_nickname FROM members WHERE steamid64 = ?").get(ALLOWED);
+    expect(stored).toEqual({ wot_account_id: "500123456", wot_nickname: "GubbeIRL" });
+  });
+
+  it("sends the browser home with a failure flag instead of linking a forged callback", async () => {
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+    vi.spyOn(wotAuth, "verifyCallback").mockResolvedValue(null);
+
+    const res = await request(app)
+      .get("/api/members/wot/callback")
+      .set("Cookie", sessionFor(ALLOWED))
+      .query({ status: "ok", account_id: "500123456", access_token: "forged" })
+      .expect(302);
+
+    expect(res.headers.location).toBe("https://bravas.test/?wot=failed");
+    const stored = db.prepare("SELECT wot_account_id FROM members WHERE steamid64 = ?").get(ALLOWED) as {
+      wot_account_id: string | null;
+    };
+    expect(stored.wot_account_id).toBeNull();
   });
 });
 

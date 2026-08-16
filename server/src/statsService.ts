@@ -6,14 +6,18 @@ import {
   saveCs2Stats,
   readValheimPlaytime,
   saveValheimPlaytime,
+  readWotStats,
+  saveWotStats,
 } from "./db.ts";
 import { valheimHighlights } from "./valheimHistory.ts";
 import { computeValheimPlaytimeHighlight, type MemberPlaytime } from "./valheimPlaytime.ts";
 import { computeHighlights, type MemberStats, type StatHighlight } from "./cs2Stats.ts";
+import { computeWotHighlights, type WotMemberStats } from "./wotStats.ts";
 import { buildCards, type PlayerCard } from "./cs2Cards.ts";
 
 const CS2_APP_ID = 730;
 const VALHEIM_APP_ID = 892970;
+const WOT_ACCOUNT_INFO_URL = "https://api.worldoftanks.eu/wot/account/info/";
 const TTL_MS = 30 * 60 * 1000;
 
 export interface HighlightsResult {
@@ -123,6 +127,70 @@ async function getCrewPlaytime(members: { steamid64: string; persona_name: strin
     }));
 }
 
+// Publik kontostatistik — inget access_token behövs, samma sak som att CS2:s
+// GetUserStatsForGame inte kräver en inloggad session. Ett tomt svar betyder
+// stängd profil eller att kontot inte hunnit spela än, inte ett fel.
+async function fetchWotAccountStats(wotAccountId: string): Promise<Record<string, number> | null> {
+  const url = new URL(WOT_ACCOUNT_INFO_URL);
+  url.searchParams.set("application_id", config.wargamingApplicationId);
+  url.searchParams.set("account_id", wotAccountId);
+  url.searchParams.set("fields", "statistics.all");
+
+  const res = await fetch(url);
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as {
+    status?: string;
+    data?: Record<string, { statistics?: { all?: Record<string, number> } } | null>;
+  };
+  if (data.status !== "ok") return null;
+
+  const stats = data.data?.[wotAccountId]?.statistics?.all;
+  return stats && Object.keys(stats).length > 0 ? stats : null;
+}
+
+let refreshingWotStats: Promise<void> | null = null;
+
+async function refreshStaleWotStats(wotAccountIds: string[]): Promise<void> {
+  const cached = new Map(readWotStats().map((c) => [c.wotAccountId, c.fetchedAt]));
+  const cutoff = Date.now() - TTL_MS;
+  const stale = wotAccountIds.filter((id) => (cached.get(id) ?? 0) < cutoff);
+  if (stale.length === 0) return;
+
+  for (const wotAccountId of stale) {
+    try {
+      const stats = await fetchWotAccountStats(wotAccountId);
+      if (stats) saveWotStats(wotAccountId, stats);
+    } catch {
+      // Wargaming är oåtkomligt — behåll det som redan är cachat.
+    }
+  }
+}
+
+// Bara de som faktiskt länkat ett konto räknas med — ingen wot_account_id,
+// inget att fråga Wargaming om.
+async function getCrewWotStats(
+  members: { wot_account_id: string | null; persona_name: string }[]
+): Promise<WotMemberStats[]> {
+  const linked = members.filter((m) => m.wot_account_id !== null);
+  if (linked.length === 0) return [];
+
+  const accountIds = linked.map((m) => m.wot_account_id!);
+  refreshingWotStats ??= refreshStaleWotStats(accountIds).finally(() => {
+    refreshingWotStats = null;
+  });
+  await refreshingWotStats;
+
+  const statsById = new Map(readWotStats().map((c) => [c.wotAccountId, c.stats]));
+  return linked
+    .filter((m) => statsById.has(m.wot_account_id!))
+    .map((m) => ({
+      wotAccountId: m.wot_account_id!,
+      personaName: m.persona_name,
+      stats: statsById.get(m.wot_account_id!)!,
+    }));
+}
+
 interface CrewStats {
   memberCount: number;
   withStats: MemberStats[];
@@ -154,8 +222,10 @@ async function getCrewStats(): Promise<CrewStats> {
 
 export async function getHighlights(): Promise<HighlightsResult> {
   const { memberCount, withStats } = await getCrewStats();
-  const playtime = await getCrewPlaytime(listMembers());
+  const members = listMembers();
+  const playtime = await getCrewPlaytime(members);
   const valheimPlaytime = computeValheimPlaytimeHighlight(playtime);
+  const wotStats = await getCrewWotStats(members);
 
   return {
     // Valheim-rekorden kommer ur vår egen poller och beror varken på Steam
@@ -165,6 +235,7 @@ export async function getHighlights(): Promise<HighlightsResult> {
       ...computeHighlights(withStats),
       ...valheimHighlights(listValheimSamples()),
       ...(valheimPlaytime ? [valheimPlaytime] : []),
+      ...computeWotHighlights(wotStats),
     ],
     memberCount,
     withStats: withStats.length,

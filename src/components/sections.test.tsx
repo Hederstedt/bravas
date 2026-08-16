@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
@@ -281,7 +281,7 @@ describe('About', () => {
       steamid64: `7656119800000000${i}`,
       personaName: `Gubbe ${i}`,
       avatarUrl: null,
-      discordName: null,
+      discordName: null, wotNickname: null,
     }))
     vi.spyOn(api, 'fetchMembers').mockResolvedValue(eight)
 

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { SteamLogin } from './auth'
 import * as api from '../api'
@@ -28,7 +28,7 @@ describe('SteamLogin', () => {
         steamid64: '76561198053832683',
         personaName: '[BVS] #Mag',
         avatarUrl: 'https://avatars.example/mag.jpg',
-        discordName: null,
+        discordName: null, wotNickname: null,
       },
     ])
 
@@ -145,13 +145,13 @@ describe('Roster with live data', () => {
         steamid64: '76561198053832683',
         personaName: '[BVS] #Mag',
         avatarUrl: 'https://avatars.example/mag.jpg',
-        discordName: 'mag',
+        discordName: 'mag', wotNickname: null,
       },
       {
         steamid64: '76561197963771177',
         personaName: '[BVS] g0nza',
         avatarUrl: null,
-        discordName: null,
+        discordName: null, wotNickname: null,
       },
     ])
 
@@ -176,9 +176,9 @@ describe('Roster with live data', () => {
 
   it('marks who is online and what they are playing', async () => {
     vi.spyOn(api, 'fetchMembers').mockResolvedValue([
-      { steamid64: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null },
-      { steamid64: '2', personaName: 'Vaken', avatarUrl: null, discordName: null },
-      { steamid64: '3', personaName: 'Borta', avatarUrl: null, discordName: null },
+      { steamid64: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null , wotNickname: null},
+      { steamid64: '2', personaName: 'Vaken', avatarUrl: null, discordName: null , wotNickname: null},
+      { steamid64: '3', personaName: 'Borta', avatarUrl: null, discordName: null , wotNickname: null},
     ])
     vi.spyOn(api, 'fetchPresence').mockResolvedValue({
       '1': { status: 'in-game', game: 'Counter-Strike 2' },
@@ -202,7 +202,7 @@ describe('Roster with live data', () => {
 
   it('renders the roster even when presence is unavailable', async () => {
     vi.spyOn(api, 'fetchMembers').mockResolvedValue([
-      { steamid64: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null },
+      { steamid64: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null , wotNickname: null},
     ])
     vi.spyOn(api, 'fetchPresence').mockResolvedValue({})
 
@@ -219,7 +219,7 @@ describe('Roster with live data', () => {
         steamid64: '76561198053832683',
         personaName: '[BVS] #Mag',
         avatarUrl: 'https://avatars.example/mag.jpg',
-        discordName: null,
+        discordName: null, wotNickname: null,
       },
     ])
 

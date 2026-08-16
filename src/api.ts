@@ -5,7 +5,10 @@ export interface RosterMember {
   personaName: string
   avatarUrl: string | null
   discordName: string | null
+  wotNickname: string | null
 }
+
+export const WOT_LOGIN_URL = '/api/members/wot/login'
 
 export interface Session {
   steamid64: string

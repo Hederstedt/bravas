@@ -23,4 +23,8 @@ export const config = {
   valheimAddress: process.env.VALHEIM_ADDRESS ?? "",
   valheimServerName: process.env.VALHEIM_SERVER_NAME ?? "",
   valheimPassword: process.env.VALHEIM_PASSWORD ?? "",
+
+  // Utan den här är WoT-länkningen bara osynlig — precis som med
+  // discordServerId, inget krav vid uppstart.
+  wargamingApplicationId: process.env.WARGAMING_APPLICATION_ID ?? "",
 };

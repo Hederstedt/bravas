@@ -46,6 +46,15 @@ db.exec(`
     fetched_at INTEGER NOT NULL
   );
 
+  -- Wargamings kontostatistik, nyckeln är wot_account_id (inte steamid64 —
+  -- Steam och Wargaming är skilda identiteter, kopplade via länkningen i
+  -- members). Samma cache-mönster som cs2_stats.
+  CREATE TABLE IF NOT EXISTS wot_stats (
+    wot_account_id TEXT PRIMARY KEY,
+    stats_json TEXT NOT NULL,
+    fetched_at INTEGER NOT NULL
+  );
+
   -- Spelservern frågas var 45:e sekund och svaret kastades förr bort. Sparat
   -- blir det statistik ingen annan klan har: när är det fullast, hur länge
   -- håller servern, hur många gubbtimmar har det blivit.
@@ -197,6 +206,14 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_training_team_day ON training_sessions(team_id, matchday);
 `);
 
+// WoT-länkningen kom efter members-tabellen och produktionen har redan
+// medlemmar, så kolumnerna läggs till guardat i stället för i CREATE TABLE.
+const memberColumns = db.pragma("table_info(members)") as { name: string }[];
+if (!memberColumns.some((c) => c.name === "wot_account_id")) {
+  db.exec("ALTER TABLE members ADD COLUMN wot_account_id TEXT");
+  db.exec("ALTER TABLE members ADD COLUMN wot_nickname TEXT");
+}
+
 // Lagkassan kom efter teams-tabellen och produktionen har redan lag, så
 // kolumnen läggs till guardat och fylls i från truppens värde: det som är
 // kvar av budgeten är budgeten minus det truppen kostade.
@@ -246,6 +263,8 @@ export interface Member {
   persona_name: string;
   avatar_url: string | null;
   discord_name: string | null;
+  wot_account_id: string | null;
+  wot_nickname: string | null;
   first_login: number;
   last_login: number;
 }
@@ -265,6 +284,14 @@ export function upsertMemberLogin(input: { steamid64: string; personaName: strin
        last_login = @now`
   ).run({ ...input, now });
   return db.prepare("SELECT * FROM members WHERE steamid64 = ?").get(input.steamid64) as Member;
+}
+
+export function setWotAccount(steamid64: string, wotAccountId: string, wotNickname: string): void {
+  db.prepare("UPDATE members SET wot_account_id = ?, wot_nickname = ? WHERE steamid64 = ?").run(
+    wotAccountId,
+    wotNickname,
+    steamid64
+  );
 }
 
 export function setDiscordName(steamid64: string, discordName: string): void {
@@ -389,6 +416,32 @@ export function readValheimPlaytime(): CachedPlaytime[] {
     fetched_at: number;
   }[];
   return rows.map((r) => ({ steamid64: r.steamid64, minutes: r.minutes, fetchedAt: r.fetched_at }));
+}
+
+export function saveWotStats(wotAccountId: string, stats: Record<string, number>): void {
+  db.prepare(
+    `INSERT INTO wot_stats (wot_account_id, stats_json, fetched_at) VALUES (?, ?, ?)
+     ON CONFLICT(wot_account_id) DO UPDATE SET stats_json = excluded.stats_json, fetched_at = excluded.fetched_at`
+  ).run(wotAccountId, JSON.stringify(stats), Date.now());
+}
+
+export interface CachedWotStats {
+  wotAccountId: string;
+  stats: Record<string, number>;
+  fetchedAt: number;
+}
+
+export function readWotStats(): CachedWotStats[] {
+  const rows = db.prepare("SELECT wot_account_id, stats_json, fetched_at FROM wot_stats").all() as {
+    wot_account_id: string;
+    stats_json: string;
+    fetched_at: number;
+  }[];
+  return rows.map((r) => ({
+    wotAccountId: r.wot_account_id,
+    stats: JSON.parse(r.stats_json) as Record<string, number>,
+    fetchedAt: r.fetched_at,
+  }));
 }
 
 // ---------- Managerspelet ----------
