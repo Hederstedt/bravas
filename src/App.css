@@ -366,6 +366,14 @@ a.steam-login:hover {
   margin-top: 24px;
 }
 
+.wot-link {
+  margin-top: 14px;
+}
+
+.wot-link .btn {
+  margin-top: 6px;
+}
+
 /* Bara på egna citat. Dämpad tills man nuddar den — att ta bort sitt eget
    citat är sällsynt och ska inte konkurrera med rösta-knappen. */
 .quote-delete {

@@ -7,6 +7,7 @@ import {
   fetchSession,
   linkDiscord,
   MAX_DISCORD_NAME,
+  WOT_LOGIN_URL,
   type CardAttribute,
   type CardTier,
   type PlayerCard,
@@ -266,6 +267,10 @@ export function Roster() {
   // slipper hålla en egen kopia som kan glida isär från uträkningen.
   const legend = lineup.find((e) => e.attributes.length > 0)?.attributes ?? []
 
+  // Delas av både Discord- och WoT-länkningen: samma inloggade besökares egen
+  // rad i rostern, om hen finns med.
+  const mine = session ? (live.find((m) => m.steamid64 === session.steamid64) ?? null) : null
+
   return (
     <section id="gubbarna">
       <div className="container">
@@ -306,10 +311,8 @@ export function Roster() {
             : 'Rostern fylls på med riktiga nick, Steam-avatarer och betyg — logga in med Steam för att synas här.'}
         </p>
 
-        <DiscordLink
-          mine={session ? (live.find((m) => m.steamid64 === session.steamid64) ?? null) : null}
-          onLinked={reloadMembers}
-        />
+        <DiscordLink mine={mine} onLinked={reloadMembers} />
+        <WotLink mine={mine} />
       </div>
     </section>
   )
@@ -371,5 +374,28 @@ function DiscordLink({
       {error && <p className="quote-error">{error}</p>}
       {saved && !error && <p className="roster-note">Sparat — namnet syns på ditt kort.</p>}
     </form>
+  )
+}
+
+// Ingen egen inloggning — bara en länk till ett riktigt Wargaming-konto, samma
+// idé som Discord-namnet men med en kontokoll i stället för fritext. En hel
+// sidnavigering, inte ett fetch-anrop: det är en OAuth-liknande redirect ut
+// till Wargaming och tillbaka.
+function WotLink({ mine }: { mine: RosterMember | null }) {
+  if (!mine) return null
+
+  return (
+    <p className="roster-note wot-link">
+      {mine.wotNickname ? (
+        <>
+          Länkad mot World of Tanks som <strong>{mine.wotNickname}</strong>.{' '}
+          <a href={WOT_LOGIN_URL}>Byt konto</a>
+        </>
+      ) : (
+        <a className="btn btn-ghost" href={WOT_LOGIN_URL}>
+          Länka World of Tanks
+        </a>
+      )}
+    </p>
   )
 }

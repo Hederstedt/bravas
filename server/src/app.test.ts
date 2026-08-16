@@ -7,6 +7,7 @@ import { resetPresenceSnapshot } from "./presencePoller.ts";
 import { db } from "./db.ts";
 import { createSessionCookieValue } from "./session.ts";
 import { sessionCookie } from "./session.ts";
+import * as wotAuth from "./wotAuth.ts";
 
 const app = createApp();
 const ALLOWED = "76561198053832683";
@@ -88,6 +89,24 @@ function steamStats(stats: Record<string, number>) {
   );
 }
 
+function ownedGames(minutes: number) {
+  return new Response(
+    JSON.stringify({ response: { games: [{ appid: 892970, playtime_forever: minutes }] } }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
+}
+
+// getHighlights slår mot både CS2- och Valheim-speltidsvägen, som har varsin
+// Steam-endpoint. Ett enda mockat svar för alla anrop skulle göra
+// GetOwnedGames-frågan ogiltig och få den att räknas som stale i all evighet.
+function steamCallsFor(stats: Record<string, number>, minutes = 0) {
+  return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    if (url.includes("GetOwnedGames")) return ownedGames(minutes);
+    return steamStats(stats);
+  });
+}
+
 function addMember(steamid64: string, personaName: string) {
   db.prepare("INSERT OR IGNORE INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(
     steamid64,
@@ -130,9 +149,7 @@ describe("GET /api/stats/highlights", () => {
 
   it("serves cached stats instead of calling Steam again", async () => {
     addMember(ALLOWED, "[BVS] #Mag");
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(steamStats({ total_kills: 47821 }));
+    const fetchSpy = steamCallsFor({ total_kills: 47821 }, 600);
 
     await request(app).get("/api/stats/highlights").expect(200);
     const callsAfterFirst = fetchSpy.mock.calls.length;
@@ -144,7 +161,7 @@ describe("GET /api/stats/highlights", () => {
 
   it("keeps serving the cached numbers when Steam goes down", async () => {
     addMember(ALLOWED, "[BVS] #Mag");
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(steamStats({ total_kills: 47821 }));
+    steamCallsFor({ total_kills: 47821 }, 600);
     await request(app).get("/api/stats/highlights").expect(200);
 
     db.prepare("UPDATE cs2_stats SET fetched_at = 0").run();
@@ -398,6 +415,69 @@ describe("POST /api/members/link", () => {
 
     const tokenRes = await agent.get("/api/auth/csrf-token").set("Cookie", session).expect(401);
     expect(tokenRes.body).toEqual({ error: "not_authenticated" });
+  });
+});
+
+// GET-baserat precis som Steam-inloggningen: en redirect ut och en tillbaka,
+// ingen CSRF-token inblandad — samma resonemang som för /api/auth/steam/*.
+describe("GET /api/members/wot/login", () => {
+  it("rejects an anonymous caller", async () => {
+    await request(app).get("/api/members/wot/login").expect(401);
+  });
+
+  it("sends a signed-in member to Wargaming", async () => {
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+
+    const res = await request(app)
+      .get("/api/members/wot/login")
+      .set("Cookie", sessionFor(ALLOWED))
+      .expect(302);
+
+    expect(res.headers.location).toContain("api.worldoftanks.eu/wot/auth/login/");
+  });
+});
+
+describe("GET /api/members/wot/callback", () => {
+  it("rejects an anonymous caller", async () => {
+    await request(app).get("/api/members/wot/callback").expect(401);
+  });
+
+  it("links the account when Wargaming confirms it, then sends the browser home", async () => {
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+    vi.spyOn(wotAuth, "verifyCallback").mockResolvedValue({ accountId: "500123456", nickname: "GubbeIRL" });
+
+    const res = await request(app)
+      .get("/api/members/wot/callback")
+      .set("Cookie", sessionFor(ALLOWED))
+      .query({ status: "ok", account_id: "500123456", access_token: "tok" })
+      .expect(302);
+
+    expect(res.headers.location).toBe("https://bravas.test/?wot=linked");
+    const stored = db.prepare("SELECT wot_account_id, wot_nickname FROM members WHERE steamid64 = ?").get(ALLOWED);
+    expect(stored).toEqual({ wot_account_id: "500123456", wot_nickname: "GubbeIRL" });
+  });
+
+  it("sends the browser home with a failure flag instead of linking a forged callback", async () => {
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+    vi.spyOn(wotAuth, "verifyCallback").mockResolvedValue(null);
+
+    const res = await request(app)
+      .get("/api/members/wot/callback")
+      .set("Cookie", sessionFor(ALLOWED))
+      .query({ status: "ok", account_id: "500123456", access_token: "forged" })
+      .expect(302);
+
+    expect(res.headers.location).toBe("https://bravas.test/?wot=failed");
+    const stored = db.prepare("SELECT wot_account_id FROM members WHERE steamid64 = ?").get(ALLOWED) as {
+      wot_account_id: string | null;
+    };
+    expect(stored.wot_account_id).toBeNull();
   });
 });
 

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import * as api from '../api'
@@ -20,14 +20,14 @@ const MAG: RosterMember = {
   steamid64: '76561198053832683',
   personaName: '[BVS] #Mag',
   avatarUrl: 'https://avatars.example/mag.jpg',
-  discordName: 'mag',
+  discordName: 'mag', wotNickname: null,
 }
 
 const HIDDEN: RosterMember = {
   steamid64: '76561198000000002',
   personaName: '[BVS] Hemlig',
   avatarUrl: null,
-  discordName: null,
+  discordName: null, wotNickname: null,
 }
 
 const MAG_CARD: PlayerCard = {
@@ -189,7 +189,7 @@ describe('comparing an attribute', () => {
     steamid64: '76561198000000003',
     personaName: '[BVS] Rival',
     avatarUrl: null,
-    discordName: null,
+    discordName: null, wotNickname: null,
   }
 
   const RIVAL_CARD: PlayerCard = {
@@ -285,7 +285,7 @@ describe('linking a Discord name', () => {
 
   it('saves the name and refreshes the roster so the card updates', async () => {
     const user = userEvent.setup()
-    stubApi({ members: [{ ...MAG, discordName: null }], cards: [MAG_CARD], session })
+    stubApi({ members: [{ ...MAG, discordName: null , wotNickname: null}], cards: [MAG_CARD], session })
     const link = vi.spyOn(api, 'linkDiscord').mockResolvedValue(true)
 
     render(<Roster />)
@@ -308,6 +308,38 @@ describe('linking a Discord name', () => {
     await user.click(screen.getByRole('button', { name: 'Koppla till kortet' }))
 
     expect(await screen.findByText(/kunde inte sparas/)).toBeInTheDocument()
+  })
+})
+
+// Ingen egen inloggning eller formulär att fylla i — bara en länk ut till
+// Wargaming och tillbaka, så testerna kollar länken snarare än ett anrop.
+describe('linking a World of Tanks account', () => {
+  const session = { steamid64: MAG.steamid64 }
+
+  it('offers to link an account for a signed-in member who has not linked one', async () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD], session })
+    render(<Roster />)
+
+    const link = await screen.findByRole('link', { name: 'Länka World of Tanks' })
+    expect(link).toHaveAttribute('href', api.WOT_LOGIN_URL)
+  })
+
+  it('shows the linked nickname instead of the invitation once linked', async () => {
+    stubApi({ members: [{ ...MAG, wotNickname: 'GubbeIRL' }], cards: [MAG_CARD], session })
+    render(<Roster />)
+
+    expect(await screen.findByText(/Länkad mot World of Tanks som/)).toBeInTheDocument()
+    expect(screen.getByText('GubbeIRL')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Länka World of Tanks' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Byt konto' })).toHaveAttribute('href', api.WOT_LOGIN_URL)
+  })
+
+  it('hides the link from anonymous visitors', async () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD], session: null })
+    render(<Roster />)
+
+    await waitFor(() => cardFor(MAG.personaName))
+    expect(screen.queryByRole('link', { name: /World of Tanks/ })).not.toBeInTheDocument()
   })
 })
 
