@@ -103,6 +103,19 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_presence_samples_member ON presence_samples(steamid64, at);
 
+  -- Vem som synts i Discord-widgeten, och när. Egen tabell i stället för en
+  -- rad till i presence_samples: den har bara ett läge ("synlig"), inget
+  -- "game"-fält, och medvetet skild från Steam-närvaron — en gubbe kan mycket
+  -- väl sitta i röstchatt och spela CS2 samtidigt, och skulle de dela ström
+  -- hade den ena skrivningen hela tiden avbrutit den andras spann.
+  CREATE TABLE IF NOT EXISTS discord_samples (
+    at INTEGER NOT NULL,
+    steamid64 TEXT NOT NULL,
+    PRIMARY KEY (at, steamid64)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_discord_samples_member ON discord_samples(steamid64, at);
+
   -- Månadens BVS:are. Ett kryss per månad — tabellen är sin egen markör:
   -- kröningsjobbet räknar om en avslutad månad bara om den saknar en rad här,
   -- vilket gör hela mekaniken omstartssäker utan extra state.
@@ -497,6 +510,31 @@ export function listPresenceSamples(steamid64: string, since = 0): PresenceSampl
   return db
     .prepare("SELECT * FROM presence_samples WHERE steamid64 = ? AND at >= ? ORDER BY at")
     .all(steamid64, since) as PresenceSample[];
+}
+
+// ---------- Discord-widgeten ----------
+
+export interface DiscordSample {
+  at: number;
+  steamid64: string;
+}
+
+export function lastDiscordSample(steamid64: string): DiscordSample | undefined {
+  return db
+    .prepare("SELECT * FROM discord_samples WHERE steamid64 = ? ORDER BY at DESC LIMIT 1")
+    .get(steamid64) as DiscordSample | undefined;
+}
+
+export function recordDiscordSample(at: number, steamid64: string): void {
+  db.prepare(
+    "INSERT INTO discord_samples (at, steamid64) VALUES (?, ?) ON CONFLICT(at, steamid64) DO NOTHING"
+  ).run(at, steamid64);
+}
+
+export function listDiscordSamples(steamid64: string, since = 0): DiscordSample[] {
+  return db
+    .prepare("SELECT * FROM discord_samples WHERE steamid64 = ? AND at >= ? ORDER BY at")
+    .all(steamid64, since) as DiscordSample[];
 }
 
 // ---------- Månadens BVS:are ----------
