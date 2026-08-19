@@ -1,4 +1,4 @@
-import type { PresenceSample } from "./db.ts";
+import type { DiscordSample, PresenceSample } from "./db.ts";
 import { clampToWindow, spans } from "./sampleSpans.ts";
 
 // Månadens BVS:are: viktad poäng med tak per spel, inte rena timmar. Rör inte
@@ -41,4 +41,33 @@ export function scoreFor(hours: ReadonlyMap<string, number>): number {
   let score = 0;
   for (const h of hours.values()) score += Math.min(CAP_HOURS_PER_GAME, h);
   return score;
+}
+
+// Discord-widgeten har inget "game"-fält att gruppera på — den vet bara att
+// någon syntes, inte i vad. "Discord" är därför en påhittad spelrad, men
+// omfattas av exakt samma tak som CS2/WoT/Valheim: den som mest hänger i
+// röstchatt ska inte kunna slå den som faktiskt spelar med klanen.
+export const DISCORD_GAME = "Discord";
+
+function hoursFromSpans(samples: readonly { at: number }[], from: number, to: number): number {
+  let ms = 0;
+  for (const span of spans(samples)) ms += clampToWindow(span, from, to);
+  return ms / 3_600_000;
+}
+
+// Egen tabell (discord_samples, se db.ts) i stället för en rad till i
+// presence_samples — en gubbe kan spela CS2 och sitta i röstchatt samtidigt,
+// och två oberoende skrivare i samma spann-ström hade avbrutit varandras
+// spann varje gång pollern med kortast intervall rörde sig. Slås ihop här,
+// efter att båda är omvandlade till timmar var för sig.
+export function hoursPerGameWithDiscord(
+  presenceSamples: readonly PresenceSample[],
+  discordSamples: readonly DiscordSample[],
+  from: number,
+  to: number
+): Map<string, number> {
+  const hours = hoursPerGame(presenceSamples, from, to);
+  const discordHours = hoursFromSpans(discordSamples, from, to);
+  if (discordHours > 0) hours.set(DISCORD_GAME, (hours.get(DISCORD_GAME) ?? 0) + discordHours);
+  return hours;
 }

@@ -1,6 +1,6 @@
-import { crownBvsMonth, getBvsMonthWinner, listMembers, listPresenceSamples } from "./db.ts";
+import { crownBvsMonth, getBvsMonthWinner, listDiscordSamples, listMembers, listPresenceSamples } from "./db.ts";
 import { broadcast } from "./events.ts";
-import { hoursPerGame, scoreFor } from "./bvsMonth.ts";
+import { hoursPerGameWithDiscord, scoreFor } from "./bvsMonth.ts";
 
 // En gång i timmen räcker — svaret för en given månad ändras bara i det
 // ögonblick den avslutas, resten av tiden är kollen bara en billig no-op mot
@@ -35,7 +35,12 @@ function decideWinner(from: number, to: number): { steamid64: string; score: num
   let best: { steamid64: string; score: number } | null = null;
 
   for (const m of listMembers()) {
-    const hours = hoursPerGame(listPresenceSamples(m.steamid64, from), from, to);
+    const hours = hoursPerGameWithDiscord(
+      listPresenceSamples(m.steamid64, from),
+      listDiscordSamples(m.steamid64, from),
+      from,
+      to
+    );
     const score = scoreFor(hours);
     if (score <= 0) continue; // ingen aktivitet räknas inte som en kandidat
 

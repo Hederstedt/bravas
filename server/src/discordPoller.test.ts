@@ -1,9 +1,11 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { createApp } from "./app.ts";
 import {
   currentDiscordStatus,
+  discordNameMatches,
   discordStatusChanged,
+  pollOnce,
   refreshDiscordStatus,
   resetDiscordSnapshot,
   startDiscordPolling,
@@ -11,8 +13,24 @@ import {
 } from "./discordPoller.ts";
 import { DISCORD_UNAVAILABLE, type DiscordStatus } from "./discordWidget.ts";
 import { config } from "./config.ts";
+import { db, listDiscordSamples } from "./db.ts";
 
 const app = createApp();
+
+function addMember(steamid64: string, personaName: string, discordName: string | null) {
+  db.prepare("INSERT OR IGNORE INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(
+    steamid64,
+    personaName,
+    Date.now()
+  );
+  db.prepare(
+    "INSERT INTO members (steamid64, persona_name, avatar_url, discord_name, first_login, last_login) VALUES (?, ?, ?, ?, ?, ?)"
+  ).run(steamid64, personaName, null, discordName, Date.now(), Date.now());
+}
+
+beforeEach(() => {
+  db.exec("DELETE FROM members; DELETE FROM allowlist; DELETE FROM discord_samples;");
+});
 
 const ONLINE: DiscordStatus = {
   available: true,
@@ -155,5 +173,68 @@ describe("GET /api/discord", () => {
 
     const res = await request(app).get("/api/discord").expect(200);
     expect(JSON.stringify(res.body)).not.toContain("323523542312419348");
+  });
+});
+
+describe("discordNameMatches", () => {
+  it("matches regardless of case and surrounding whitespace", () => {
+    expect(discordNameMatches("  Mag  ", "mag")).toBe(true);
+  });
+
+  // Gubbar som skrev in sitt namn innan Discord slopade diskriminatorer ska
+  // inte behöva gå in och ändra det för att matchningen ska ta.
+  it("ignores a legacy #1234 discriminator on either side", () => {
+    expect(discordNameMatches("mag#1234", "Mag")).toBe(true);
+    expect(discordNameMatches("Mag", "mag#1234")).toBe(true);
+  });
+
+  it("does not match a different name", () => {
+    expect(discordNameMatches("Mag", "Kungalv")).toBe(false);
+  });
+
+  it("never matches an empty discord name", () => {
+    expect(discordNameMatches("", "")).toBe(false);
+  });
+});
+
+// Widgeten har ingen stabil id-koppling till Steam — matchningen sker på det
+// handskrivna discord_name-fältet, se motiveringen i discordPoller.ts.
+describe("pollOnce — Discord presence sampling", () => {
+  const ALLOWED = "76561198053832683";
+
+  it("records a sample for a member whose linked Discord name shows up in the widget", async () => {
+    addMember(ALLOWED, "[BVS] #Mag", "Mag");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(widgetResponse(ONLINE));
+
+    await pollOnce();
+
+    expect(listDiscordSamples(ALLOWED)).toHaveLength(1);
+  });
+
+  it("records nothing for a member who has not linked a Discord name", async () => {
+    addMember(ALLOWED, "[BVS] #Mag", null);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(widgetResponse(ONLINE));
+
+    await pollOnce();
+
+    expect(listDiscordSamples(ALLOWED)).toHaveLength(0);
+  });
+
+  it("skips a member whose linked name is not in the widget", async () => {
+    addMember(ALLOWED, "[BVS] #Mag", "NågonAnnan");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(widgetResponse(ONLINE));
+
+    await pollOnce();
+
+    expect(listDiscordSamples(ALLOWED)).toHaveLength(0);
+  });
+
+  it("writes nothing when the widget is unavailable", async () => {
+    addMember(ALLOWED, "[BVS] #Mag", "Mag");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 403 }));
+
+    await pollOnce();
+
+    expect(listDiscordSamples(ALLOWED)).toHaveLength(0);
   });
 });

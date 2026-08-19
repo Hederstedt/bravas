@@ -1,5 +1,5 @@
-import { getBvsMonthWinner, getMember, listMembers, listPresenceSamples } from "./db.ts";
-import { hoursPerGame, scoreFor } from "./bvsMonth.ts";
+import { getBvsMonthWinner, getMember, listDiscordSamples, listMembers, listPresenceSamples } from "./db.ts";
+import { hoursPerGameWithDiscord, scoreFor } from "./bvsMonth.ts";
 import { previousMonth } from "./monthlyPoller.ts";
 
 export interface StandingRow {
@@ -36,7 +36,9 @@ export function getMonthlyStatus(now = new Date()): MonthlyStatus {
     .map((m) => ({
       steamid64: m.steamid64,
       personaName: m.persona_name,
-      score: scoreFor(hoursPerGame(listPresenceSamples(m.steamid64, from), from, to)),
+      score: scoreFor(
+        hoursPerGameWithDiscord(listPresenceSamples(m.steamid64, from), listDiscordSamples(m.steamid64, from), from, to)
+      ),
     }))
     .sort((a, b) => b.score - a.score || a.personaName.localeCompare(b.personaName, "sv"));
 

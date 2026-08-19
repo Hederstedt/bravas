@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { CAP_HOURS_PER_GAME, hoursPerGame, scoreFor } from "./bvsMonth.ts";
-import type { PresenceSample } from "./db.ts";
+import { CAP_HOURS_PER_GAME, DISCORD_GAME, hoursPerGame, hoursPerGameWithDiscord, scoreFor } from "./bvsMonth.ts";
+import type { DiscordSample, PresenceSample } from "./db.ts";
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -21,6 +21,19 @@ function played(steps: { game: string; minutes: number }[], from = START): Prese
   // Avslutande rad så det sista steget får en varaktighet — sista raden i en
   // session ger annars aldrig ett spann.
   rows.push({ at, steamid64: "76561190000000001", game: "Slut" });
+  return rows;
+}
+
+// Samma pulsradsmönster som played(), men utan game-fält — discord_samples
+// vet bara att gubben syntes, inte i vad.
+function seenInDiscord(minutes: number, from = START): DiscordSample[] {
+  const rows: DiscordSample[] = [];
+  let at = from;
+  for (let left = minutes; left > 0; left -= 5) {
+    rows.push({ at, steamid64: "76561190000000001" });
+    at += 5 * MIN;
+  }
+  rows.push({ at, steamid64: "76561190000000001" });
   return rows;
 }
 
@@ -95,5 +108,30 @@ describe("scoreFor", () => {
 
   it("scores nobody at zero", () => {
     expect(scoreFor(new Map())).toBe(0);
+  });
+});
+
+describe("hoursPerGameWithDiscord", () => {
+  it("adds Discord as its own bucket alongside the games played", () => {
+    const hours = hoursPerGameWithDiscord(
+      played([{ game: CS2, minutes: 120 }]),
+      seenInDiscord(60),
+      START,
+      NOW
+    );
+    expect(hours.get(CS2)).toBeCloseTo(2, 5);
+    expect(hours.get(DISCORD_GAME)).toBeCloseTo(1, 5);
+  });
+
+  // Ingen widget-koppling eller inget matchat Discord-namn ska inte lägga
+  // till en tom rad i kartan — samma regel som hoursPerGame redan följer.
+  it("adds no Discord entry when nothing was ever sampled", () => {
+    const hours = hoursPerGameWithDiscord(played([{ game: CS2, minutes: 60 }]), [], START, NOW);
+    expect(hours.has(DISCORD_GAME)).toBe(false);
+  });
+
+  it("scores someone with only Discord time, capped like any other game", () => {
+    const hours = hoursPerGameWithDiscord([], seenInDiscord(40 * 60), START, NOW);
+    expect(scoreFor(hours)).toBe(CAP_HOURS_PER_GAME);
   });
 });
