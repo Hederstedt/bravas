@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildCombinedCards } from "./playerCards.ts";
 import type { MemberStats } from "./cs2Stats.ts";
 import type { WotMemberStats } from "./wotStats.ts";
+import type { MemberPlaytime } from "./valheimPlaytime.ts";
 
 const GOOD_CS2_STATS: Record<string, number> = {
   total_kills: 8000,
@@ -29,6 +30,10 @@ function cs2(steamid64: string, personaName: string): MemberStats {
 
 function wot(steamid64: string): WotMemberStats {
   return { wotAccountId: `wot-${steamid64}`, steamid64, personaName: "ignored", stats: GOOD_WOT_STATS };
+}
+
+function valheim(steamid64: string, minutes = 400 * 60): MemberPlaytime {
+  return { steamid64, personaName: "ignored", minutes };
 }
 
 describe("buildCombinedCards", () => {
@@ -132,5 +137,68 @@ describe("buildCombinedCards", () => {
     );
 
     expect(card!.comments.length).toBeGreaterThan(0);
+  });
+
+  // Den som varken spelar CS2 eller WoT ska ändå kunna få ett betyg — annars
+  // står hen kvar på "OKÄND" bara för att spelvalet är ett annat.
+  it("uses the Valheim rating as the base when only Valheim playtime is known", () => {
+    const [card] = buildCombinedCards(
+      [{ steamid64: "7", personaName: "Bara Valheim" }],
+      new Map(),
+      new Map(),
+      new Map([["7", valheim("7")]])
+    );
+
+    expect(card!.hasStats).toBe(true);
+    expect(card!.overall).toBeGreaterThan(1);
+    expect(card!.position).not.toBe("OKÄND");
+  });
+
+  it("adds Valheim as a bonus on top of the CS2 base, never past 99", () => {
+    const cs2Only = buildCombinedCards(
+      [{ steamid64: "8", personaName: "Gubbe" }],
+      new Map([["8", cs2("8", "Gubbe")]]),
+      new Map(),
+      new Map()
+    )[0]!;
+
+    const withValheim = buildCombinedCards(
+      [{ steamid64: "8", personaName: "Gubbe" }],
+      new Map([["8", cs2("8", "Gubbe")]]),
+      new Map(),
+      new Map([["8", valheim("8")]])
+    )[0]!;
+
+    expect(withValheim.overall).toBeGreaterThanOrEqual(cs2Only.overall);
+    expect(withValheim.overall).toBeLessThanOrEqual(99);
+  });
+
+  it("stacks CS2, WoT and Valheim bonuses without ever lowering the score", () => {
+    const cs2Only = buildCombinedCards(
+      [{ steamid64: "9", personaName: "Gubbe" }],
+      new Map([["9", cs2("9", "Gubbe")]]),
+      new Map(),
+      new Map()
+    )[0]!;
+
+    const allThree = buildCombinedCards(
+      [{ steamid64: "9", personaName: "Gubbe" }],
+      new Map([["9", cs2("9", "Gubbe")]]),
+      new Map([["9", wot("9")]]),
+      new Map([["9", valheim("9")]])
+    )[0]!;
+
+    expect(allThree.overall).toBeGreaterThanOrEqual(cs2Only.overall);
+    expect(allThree.overall).toBeLessThanOrEqual(99);
+  });
+
+  it("leaves Valheim-less members exactly as before (default parameter)", () => {
+    const [card] = buildCombinedCards(
+      [{ steamid64: "10", personaName: "Gubbe" }],
+      new Map([["10", cs2("10", "Gubbe")]]),
+      new Map()
+    );
+
+    expect(card!.hasStats).toBe(true);
   });
 });
