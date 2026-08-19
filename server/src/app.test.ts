@@ -26,7 +26,9 @@ beforeEach(() => {
   resetPresenceSnapshot();
   closeAllSubscribers();
   resetRateLimits();
-  db.exec("DELETE FROM members; DELETE FROM allowlist; DELETE FROM cs2_stats; DELETE FROM bvs_month;");
+  db.exec(
+    "DELETE FROM members; DELETE FROM allowlist; DELETE FROM cs2_stats; DELETE FROM bvs_month; DELETE FROM valheim_playtime; DELETE FROM wot_stats;"
+  );
   db.prepare("INSERT INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(ALLOWED, "[BVS] #Mag", Date.now());
 });
 
@@ -244,7 +246,10 @@ describe("GET /api/stats/cards", () => {
 
   it("shares the cache with the highlights endpoint instead of refetching", async () => {
     addMember(ALLOWED, "[BVS] #Mag");
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(steamStats(FULL_STATS));
+    // steamCallsFor besvarar GetOwnedGames rätt (till skillnad från den blanka
+    // steamStats-mocken) så Valheim-speltiden faktiskt cachas i stället för
+    // att räknas som misslyckad och försökas igen vid varje anrop.
+    const fetchSpy = steamCallsFor(FULL_STATS, 600);
 
     await request(app).get("/api/stats/highlights").expect(200);
     const callsAfterHighlights = fetchSpy.mock.calls.length;

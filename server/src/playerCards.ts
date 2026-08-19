@@ -2,16 +2,26 @@ import { rankFor } from "./bvsRank.ts";
 import { rateCard, tierFor, type DerivedCore, type PlayerCard } from "./cs2Cards.ts";
 import { assignQuips, type Derived } from "./cs2Quips.ts";
 import type { MemberStats } from "./cs2Stats.ts";
+import { rateValheimCard } from "./valheimCards.ts";
+import type { MemberPlaytime } from "./valheimPlaytime.ts";
 import { rateWotCard } from "./wotCards.ts";
 import type { WotMemberStats } from "./wotStats.ts";
 
-// CS2 är basen och varje ytterligare länkat och betygsatt spel — i dag bara
-// WoT, fler kan följa samma mönster senare — lägger på en rejäl bonus ovanpå,
-// aldrig ett avdrag. Meningen är att det ska synas: klanens eget betyg ska
-// löna sig att bygga ut, inte bara vara en CS2-siffra med ett stänk annat
-// spel i marginalen. Grunden kan aldrig sjunka för att någon länkat ett svagt
-// konto — Math.min är ett uttryckligt tak, inte bara vad formeln råkar landa på.
+// Ett spel är basen och varje ytterligare rankat spel — CS2, WoT eller
+// Valheim, fler kan följa samma mönster senare — lägger på en rejäl bonus
+// ovanpå, aldrig ett avdrag. Meningen är att det ska synas: klanens eget
+// betyg ska löna sig att bygga ut, inte bara vara en CS2-siffra med ett
+// stänk annat spel i marginalen. Grunden kan aldrig sjunka för att någon
+// länkat ett svagt konto — Math.min är ett uttryckligt tak, inte bara vad
+// formeln råkar landa på.
 const MAX_EXTRA_GAME_BONUS = 15;
+
+// Samma divisor för alla bonuskällor — de är redan 1–99-skalor, så ett
+// toppbetyg (99) ger ungefär taket (15) i bonus, oavsett vilket spel det kom
+// ifrån.
+function bonusFrom(rating: number): number {
+  return Math.min(MAX_EXTRA_GAME_BONUS, Math.round(rating / 7));
+}
 
 // Samma nollställda form som cs2Cards.ts:s egen derive() ger för en gubbe utan
 // statistik — men den behövs här även för någon som aldrig funnits i
@@ -51,32 +61,43 @@ interface CrewMember {
 export function buildCombinedCards(
   members: CrewMember[],
   cs2ById: Map<string, MemberStats>,
-  wotById: Map<string, WotMemberStats>
+  wotById: Map<string, WotMemberStats>,
+  valheimById: Map<string, MemberPlaytime> = new Map()
 ): PlayerCard[] {
   const rated = members.map((m) => {
     const cs2Stats = cs2ById.get(m.steamid64);
     const wotStats = wotById.get(m.steamid64);
+    const valheimStats = valheimById.get(m.steamid64);
 
     const cs2Result = cs2Stats ? rateCard(cs2Stats) : null;
     const wotResult = wotStats ? rateWotCard(wotStats) : null;
+    const valheimResult = valheimStats ? rateValheimCard(valheimStats) : null;
 
     const cs2Derived = cs2Result?.derived ?? emptyCs2Derived();
     const cs2HasStats = cs2Derived.hasStats;
     const wotHasStats = wotResult?.derived.hasStats ?? false;
-    const hasStats = cs2HasStats || wotHasStats;
+    const valheimHasStats = valheimResult?.card.hasStats ?? false;
+    const hasStats = cs2HasStats || wotHasStats || valheimHasStats;
 
     const cs2Overall = cs2Result?.card.overall ?? 0;
     const wotRating = wotResult?.card.rating ?? 0;
+    const valheimRating = valheimResult?.card.rating ?? 0;
 
+    // Basen är det första rankade spelet i CS2 > WoT > Valheim-ordning,
+    // resten lägger på var sin kapad bonus. Samma "aldrig ett avdrag"-regel
+    // som tidigare, nu bara för upp till tre källor i stället för två.
     let overall = 0;
-    if (cs2HasStats && wotHasStats) {
-      const bonus = Math.min(MAX_EXTRA_GAME_BONUS, Math.round(wotRating / 7));
-      overall = Math.min(99, cs2Overall + bonus);
-    } else if (cs2HasStats) {
+    if (cs2HasStats) {
       overall = cs2Overall;
+      if (wotHasStats) overall += bonusFrom(wotRating);
+      if (valheimHasStats) overall += bonusFrom(valheimRating);
     } else if (wotHasStats) {
       overall = wotRating;
+      if (valheimHasStats) overall += bonusFrom(valheimRating);
+    } else if (valheimHasStats) {
+      overall = valheimRating;
     }
+    overall = Math.min(99, overall);
 
     // BVS egen rang, inte "AWP" eller "TAKTIKER" — samma titlar oavsett vilket
     // spel betyget kom ifrån, se bvsRank.ts.

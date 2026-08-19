@@ -278,6 +278,20 @@ describe("GET /api/admin/applications", () => {
     db.prepare("DELETE FROM members WHERE steamid64 = ?").run(ADMIN);
     await request(app).get("/api/admin/applications").set("Cookie", sessionFor(ADMIN)).expect(401);
   });
+
+  // En avgjord ansökan ligger kvar i tabellen som historik, men ska inte
+  // dyka upp igen i kön med Godkänn/Avslå-knappar vid nästa sidladdning.
+  it("drops an application once it has been decided", async () => {
+    await seedApplication();
+    expect((await post(ADMIN, `/api/admin/applications/${APPLICANT}/approve`)).status).toBe(204);
+
+    const res = await request(app)
+      .get("/api/admin/applications")
+      .set("Cookie", sessionFor(ADMIN))
+      .expect(200);
+
+    expect(res.body.applications).toEqual([]);
+  });
 });
 
 describe("POST /api/admin/applications/:steamid64/approve", () => {
