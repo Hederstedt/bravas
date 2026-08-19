@@ -356,13 +356,11 @@ export function upsertApplication(input: {
   ).run({ ...input, now: Date.now() });
 }
 
-// Väntande först: det är de som kräver en handling. Resten är historik.
+// Bara väntande — de avgjorda ligger kvar i tabellen som historik, men ska
+// inte dyka upp igen i admins kö med Godkänn/Avslå-knappar vid varje sidladdning.
 export function listApplications(): Application[] {
   return db
-    .prepare(
-      `SELECT * FROM applications
-       ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, created_at DESC`
-    )
+    .prepare(`SELECT * FROM applications WHERE status = 'pending' ORDER BY created_at DESC`)
     .all() as Application[];
 }
 
