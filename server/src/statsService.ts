@@ -254,11 +254,13 @@ export async function getCards(): Promise<CardsResult> {
   const members = listMembers();
   const { withStats: cs2WithStats } = await getCrewStats();
   const wotStats = await getCrewWotStats(members);
+  const valheimPlaytime = await getCrewPlaytime(members);
 
   const cs2ById = new Map(cs2WithStats.map((m) => [m.steamid64, m]));
   const wotById = new Map(wotStats.map((m) => [m.steamid64, m]));
+  const valheimById = new Map(valheimPlaytime.map((m) => [m.steamid64, m]));
   const crew = members.map((m) => ({ steamid64: m.steamid64, personaName: m.persona_name }));
-  const cards = buildCombinedCards(crew, cs2ById, wotById);
+  const cards = buildCombinedCards(crew, cs2ById, wotById, valheimById);
   const reigning = getReigningBvsMonth();
   const decorated = cards.map((c) => ({ ...c, memberOfMonth: c.steamid64 === reigning?.steamid64 }));
 
