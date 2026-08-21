@@ -59,7 +59,9 @@ test('all sections are present, with the crew first', async ({ page }) => {
   // sedan Siffrorna grupperas per spel — låst till Spel-sektionen för att inte
   // bli tvetydig.
   await expect(page.locator('#spel').getByRole('heading', { name: 'World of Tanks' })).toBeAttached()
-  await expect(page.getByText('Demo-data')).toBeAttached()
+  // Ett fungerande API som svarar tomt (ingen inloggad än) ska aldrig hitta
+  // på siffror för att fylla ut sektionen.
+  await expect(page.getByText('Demo-data')).toHaveCount(0)
 
   // Gubbarna är sidans huvudnummer och ska ligga före spelen, inte efter.
   const order = await page.evaluate(() =>
@@ -112,11 +114,12 @@ test('anonymous visitors are offered Steam login', async ({ page, isMobile }) =>
   if (isMobile) await page.getByRole('button', { name: 'Öppna menyn' }).click()
   await expect(page.getByRole('link', { name: /Logga in med Steam/ }).first()).toBeVisible()
 
-  // Ingen har loggat in i det här scenariot, så platshållarna ska stå kvar.
-  await expect(page.getByRole('heading', { name: 'Gubbe #1' })).toBeAttached()
+  // Ingen har loggat in i det här scenariot — sektionen ska säga det rakt ut,
+  // inte hitta på en laguppställning.
+  await expect(page.getByText(/ingen har loggat in än/i)).toBeAttached()
 })
 
-test('signed-in members replace the placeholder roster', async ({ page, isMobile }) => {
+test('signed-in members appear in the roster', async ({ page, isMobile }) => {
   await page.route('**/api/auth/me', (route) =>
     route.fulfill({ json: { authenticated: true, steamid64: '76561198060166361' } }),
   )
@@ -138,7 +141,7 @@ test('signed-in members replace the placeholder roster', async ({ page, isMobile
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: '[BVS] Kungalv' })).toBeAttached()
-  await expect(page.getByRole('heading', { name: 'Gubbe #1' })).toHaveCount(0)
+  await expect(page.getByText(/ingen har loggat in än/i)).toHaveCount(0)
 
   if (isMobile) await page.getByRole('button', { name: 'Öppna menyn' }).click()
   await expect(page.getByRole('link', { name: /Logga in med Steam/ })).toHaveCount(0)
@@ -157,7 +160,6 @@ test('the quote wall asks anonymous visitors to log in', async ({ page }) => {
 
   await page.goto('/')
 
-  // Demo-statistiken råkar citera samma replik, så sökningen hålls inom sektionen.
   const wall = page.locator('#citat')
   await expect(wall.getByRole('blockquote')).toHaveText('Jag hade ju träklubban')
   await expect(wall.getByRole('button', { name: 'Rösta' })).toHaveCount(0)
@@ -227,6 +229,50 @@ test('no horizontal overflow', async ({ page }) => {
 // hade ett öppnat attribut vuxit varenda kort i raden samtidigt (grid-items
 // sträcker sig till det högsta syskonet som standard) och knuffat sidan nedåt.
 test('opening an attribute does not resize the lineup', async ({ page }) => {
+  // Behöver ett riktigt kort med attribut att klicka på — sektionen visar
+  // inget kort alls i det tomma standardläget från beforeEach.
+  await page.route('**/api/members', (route) =>
+    route.fulfill({
+      json: {
+        members: [
+          {
+            steamid64: '76561198060166361',
+            personaName: '[BVS] Kungalv',
+            avatarUrl: null,
+            discordName: null,
+          },
+        ],
+      },
+    }),
+  )
+  await page.route('**/api/stats/cards', (route) =>
+    route.fulfill({
+      json: {
+        cards: [
+          {
+            steamid64: '76561198060166361',
+            personaName: '[BVS] Kungalv',
+            hasStats: true,
+            overall: 74,
+            tier: 'silver',
+            position: 'AWP',
+            attributes: [
+              { key: 'SIK', label: 'Sikte', description: 'Andel av avlossade skott som träffar', rating: 80 },
+              { key: 'SKA', label: 'Skallar', description: 'Andel av hans kills som är headshots', rating: 71 },
+              { key: 'FRA', label: 'Frag', description: 'Kills per spelad runda', rating: 55 },
+              { key: 'TÅL', label: 'Tålighet', description: 'Hur ofta han överlever rundan', rating: 92 },
+              { key: 'NYT', label: 'Nytta', description: 'Bomber och MVP:er per runda', rating: 64 },
+              { key: 'TID', label: 'Tid', description: 'Total speltid i CS2', rating: 88 },
+            ],
+            wotAttributes: [],
+            comments: ['Smyger runt mest.'],
+            memberOfMonth: false,
+          },
+        ],
+      },
+    }),
+  )
+
   await page.goto('/')
 
   const card = page.locator('.player-card').first()
