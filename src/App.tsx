@@ -7,6 +7,7 @@ import { ApplyPage } from './components/applyPage'
 import { HomePage } from './components/home'
 import { InfoPage } from './components/infoPage'
 import { NotFoundPage } from './components/notFoundPage'
+import { RouteMeta } from './components/routeMeta'
 import { Nav, Footer } from './components/sections'
 
 // Managern är ett helt spel — simulering, tabell, marknad, träning och ett
@@ -23,6 +24,7 @@ const MatchReportPage = lazy(() =>
 function App() {
   return (
     <>
+      <RouteMeta />
       <Nav />
       <Suspense fallback={<p className="roster-note route-loading">Hämtar managern…</p>}>
         <Routes>

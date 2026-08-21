@@ -96,12 +96,12 @@ test('the manager page is reachable from the nav and by direct address', async (
   } else {
     await page.locator('.nav-links').getByRole('link', { name: 'Manager' }).click()
   }
-  await expect(page.getByRole('heading', { name: 'Manager' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Bravas CS Manager' })).toBeVisible()
 
   // En delad länk ska fungera utan att gå via startsidan. Vites preview har
   // SPA-fallback inbyggd — i drift kräver detta try_files i nginx.
   await page.goto('/manager')
-  await expect(page.getByRole('heading', { name: 'Manager' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Bravas CS Manager' })).toBeVisible()
 
   // Och logotypen leder hem igen.
   await page.getByRole('link', { name: /BVS/ }).click()

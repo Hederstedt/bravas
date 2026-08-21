@@ -10,7 +10,7 @@ export function InfoPage() {
         <div className="container">
           <div className="section-head">
             <span className="index">?</span>
-            <h2>Kom igång</h2>
+            <h1>Kom igång med Bravas</h1>
           </div>
 
           <p className="roster-note">

@@ -11,7 +11,7 @@ export function NotFoundPage() {
         <div className="container">
           <div className="section-head">
             <span className="index">404</span>
-            <h2>Sidan finns inte</h2>
+            <h1>Sidan finns inte</h1>
           </div>
           <p className="roster-note">
             Adressen stämmer inte, eller så har sidan flyttat. Kolla länken en gång till, eller gå

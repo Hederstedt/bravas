@@ -46,7 +46,7 @@ export function ManagerPage() {
         <div className="container">
           <div className="section-head">
             <span className="index">CS</span>
-            <h2>Manager</h2>
+            <h1>Bravas CS Manager</h1>
           </div>
 
           {view === 'loading' && <p className="roster-note">Hämtar säsongen…</p>}
