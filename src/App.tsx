@@ -1,11 +1,12 @@
 import './App.css'
 import { lazy, Suspense } from 'react'
-import { Navigate, Route, Routes } from 'react-router'
+import { Route, Routes } from 'react-router'
 import { AccountPage } from './components/accountPage'
 import { AdminPage } from './components/adminPage'
 import { ApplyPage } from './components/applyPage'
 import { HomePage } from './components/home'
 import { InfoPage } from './components/infoPage'
+import { NotFoundPage } from './components/notFoundPage'
 import { Nav, Footer } from './components/sections'
 
 // Managern är ett helt spel — simulering, tabell, marknad, träning och ett
@@ -33,7 +34,7 @@ function App() {
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/manager" element={<ManagerPage />} />
           <Route path="/manager/match/:id" element={<MatchReportPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
       <Footer />

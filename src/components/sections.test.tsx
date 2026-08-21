@@ -3,9 +3,9 @@ import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { About, DiscordCta, Nav, Games, Stats } from './sections'
-import { games, members, statHighlights } from '../data/clan'
+import { games, statHighlights } from '../data/clan'
 import * as api from '../api'
-import type { ValheimStatus } from '../api'
+import type { Highlights, ValheimStatus } from '../api'
 import { emitLiveEvent, installLiveEvents, teardownLiveEvents } from '../test/liveEvents'
 
 // Nav använder Link och behöver en router omkring sig.
@@ -167,26 +167,40 @@ describe('Valheim server status', () => {
 })
 
 describe('Stats', () => {
-  it('renders all highlights and the demo badge', () => {
-    render(<Stats />)
-    expect(screen.getByText('Demo-data')).toBeInTheDocument()
-    for (const s of statHighlights) {
-      expect(screen.getByText(s.label)).toBeInTheDocument()
-    }
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
-  it('groups highlights under a heading per game', () => {
+  // statHighlights (data/clan.ts) är kvar som fixture för tester — samma
+  // uppsättning spel som förut, bara inte längre riktig produktionsdata.
+  const HIGHLIGHTS: Highlights = { highlights: statHighlights, memberCount: 6, withStats: 4 }
+
+  it('renders real highlights once they have arrived, with no demo badge', async () => {
+    vi.spyOn(api, 'fetchHighlightsResult').mockResolvedValue({ ok: true, data: HIGHLIGHTS })
     render(<Stats />)
-    // Mock-datan har cs2, wot, valheim, satisfactory och steam — varje spel
-    // som faktiskt har kort ska få en egen rubrik.
+
+    for (const s of HIGHLIGHTS.highlights) {
+      expect(await screen.findByText(s.label)).toBeInTheDocument()
+    }
+    expect(screen.queryByText('Demo-data')).not.toBeInTheDocument()
+  })
+
+  it('groups highlights under a heading per game', async () => {
+    vi.spyOn(api, 'fetchHighlightsResult').mockResolvedValue({ ok: true, data: HIGHLIGHTS })
+    render(<Stats />)
+
+    // Fixture-datan har cs2, wot, valheim, satisfactory och steam — varje
+    // spel som faktiskt har kort ska få en egen rubrik.
     for (const title of ['Counter-Strike 2', 'World of Tanks', 'Valheim', 'Steam']) {
-      expect(screen.getByRole('heading', { name: title, level: 3 })).toBeInTheDocument()
+      expect(await screen.findByRole('heading', { name: title, level: 3 })).toBeInTheDocument()
     }
   })
 
-  it('keeps each game group together, cards under their own heading', () => {
+  it('keeps each game group together, cards under their own heading', async () => {
+    vi.spyOn(api, 'fetchHighlightsResult').mockResolvedValue({ ok: true, data: HIGHLIGHTS })
     render(<Stats />)
-    const cs2Heading = screen.getByRole('heading', { name: 'Counter-Strike 2', level: 3 })
+
+    const cs2Heading = await screen.findByRole('heading', { name: 'Counter-Strike 2', level: 3 })
     const group = cs2Heading.closest<HTMLElement>('.stats-group')!
     for (const s of statHighlights.filter((h) => h.gameId === 'cs2')) {
       expect(within(group).getByText(s.label)).toBeInTheDocument()
@@ -194,6 +208,33 @@ describe('Stats', () => {
     // Ett WoT-rekord ska inte dyka upp i CS2-gruppen.
     const wotOnly = statHighlights.find((h) => h.gameId === 'wot')!
     expect(within(group).queryByText(wotOnly.label)).not.toBeInTheDocument()
+  })
+
+  it('says there is no stats yet instead of showing fictional numbers', async () => {
+    vi.spyOn(api, 'fetchHighlightsResult').mockResolvedValue({
+      ok: true,
+      data: { highlights: [], memberCount: 0, withStats: 0 },
+    })
+    render(<Stats />)
+
+    expect(await screen.findByText(/ingen statistik än/i)).toBeInTheDocument()
+    expect(screen.queryByText('AK-47')).not.toBeInTheDocument()
+    expect(screen.queryByText('Demo-data')).not.toBeInTheDocument()
+  })
+
+  it('shows an error with a retry button when the highlights endpoint fails', async () => {
+    const user = userEvent.setup()
+    const spy = vi
+      .spyOn(api, 'fetchHighlightsResult')
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({ ok: true, data: HIGHLIGHTS })
+    render(<Stats />)
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Försök igen' }))
+
+    expect(await screen.findByText(HIGHLIGHTS.highlights[0]!.label)).toBeInTheDocument()
+    expect(spy).toHaveBeenCalledTimes(2)
   })
 })
 
@@ -304,19 +345,31 @@ describe('About', () => {
       avatarUrl: null,
       discordName: null, wotNickname: null,
     }))
-    vi.spyOn(api, 'fetchMembers').mockResolvedValue(eight)
+    vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({ ok: true, data: eight })
 
     render(<About />)
 
     expect(await screen.findByText('8')).toBeInTheDocument()
   })
 
-  it('falls back to the placeholder count while nobody has logged in', async () => {
-    vi.spyOn(api, 'fetchMembers').mockResolvedValue([])
+  // En fiktiv siffra var precis det problemet: räknaren visade "6" (den
+  // hårdkodade platshållarlängden) även när API:et faktiskt var nere, så en
+  // driftstörning såg ut som en vanlig dag.
+  it('shows a dash instead of a fictional count when the members endpoint fails', async () => {
+    vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({ ok: false })
 
     render(<About />)
 
-    expect(await screen.findByText(String(members.length))).toBeInTheDocument()
+    expect(await screen.findByText('–')).toBeInTheDocument()
+    expect(screen.queryByText('6')).not.toBeInTheDocument()
+  })
+
+  it('shows the dash while waiting for the first answer', () => {
+    vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({ ok: true, data: [] })
+
+    render(<About />)
+
+    expect(screen.getByText('–')).toBeInTheDocument()
   })
 })
 

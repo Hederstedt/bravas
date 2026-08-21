@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import * as api from '../api'
 import type { PlayerCard, RosterMember } from '../api'
-import { members } from '../data/clan'
 import { emitLiveEvent, installLiveEvents, teardownLiveEvents } from '../test/liveEvents'
 import { Roster } from './roster'
 
@@ -62,7 +61,7 @@ function stubApi(overrides: {
   presence?: api.PresenceMap
   session?: api.Session | null
 } = {}) {
-  vi.spyOn(api, 'fetchMembers').mockResolvedValue(overrides.members ?? [])
+  vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({ ok: true, data: overrides.members ?? [] })
   vi.spyOn(api, 'fetchCards').mockResolvedValue(overrides.cards ?? [])
   vi.spyOn(api, 'fetchPresence').mockResolvedValue(overrides.presence ?? {})
   vi.spyOn(api, 'fetchSession').mockResolvedValue(overrides.session ?? null)
@@ -177,18 +176,55 @@ describe('Roster degrading gracefully', () => {
     expect(within(card).getByText(/statistik/i)).toBeInTheDocument()
   })
 
-  it('falls back to the placeholder lineup when nobody has logged in', async () => {
+  // Ett API-fel gav förut exakt samma tomma array som "ingen har loggat in
+  // än" — en driftstörning såg ut som en helt vanlig dag utan medlemmar.
+  it('says nobody has logged in yet instead of showing fictional gubbar', async () => {
     stubApi()
     renderRoster()
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: members[0].nick })).toBeInTheDocument()
+      expect(screen.getByText(/ingen har loggat in än/i)).toBeInTheDocument()
     })
-    for (const m of members) {
-      const card = cardFor(m.nick)
-      expect(within(card).getByText(m.position)).toBeInTheDocument()
-      expect(within(card).getByText(String(m.overall))).toBeInTheDocument()
-    }
+    expect(screen.queryByRole('heading', { level: 3 })).not.toBeInTheDocument()
+  })
+})
+
+describe('Roster loading and error states', () => {
+  it('shows a loading state before the roster has answered', () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    renderRoster()
+
+    expect(screen.getByRole('status')).toHaveTextContent(/hämtar/i)
+  })
+
+  it('shows an error with a retry button when the roster endpoint fails', async () => {
+    vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({ ok: false })
+    vi.spyOn(api, 'fetchCards').mockResolvedValue([])
+    vi.spyOn(api, 'fetchPresence').mockResolvedValue({})
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+    renderRoster()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/kunde inte hämta/i)
+    expect(screen.getByRole('button', { name: 'Försök igen' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 3 })).not.toBeInTheDocument()
+  })
+
+  it('retries the roster fetch when Försök igen is clicked', async () => {
+    const user = userEvent.setup()
+    const spy = vi
+      .spyOn(api, 'fetchMembersResult')
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({ ok: true, data: [MAG] })
+    vi.spyOn(api, 'fetchCards').mockResolvedValue([MAG_CARD])
+    vi.spyOn(api, 'fetchPresence').mockResolvedValue({})
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+    renderRoster()
+
+    await screen.findByRole('alert')
+    await user.click(screen.getByRole('button', { name: 'Försök igen' }))
+
+    expect(await screen.findByRole('heading', { name: MAG.personaName })).toBeInTheDocument()
+    expect(spy).toHaveBeenCalledTimes(2)
   })
 })
 
@@ -244,18 +280,6 @@ describe('comparing an attribute', () => {
     await user.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     expect(within(card).queryByText(/Andel av avlossade skott/)).not.toBeInTheDocument()
-  })
-
-  it('works on the placeholder lineup too', async () => {
-    const user = userEvent.setup()
-    stubApi()
-    renderRoster()
-
-    await waitFor(() => cardFor(members[0].nick))
-    const card = cardFor(members[0].nick)
-    await user.click(within(card).getByRole('button', { name: /TÅL/ }))
-
-    expect(within(card).getByText(/Hur ofta han överlever rundan/)).toBeInTheDocument()
   })
 })
 
@@ -490,11 +514,11 @@ describe('the once-per-session glitter', () => {
     expect(card.querySelector('.card-glitter')).toBeNull()
   })
 
-  it('stays quiet on the placeholder lineup — there is no real winner in demo data', async () => {
+  it('stays quiet when nobody has logged in yet — there is no real winner in an empty roster', async () => {
     stubApi()
     renderRoster()
 
-    await waitFor(() => screen.getByRole('heading', { name: members[0].nick }))
+    await waitFor(() => screen.getByText(/ingen har loggat in än/i))
     expect(document.querySelector('.card-glitter')).toBeNull()
   })
 })

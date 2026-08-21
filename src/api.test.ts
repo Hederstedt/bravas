@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   fetchCards,
+  fetchHighlightsResult,
   fetchManagerView,
   fetchMatchReport,
   fetchMembers,
+  fetchMembersResult,
   fetchPresence,
   fetchSession,
   fetchSiteConfig,
@@ -63,6 +65,27 @@ describe('fetchMembers', () => {
   it('returns an empty roster on a server error', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'boom' }, 500))
     await expect(fetchMembers()).resolves.toEqual([])
+  })
+})
+
+// The roster needs to tell "nobody has logged in yet" (a valid empty answer)
+// apart from "the API didn't answer" (a failure) — fetchMembers alone
+// collapses both into the same empty array, which is exactly what let a
+// production outage look like an ordinary quiet day.
+describe('fetchMembersResult', () => {
+  it('reports ok with the roster on success, even when it is empty', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ members: [] }))
+    await expect(fetchMembersResult()).resolves.toEqual({ ok: true, data: [] })
+  })
+
+  it('reports not ok when the API is unreachable', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'))
+    await expect(fetchMembersResult()).resolves.toEqual({ ok: false })
+  })
+
+  it('reports not ok on a server error', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'boom' }, 500))
+    await expect(fetchMembersResult()).resolves.toEqual({ ok: false })
   })
 })
 
@@ -176,6 +199,23 @@ describe('fetchCards', () => {
   it('returns an empty lineup when the response has no cards', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ memberCount: 0 }))
     await expect(fetchCards()).resolves.toEqual([])
+  })
+})
+
+describe('fetchHighlightsResult', () => {
+  it('reports ok with the highlights on success, even when there are none yet', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ highlights: [], memberCount: 0, withStats: 0 }),
+    )
+    await expect(fetchHighlightsResult()).resolves.toEqual({
+      ok: true,
+      data: { highlights: [], memberCount: 0, withStats: 0 },
+    })
+  })
+
+  it('reports not ok when the API is unreachable', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'))
+    await expect(fetchHighlightsResult()).resolves.toEqual({ ok: false })
   })
 })
 
