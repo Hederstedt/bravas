@@ -5,7 +5,7 @@ import { WOT_LOGIN_URL } from '../api'
 // teknisk och undrar varför kompisen har ett kort och siffror men inte de.
 export function InfoPage() {
   return (
-    <main>
+    <main id="main" tabIndex={-1}>
       <section id="kom-igang">
         <div className="container">
           <div className="section-head">

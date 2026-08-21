@@ -6,7 +6,7 @@ import { Link } from 'react-router'
 // omdirigering.
 export function NotFoundPage() {
   return (
-    <main>
+    <main id="main" tabIndex={-1}>
       <section id="hittades-inte">
         <div className="container">
           <div className="section-head">

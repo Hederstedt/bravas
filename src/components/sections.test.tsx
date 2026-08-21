@@ -210,6 +210,24 @@ describe('Stats', () => {
     expect(within(group).queryByText(wotOnly.label)).not.toBeInTheDocument()
   })
 
+  // Samma synliga text ("Visa alla 3") upprepas på varje kort i rutnätet —
+  // utan ett eget namn per knapp låter alla likadant för skärmläsare.
+  it('gives each expand button its own accessible name and links it to its panel', async () => {
+    vi.spyOn(api, 'fetchHighlightsResult').mockResolvedValue({ ok: true, data: HIGHLIGHTS })
+    const user = userEvent.setup()
+    render(<Stats />)
+
+    const record = statHighlights.find((h) => (h.standings?.length ?? 0) > 1)!
+    const toggle = await screen.findByRole('button', { name: `Visa hela listan för ${record.label}` })
+
+    await user.click(toggle)
+    expect(toggle).toHaveAccessibleName(`Dölj listan för ${record.label}`)
+
+    const panelId = toggle.getAttribute('aria-controls')!
+    const panel = document.getElementById(panelId)!
+    expect(within(panel).getByText(record.standings![0]!.name)).toBeInTheDocument()
+  })
+
   it('says there is no stats yet instead of showing fictional numbers', async () => {
     vi.spyOn(api, 'fetchHighlightsResult').mockResolvedValue({
       ok: true,
@@ -396,5 +414,93 @@ describe('Nav mobile menu', () => {
     const overlay = screen.getByRole('dialog', { name: 'Meny' })
     await user.click(within(overlay).getByRole('link', { name: 'Spel' }))
     expect(screen.queryByRole('dialog', { name: 'Meny' })).not.toBeInTheDocument()
+  })
+
+  // Utan koppling vet ett tekniskt hjälpmedel inte att knappen styr dialogen.
+  it('links the burger button to the dialog with aria-controls', async () => {
+    const user = userEvent.setup()
+    renderNav()
+
+    const burger = screen.getByRole('button', { name: 'Öppna menyn' })
+    await user.click(burger)
+
+    const overlay = screen.getByRole('dialog', { name: 'Meny' })
+    expect(burger).toHaveAttribute('aria-controls', overlay.id)
+  })
+
+  it('moves focus to the first menu link when it opens', async () => {
+    const user = userEvent.setup()
+    renderNav()
+
+    await user.click(screen.getByRole('button', { name: 'Öppna menyn' }))
+    const overlay = screen.getByRole('dialog', { name: 'Meny' })
+    expect(document.activeElement).toBe(within(overlay).getAllByRole('link')[0])
+  })
+
+  it('locks page scroll while open and releases it on close', async () => {
+    const user = userEvent.setup()
+    renderNav()
+
+    await user.click(screen.getByRole('button', { name: 'Öppna menyn' }))
+    expect(document.body.style.overflow).toBe('hidden')
+
+    await user.click(screen.getByRole('button', { name: 'Stäng menyn' }))
+    expect(document.body.style.overflow).toBe('')
+  })
+
+  // Utan en fälla kan Tab lämna dialogen och fortsätta ut i sidan bakom, som
+  // ligger dold men fortfarande i DOM:en (ingen inert/aria-hidden på den).
+  it('traps Tab inside the dialog, wrapping from the last link back to the first', async () => {
+    const user = userEvent.setup()
+    renderNav()
+
+    await user.click(screen.getByRole('button', { name: 'Öppna menyn' }))
+    const overlay = screen.getByRole('dialog', { name: 'Meny' })
+    const focusable = within(overlay).getAllByRole('link')
+    focusable[focusable.length - 1]!.focus()
+
+    await user.tab()
+    expect(document.activeElement).toBe(focusable[0])
+  })
+
+  it('traps Shift+Tab inside the dialog, wrapping from the first link back to the last', async () => {
+    const user = userEvent.setup()
+    renderNav()
+
+    await user.click(screen.getByRole('button', { name: 'Öppna menyn' }))
+    const overlay = screen.getByRole('dialog', { name: 'Meny' })
+    const focusable = within(overlay).getAllByRole('link')
+    focusable[0]!.focus()
+
+    await user.tab({ shift: true })
+    expect(document.activeElement).toBe(focusable[focusable.length - 1])
+  })
+})
+
+describe('Nav aria-current', () => {
+  it('marks the Manager link current on /manager', () => {
+    render(
+      <MemoryRouter initialEntries={['/manager']}>
+        <Nav />
+      </MemoryRouter>,
+    )
+    expect(screen.getAllByRole('link', { name: 'Manager' })[0]).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    expect(screen.getAllByRole('link', { name: 'Kom igång' })[0]).not.toHaveAttribute(
+      'aria-current',
+    )
+  })
+
+  it('marks nothing current on the home page', () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Nav />
+      </MemoryRouter>,
+    )
+    for (const link of screen.getAllByRole('link')) {
+      expect(link).not.toHaveAttribute('aria-current')
+    }
   })
 })

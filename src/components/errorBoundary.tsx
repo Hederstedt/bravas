@@ -28,7 +28,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
     if (!this.state.failed) return this.props.children
 
     return (
-      <main>
+      <main id="main" tabIndex={-1}>
         <section>
           <div className="container">
             <div className="section-head">

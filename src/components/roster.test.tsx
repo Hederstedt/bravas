@@ -281,6 +281,24 @@ describe('comparing an attribute', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     expect(within(card).queryByText(/Andel av avlossade skott/)).not.toBeInTheDocument()
   })
+
+  // Utan kopplingen vet ett tekniskt hjälpmedel inte vilken panel en
+  // attributknapp fäller ut.
+  it('links the attribute button to its panel with aria-controls', async () => {
+    const user = userEvent.setup()
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    renderRoster()
+
+    const card = await waitFor(() => cardFor(MAG.personaName))
+    const toggle = within(card).getByRole('button', { name: /SIK/ })
+    await user.click(toggle)
+
+    const panelId = toggle.getAttribute('aria-controls')
+    expect(panelId).toBeTruthy()
+    expect(document.getElementById(panelId!)).toContainElement(
+      within(card).getByText(/Andel av avlossade skott som träffar/),
+    )
+  })
 })
 
 describe('the attribute legend', () => {
@@ -289,11 +307,25 @@ describe('the attribute legend', () => {
     renderRoster()
 
     await waitFor(() => cardFor(MAG.personaName))
-    expect(screen.getByRole('button', { name: 'Hur räknas betyget fram?' })).toHaveAttribute(
-      'aria-expanded',
-      'false'
-    )
+    const toggle = screen.getByRole('button', { name: 'Hur räknas betyget fram?' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(toggle).toHaveAttribute('aria-controls')
     expect(screen.queryByText(MAG_CARD.attributes[0]!.description)).not.toBeInTheDocument()
+  })
+
+  it('links the legend toggle to its panel with aria-controls', async () => {
+    const user = userEvent.setup()
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    renderRoster()
+
+    await waitFor(() => cardFor(MAG.personaName))
+    const toggle = screen.getByRole('button', { name: 'Hur räknas betyget fram?' })
+    await user.click(toggle)
+
+    const panelId = toggle.getAttribute('aria-controls')!
+    expect(document.getElementById(panelId)).toContainElement(
+      screen.getByText(MAG_CARD.attributes[0]!.description),
+    )
   })
 
   it('spells out what every code means once opened, without needing a hover', async () => {

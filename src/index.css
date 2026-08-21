@@ -110,3 +110,40 @@ img {
   background: var(--accent);
   color: #0a0c0f;
 }
+
+/* Gemensam fokusring för allt som inte redan har en egen — knappar, länkar,
+   formulärfält, tabellåtgärder. Komponenter med clip-path (App.css) sätter
+   sitt eget :focus-visible med negativ outline-offset, för att synas trots
+   den klippta formen; den regeln vinner där tack vare högre specificitet. */
+:focus-visible {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Ankarmål (Gubbarna, Siffrorna, m.fl.) scrollar annars in under den
+   klistrade navbaren (64px hög) och tappar sin egen rubrik ur synhåll. */
+section[id] {
+  scroll-margin-top: 84px;
+}
+
+/* Osynlig tills den får tangentbordsfokus — då är den första stoppet i
+   Tab-ordningen och hoppar rakt förbi nav och hero till huvudinnehållet. */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  z-index: 100;
+  padding: 10px 16px;
+  background: var(--bg-raise);
+  color: var(--text);
+  border: 1px solid var(--accent-line);
+  border-radius: 6px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.skip-link:focus-visible {
+  top: 16px;
+}

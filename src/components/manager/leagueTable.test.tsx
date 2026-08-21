@@ -67,4 +67,12 @@ describe('LeagueTable', () => {
     render(<LeagueTable table={ROWS} />)
     expect(screen.queryByText('BOT')).not.toBeInTheDocument()
   })
+
+  // Enbokstavsrubrikerna (S, V, O, F, P) säger ingenting uppläst utan en
+  // förklaring — en caption ger tabellen en textbeskrivning en skärmläsare
+  // hittar utan att behöva gissa på varje kolumn för sig.
+  it('explains the column abbreviations in a caption', () => {
+    render(<LeagueTable table={ROWS} />)
+    expect(screen.getByText(/S spelade, V vunna, O oavgjorda, F förlorade/)).toBeInTheDocument()
+  })
 })
