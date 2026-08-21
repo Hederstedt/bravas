@@ -1,8 +1,8 @@
 import type { CardAttribute, CardTier, StatHighlight } from '../api'
 
-// Platshållarna ritas med exakt samma kortkomponent som de riktiga gubbarna, så
-// de bär samma fält. En utloggad besökare ska möta en färdig laguppställning,
-// inte tomma rutor som väntar på data.
+// Ritas med exakt samma kortkomponent som de riktiga gubbarna, så fälten
+// matchar. Visas inte längre i produktion — ett API-fel såg tidigare ut som
+// en vanlig dag utan medlemmar, se roster.tsx. Kvar bara som testfixtur.
 export interface Member {
   nick: string
   position: string
@@ -12,9 +12,8 @@ export interface Member {
   attributes: CardAttribute[]
 }
 
-// Speglar SPEC i server/src/cs2Cards.ts. Platshållarna finns bara innan någon
-// loggat in, men de ska förklara attributen på precis samma sätt som de riktiga
-// korten gör.
+// Speglar SPEC i server/src/cs2Cards.ts, så testfixturen förklarar attributen
+// på precis samma sätt som de riktiga korten gör.
 const ATTR_META = [
   ['SIK', 'Sikte', 'Andel av avlossade skott som träffar'],
   ['SKA', 'Skallar', 'Andel av hans kills som är headshots'],
@@ -40,7 +39,7 @@ export interface Game {
   blurb: string
 }
 
-// Placeholder-roster tills gubbarna loggat in med Steam.
+// Testfixtur — importeras inte längre av något produktionskomponent.
 export const members: Member[] = [
   {
     nick: 'Gubbe #1',
@@ -131,20 +130,18 @@ export const gameStatsBlurbs: Record<string, string> = {
 }
 
 // ------------------------------------------------------------------
-// MOCK-DATA för stats-sektionen. Ersätts av riktiga siffror via BFF:en
-// i Steam-sync-fasen. Strukturen speglar källorna:
+// Testfixtur för stats-sektionen — visas inte längre i produktion, se
+// Stats i sections.tsx. Strukturen speglar källorna den en gång stod in för:
 //  - CS2: Steam ISteamUserStats/GetUserStatsForGame (appid 730),
 //    t.ex. total_kills_ak47, total_kills_headshot, total_matches_won
 //  - WoT: Wargaming API (account/info + tanks/stats)
 //  - Speltid: Steam IPlayerService/GetOwnedGames (playtime_forever, minuter)
 // ------------------------------------------------------------------
 
-// Formen kommer från API:et. Mock-datan ska ha exakt samma fält som det riktiga
+// Formen kommer från API:et. Fixturen ska ha exakt samma fält som det riktiga
 // svaret — en egen kopia här hade glidit isär och skillnaden märkts först i
 // webbläsaren.
 export type { StatHighlight } from '../api'
-
-export const statsIsMock = true
 
 export const statHighlights: StatHighlight[] = [
   {

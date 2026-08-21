@@ -71,9 +71,17 @@ describe('routing', () => {
     expect(screen.queryByRole('heading', { name: 'Bravas' })).not.toBeInTheDocument()
   })
 
-  it('redirects unknown paths to the start page', () => {
+  // Wildcard-rutten gick tidigare rakt till Navigate("/") — en felstavad
+  // eller gammal länk såg ut att fungera, och nginx svarade 200 på den också.
+  it('shows a 404 page for unknown paths instead of silently redirecting home', () => {
     renderAt('/finns-inte')
-    expect(screen.getByRole('heading', { name: 'Bravas' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Sidan finns inte' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Bravas' })).not.toBeInTheDocument()
+  })
+
+  it('the 404 page links back to the start page', () => {
+    renderAt('/finns-inte')
+    expect(screen.getByRole('link', { name: /till startsidan/i })).toHaveAttribute('href', '/')
   })
 
   it('keeps nav and footer on every page', async () => {

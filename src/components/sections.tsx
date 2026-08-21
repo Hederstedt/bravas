@@ -3,15 +3,15 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import {
   fetchDiscordStatus,
-  fetchHighlights,
-  fetchMembers,
+  fetchHighlightsResult,
+  fetchMembersResult,
   fetchSession,
   fetchValheimStatus,
   type DiscordStatus,
   type Highlights,
   type ValheimStatus,
 } from '../api'
-import { members, games, gameStatsBlurbs, statHighlights, statsIsMock } from '../data/clan'
+import { games, gameStatsBlurbs } from '../data/clan'
 import { groupHighlights } from '../statsGrouping'
 import { useLiveEvent } from '../useLiveEvents'
 import { useSiteConfig } from '../useSiteConfig'
@@ -389,25 +389,36 @@ export function Games() {
   )
 }
 
+type StatsStatus = 'loading' | 'error' | 'ready'
+
 export function Stats() {
+  const [status, setStatus] = useState<StatsStatus>('loading')
   const [live, setLive] = useState<Highlights | null>(null)
   const [openRecord, setOpenRecord] = useState<string | null>(null)
+  const [retryTick, setRetryTick] = useState(0)
 
   useEffect(() => {
     let cancelled = false
-    void fetchHighlights().then((h) => {
-      if (!cancelled) setLive(h)
+    setStatus('loading')
+    void fetchHighlightsResult().then((result) => {
+      if (cancelled) return
+      if (result.ok) {
+        setLive(result.data)
+        setStatus('ready')
+      } else {
+        setStatus('error')
+      }
     })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [retryTick])
 
-  // Steam lämnar bara ut statistik för den som har öppen profil. Tills någon
-  // gjort det är märkt demo-data ärligare än en tom sektion.
-  const real = live && live.highlights.length > 0
-  const cards = real ? live.highlights : statHighlights
-  const groups = groupHighlights(cards)
+  // Steam lämnar bara ut statistik för den som har öppen profil, så en tom
+  // lista här är ett giltigt svar — inte ett fel och inte en anledning att
+  // hitta på siffror.
+  const ready = status === 'ready' && live !== null && live.highlights.length > 0
+  const groups = ready ? groupHighlights(live.highlights) : []
 
   return (
     <section id="siffrorna">
@@ -415,77 +426,103 @@ export function Stats() {
         <div className="section-head">
           <span className="index">03</span>
           <h2>Siffrorna</h2>
-          {!real && statsIsMock && <span className="demo-badge">Demo-data</span>}
         </div>
-        {groups.map((group) => {
-          const art = fallbackArt(group.gameId)
-          return (
-            <div
-              key={group.gameId}
-              className="stats-group"
-              style={{ '--game-tint': art.tint } as React.CSSProperties}
-            >
-              <div className="stats-group-head">
-                {art.icon}
-                <div>
-                  <h3>{group.gameTitle}</h3>
-                  {gameStatsBlurbs[group.gameId] && <p>{gameStatsBlurbs[group.gameId]}</p>}
-                </div>
-              </div>
-              <div className="stats-grid">
-                {group.cards.map((s) => {
-                  const id = `${s.gameId}-${s.label}`
-                  const standings = s.standings ?? []
-                  const isOpen = openRecord === id
-                  return (
-                    <article key={id} className="stat-card">
-                      <div className="stat-card-head">
-                        <TrophyIcon />
-                        <span className="stat-game">{s.gameTitle}</span>
-                      </div>
-                      <p className="stat-label">{s.label}</p>
-                      <p className="stat-value">{s.value}</p>
-                      <p className="stat-holder">{s.holder}</p>
-                      <p className="stat-detail">{s.detail}</p>
 
-                      {/* Bara rekordhållaren syns i vila. Vill man veta vem som ligger
-                          tvåa fäller man ut listan — på klick, inte hover, så det
-                          fungerar lika bra med tumme som med mus. */}
-                      {standings.length > 1 && (
-                        <>
-                          <button
-                            type="button"
-                            className="stat-expand"
-                            aria-expanded={isOpen}
-                            onClick={() => setOpenRecord(isOpen ? null : id)}
-                          >
-                            {isOpen ? 'Dölj listan' : `Visa alla ${standings.length}`}
-                          </button>
-                          {isOpen && (
-                            <ol className="stat-standings">
-                              {standings.map((row, i) => (
-                                <li key={row.name}>
-                                  <span className="rank">{i + 1}</span>
-                                  <span className="who">{row.name}</span>
-                                  <span className="what">{row.value}</span>
-                                </li>
-                              ))}
-                            </ol>
+        {status === 'loading' && (
+          <p className="roster-note route-loading" role="status">
+            Hämtar siffrorna…
+          </p>
+        )}
+
+        {status === 'error' && (
+          <div className="roster-error">
+            <p className="roster-note" role="alert">
+              Kunde inte hämta siffrorna just nu. Kika in igen om en stund.
+            </p>
+            <button type="button" className="btn btn-ghost" onClick={() => setRetryTick((t) => t + 1)}>
+              Försök igen
+            </button>
+          </div>
+        )}
+
+        {status === 'ready' && live !== null && live.highlights.length === 0 && (
+          <p className="roster-note">
+            Ingen statistik än — så fort någon har öppen spelinformation i Steam dyker siffrorna
+            upp här.
+          </p>
+        )}
+
+        {ready && live !== null && (
+          <>
+            {groups.map((group) => {
+              const art = fallbackArt(group.gameId)
+              return (
+                <div
+                  key={group.gameId}
+                  className="stats-group"
+                  style={{ '--game-tint': art.tint } as React.CSSProperties}
+                >
+                  <div className="stats-group-head">
+                    {art.icon}
+                    <div>
+                      <h3>{group.gameTitle}</h3>
+                      {gameStatsBlurbs[group.gameId] && <p>{gameStatsBlurbs[group.gameId]}</p>}
+                    </div>
+                  </div>
+                  <div className="stats-grid">
+                    {group.cards.map((s) => {
+                      const id = `${s.gameId}-${s.label}`
+                      const standings = s.standings ?? []
+                      const isOpen = openRecord === id
+                      return (
+                        <article key={id} className="stat-card">
+                          <div className="stat-card-head">
+                            <TrophyIcon />
+                            <span className="stat-game">{s.gameTitle}</span>
+                          </div>
+                          <p className="stat-label">{s.label}</p>
+                          <p className="stat-value">{s.value}</p>
+                          <p className="stat-holder">{s.holder}</p>
+                          <p className="stat-detail">{s.detail}</p>
+
+                          {/* Bara rekordhållaren syns i vila. Vill man veta vem som ligger
+                              tvåa fäller man ut listan — på klick, inte hover, så det
+                              fungerar lika bra med tumme som med mus. */}
+                          {standings.length > 1 && (
+                            <>
+                              <button
+                                type="button"
+                                className="stat-expand"
+                                aria-expanded={isOpen}
+                                onClick={() => setOpenRecord(isOpen ? null : id)}
+                              >
+                                {isOpen ? 'Dölj listan' : `Visa alla ${standings.length}`}
+                              </button>
+                              {isOpen && (
+                                <ol className="stat-standings">
+                                  {standings.map((row, i) => (
+                                    <li key={row.name}>
+                                      <span className="rank">{i + 1}</span>
+                                      <span className="who">{row.name}</span>
+                                      <span className="what">{row.value}</span>
+                                    </li>
+                                  ))}
+                                </ol>
+                              )}
+                            </>
                           )}
-                        </>
-                      )}
-                    </article>
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })}
-        <p className="roster-note">
-          {real
-            ? `Hämtat live från Steam för ${live.withStats} av ${live.memberCount} gubbar — resten har stängd spelinformation på sin profil.`
-            : 'Placeholder-siffror så länge — riktig statistik hämtas från Steam så fort någon har öppen spelinformation.'}
-        </p>
+                        </article>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+            <p className="roster-note">
+              {`Hämtat live från Steam för ${live.withStats} av ${live.memberCount} gubbar — resten har stängd spelinformation på sin profil.`}
+            </p>
+          </>
+        )}
       </div>
     </section>
   )
@@ -494,13 +531,14 @@ export function Stats() {
 export function About() {
   const [memberCount, setMemberCount] = useState<number | null>(null)
 
-  // Räknaren tog tidigare längden på den hårdkodade platshållarlistan, så
-  // sajten kunde visa tio riktiga gubbar i rostern och samtidigt påstå sex.
-  // Platshållarsiffran används bara tills den riktiga hunnit hämtas.
+  // Räknaren visade tidigare den hårdkodade platshållarlängden tills en
+  // riktig siffra kom in — om API:et var nere kom den aldrig, och sajten
+  // påstod ett medlemsantal som inte fanns. Nu visar den ett streck tills ett
+  // äkta svar kommit, även om svaret råkar vara noll.
   useEffect(() => {
     let cancelled = false
-    void fetchMembers().then((m) => {
-      if (!cancelled && m.length > 0) setMemberCount(m.length)
+    void fetchMembersResult().then((result) => {
+      if (!cancelled && result.ok) setMemberCount(result.data.length)
     })
     return () => {
       cancelled = true
@@ -528,7 +566,7 @@ export function About() {
         </div>
         <div className="stat-grid">
           <div className="stat">
-            <div className="num">{memberCount ?? members.length}</div>
+            <div className="num">{memberCount ?? '–'}</div>
             <div className="label">Goa gubbar</div>
           </div>
           <div className="stat">

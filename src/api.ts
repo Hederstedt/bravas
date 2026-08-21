@@ -62,21 +62,38 @@ export interface PlayerCard {
   memberOfMonth: boolean
 }
 
+// Most call sites just want a sensible empty value when the API is down and
+// don't care why. A few (the roster, the stats section) need to tell "the API
+// answered with nothing" apart from "the API didn't answer at all" — an empty
+// array means both to getJson, and that's exactly what let an outage look
+// like an ordinary quiet day with nobody logged in yet.
+export type ApiFetch<T> = { ok: true; data: T } | { ok: false }
+
+async function getJsonResult<T>(path: string): Promise<ApiFetch<T>> {
+  try {
+    const res = await fetch(path, { credentials: 'same-origin' })
+    if (!res.ok) return { ok: false }
+    return { ok: true, data: (await res.json()) as T }
+  } catch {
+    return { ok: false }
+  }
+}
+
 // The site is a static page that stays up even if the API is down, so every
 // call degrades to a sensible empty value rather than throwing at the caller.
 async function getJson<T>(path: string): Promise<T | null> {
-  try {
-    const res = await fetch(path, { credentials: 'same-origin' })
-    if (!res.ok) return null
-    return (await res.json()) as T
-  } catch {
-    return null
-  }
+  const result = await getJsonResult<T>(path)
+  return result.ok ? result.data : null
 }
 
 export async function fetchMembers(): Promise<RosterMember[]> {
   const data = await getJson<{ members: RosterMember[] }>('/api/members')
   return data?.members ?? []
+}
+
+export async function fetchMembersResult(): Promise<ApiFetch<RosterMember[]>> {
+  const result = await getJsonResult<{ members: RosterMember[] }>('/api/members')
+  return result.ok ? { ok: true, data: result.data.members } : result
 }
 
 // The endpoint answers 200 either way — an anonymous visitor is a normal
@@ -120,6 +137,10 @@ export interface Highlights {
 export async function fetchHighlights(): Promise<Highlights> {
   const data = await getJson<Highlights>('/api/stats/highlights')
   return data ?? { highlights: [], memberCount: 0, withStats: 0 }
+}
+
+export async function fetchHighlightsResult(): Promise<ApiFetch<Highlights>> {
+  return await getJsonResult<Highlights>('/api/stats/highlights')
 }
 
 export async function fetchCards(): Promise<PlayerCard[]> {

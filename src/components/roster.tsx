@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react'
 import { Link } from 'react-router'
 import {
   fetchCards,
-  fetchMembers,
+  fetchMembersResult,
   fetchPresence,
   fetchSession,
   type CardAttribute,
@@ -16,7 +16,6 @@ import {
 } from '../api'
 import { compareAttribute } from '../cardStats'
 import { useLiveEvent } from '../useLiveEvents'
-import { members } from '../data/clan'
 import { BvsMark } from './BvsMark'
 import { ChevronIcon, DiscordIcon, StarIcon } from './icons'
 
@@ -51,8 +50,7 @@ interface LineupEntry {
   comments: string[]
   presence: Presence | null
   pending: boolean
-  // Inte betygshärlett — se PlayerCard i api.ts. Platshållarna är alltid
-  // false: det finns ingen regerande vinnare i demodata.
+  // Inte betygshärlett — se PlayerCard i api.ts.
   memberOfMonth: boolean
 }
 
@@ -120,40 +118,6 @@ function buildLineup(
     }))
 
   return [...rated, ...pending]
-}
-
-function placeholderLineup(): LineupEntry[] {
-  return members.map((m) => ({
-    id: m.nick,
-    name: m.nick,
-    avatarUrl: null,
-    discordName: null,
-    overall: m.overall,
-    tier: m.tier,
-    position: m.position,
-    attributes: m.attributes,
-    wotAttributes: [],
-    comments: [m.flavor],
-    presence: null,
-    pending: false,
-    memberOfMonth: false,
-  }))
-}
-
-// Platshållarna som kort, så jämförelsen fungerar även innan någon loggat in.
-function placeholderCards(): PlayerCard[] {
-  return members.map((m) => ({
-    steamid64: m.nick,
-    personaName: m.nick,
-    hasStats: true,
-    overall: m.overall,
-    tier: m.tier,
-    position: m.position,
-    attributes: m.attributes,
-    wotAttributes: [],
-    comments: [m.flavor],
-    memberOfMonth: false,
-  }))
 }
 
 function PlayerCardView({
@@ -292,9 +256,15 @@ function PlayerCardView({
   )
 }
 
+type RosterStatus = 'loading' | 'error' | 'ready'
+
 export function Roster() {
-  // Gubbarna dyker upp här först när de loggat in med Steam. Tills dess (och om
-  // API:et är nere) visas platshållarna, så sektionen aldrig står tom.
+  // Gubbarna dyker upp här först när de loggat in med Steam. status skiljer
+  // "API:et har inte svarat än" och "API:et svarade med fel" från "svarade,
+  // och listan är faktiskt tom" — samma tomma array dolde tidigare alla tre
+  // bakom en påhittad laguppställning, så ett driftfel såg ut som en vanlig
+  // dag utan medlemmar.
+  const [status, setStatus] = useState<RosterStatus>('loading')
   const [live, setLive] = useState<RosterMember[]>([])
   const [cards, setCards] = useState<PlayerCard[]>([])
   const [presence, setPresence] = useState<PresenceMap>({})
@@ -305,11 +275,21 @@ export function Roster() {
   // Regerande vinnarens glitter, en gång per webbläsarsession — se
   // shouldPlayMonthGlitter ovan. Blir true högst en gång och stannar där.
   const [glitter, setGlitter] = useState(false)
+  // Ökas av "Försök igen" för att trigga om hämtningseffekten utan att bygga
+  // en egen refetch-funktion att hålla synkad med effektens cancelled-flagga.
+  const [retryTick, setRetryTick] = useState(0)
 
   useEffect(() => {
     let cancelled = false
-    void fetchMembers().then((m) => {
-      if (!cancelled) setLive(m)
+    setStatus('loading')
+    void fetchMembersResult().then((result) => {
+      if (cancelled) return
+      if (result.ok) {
+        setLive(result.data)
+        setStatus('ready')
+      } else {
+        setStatus('error')
+      }
     })
     void fetchCards().then((c) => {
       if (!cancelled) setCards(c)
@@ -323,7 +303,7 @@ export function Roster() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [retryTick])
 
   // Pollern på servern säger till när någon loggat in i ett spel. Bara
   // prickarna byts — korten och betygen rörs inte, så raden hoppar inte till.
@@ -340,11 +320,8 @@ export function Roster() {
   }, [])
   useLiveEvent('bvs-month', onBvsMonth)
 
-  const isLive = live.length > 0
-  const lineup = isLive ? buildLineup(live, cards, presence) : placeholderLineup()
-  // Jämförelsen räknas mot samma uppsättning som visas, så platshållarkorten
-  // går att klicka på precis som de riktiga.
-  const crew = isLive ? cards : placeholderCards()
+  const ready = status === 'ready' && live.length > 0
+  const lineup = ready ? buildLineup(live, cards, presence) : []
 
   // Förklaringarna kommer från API:et tillsammans med betygen, så koden här
   // slipper hålla en egen kopia som kan glida isär från uträkningen. WoT-
@@ -358,15 +335,17 @@ export function Roster() {
   const mine = session ? (live.find((m) => m.steamid64 === session.steamid64) ?? null) : null
 
   // Avgörs högst en gång per montering: så fort en regerande vinnare synts
-  // till (eller konstaterats saknas) rör vi inte sessionStorage igen.
+  // till (eller konstaterats saknas) rör vi inte sessionStorage igen. Ett
+  // booleskt beroende i stället för hela lineup-arrayen — den är en ny
+  // referens varje render och hade triggat effekten i onödan.
+  const hasWinner = lineup.some((e) => e.memberOfMonth)
   const checkedGlitter = useRef(false)
   useEffect(() => {
     if (checkedGlitter.current) return
-    const hasWinner = lineup.some((e) => e.memberOfMonth)
     if (!hasWinner) return
     checkedGlitter.current = true
     if (shouldPlayMonthGlitter()) setGlitter(true)
-  }, [lineup])
+  }, [hasWinner])
 
   return (
     <section id="gubbarna">
@@ -376,90 +355,116 @@ export function Roster() {
           <h2>Gubbarna</h2>
         </div>
 
-        {/* Kopplingarna bor på kontosidan sedan de fick en egen. En rad kvar
-            här ändå, så den som letar där de låg förut inte går bet. */}
-        {mine && (
-          <p className="roster-note account-pointer">
-            Discord- och World of Tanks-kopplingen finns på{' '}
-            <Link to="/mitt-konto">Mitt konto</Link>.
+        {status === 'loading' && (
+          <p className="roster-note route-loading" role="status">
+            Hämtar gubbarna…
           </p>
         )}
 
-        <div className="lineup" role="group" aria-label="Gubbarna i BVS">
-          {lineup.map((entry) => (
-            <PlayerCardView
-              key={entry.id}
-              entry={entry}
-              crew={crew}
-              glitter={glitter && entry.memberOfMonth}
-            />
-          ))}
-        </div>
-
-        {(legend.length > 0 || wotLegend.length > 0) && (
-          <div className="legend-toggle-wrap">
-            <button
-              type="button"
-              className="legend-toggle"
-              aria-expanded={legendOpen}
-              onClick={() => setLegendOpen(!legendOpen)}
-            >
-              <ChevronIcon />
-              {legendOpen ? 'Dölj hur betyget räknas' : 'Hur räknas betyget fram?'}
+        {status === 'error' && (
+          <div className="roster-error">
+            <p className="roster-note" role="alert">
+              Kunde inte hämta gubbarna just nu. Kika in igen om en stund.
+            </p>
+            <button type="button" className="btn btn-ghost" onClick={() => setRetryTick((t) => t + 1)}>
+              Försök igen
             </button>
-            {legendOpen && (
-              <div className="legend-body">
-                <p>
-                  <strong>BVS-betyget</strong> är en viktad summa av dina attribut — den som väger
-                  tyngst (Frag) räknas mer än den som väger minst (Tid). Länkar du fler spel läggs
-                  varje spel på som ett rejält tillägg ovanpå, aldrig ett avdrag: ju fler
-                  spelkonton du länkar, desto högre kan betyget bli — ett svagt konto kan bara
-                  höja betyget, aldrig sänka det.
-                </p>
-                <p>
-                  <strong>Titeln</strong> (t.ex. KAPTEN eller GENERAL) är BVS egen rangordning och
-                  styrs bara av betyget, oavsett vilket spel poängen kom ifrån — samma titlar för
-                  alla, så ingen behöver gissa vad en förkortning betyder.
-                  <strong> Tier</strong> (ikon/guld/silver/brons) är bara betyget i hinkar: 87+,
-                  75+, 60+, annars brons.
-                </p>
-                {legend.length > 0 && (
-                  <dl className="attr-legend">
-                    {legend.map((a) => (
-                      <div key={a.key}>
-                        <dt>
-                          <span className="attr-legend-key">{a.key}</span> {a.label}
-                        </dt>
-                        <dd>{a.description}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                )}
-                {wotLegend.length > 0 && (
-                  <>
-                    <p className="legend-subhead">World of Tanks</p>
-                    <dl className="attr-legend">
-                      {wotLegend.map((a) => (
-                        <div key={a.key}>
-                          <dt>
-                            <span className="attr-legend-key">{a.key}</span> {a.label}
-                          </dt>
-                          <dd>{a.description}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </>
-                )}
-              </div>
-            )}
           </div>
         )}
 
-        <p className="roster-note">
-          {isLive
-            ? 'Betygen räknas fram ur gubbarnas riktiga CS2-statistik från Steam. Kommentarerna skriver sig själva.'
-            : 'Rostern fylls på med riktiga nick, Steam-avatarer och betyg — logga in med Steam för att synas här.'}
-        </p>
+        {status === 'ready' && live.length === 0 && (
+          <p className="roster-note">
+            Ingen har loggat in än — logga in med Steam för att bli den första i uppställningen.
+          </p>
+        )}
+
+        {ready && (
+          <>
+            {/* Kopplingarna bor på kontosidan sedan de fick en egen. En rad kvar
+                här ändå, så den som letar där de låg förut inte går bet. */}
+            {mine && (
+              <p className="roster-note account-pointer">
+                Discord- och World of Tanks-kopplingen finns på{' '}
+                <Link to="/mitt-konto">Mitt konto</Link>.
+              </p>
+            )}
+
+            <div className="lineup" role="group" aria-label="Gubbarna i BVS">
+              {lineup.map((entry) => (
+                <PlayerCardView
+                  key={entry.id}
+                  entry={entry}
+                  crew={cards}
+                  glitter={glitter && entry.memberOfMonth}
+                />
+              ))}
+            </div>
+
+            {(legend.length > 0 || wotLegend.length > 0) && (
+              <div className="legend-toggle-wrap">
+                <button
+                  type="button"
+                  className="legend-toggle"
+                  aria-expanded={legendOpen}
+                  onClick={() => setLegendOpen(!legendOpen)}
+                >
+                  <ChevronIcon />
+                  {legendOpen ? 'Dölj hur betyget räknas' : 'Hur räknas betyget fram?'}
+                </button>
+                {legendOpen && (
+                  <div className="legend-body">
+                    <p>
+                      <strong>BVS-betyget</strong> är en viktad summa av dina attribut — den som väger
+                      tyngst (Frag) räknas mer än den som väger minst (Tid). Länkar du fler spel läggs
+                      varje spel på som ett rejält tillägg ovanpå, aldrig ett avdrag: ju fler
+                      spelkonton du länkar, desto högre kan betyget bli — ett svagt konto kan bara
+                      höja betyget, aldrig sänka det.
+                    </p>
+                    <p>
+                      <strong>Titeln</strong> (t.ex. KAPTEN eller GENERAL) är BVS egen rangordning och
+                      styrs bara av betyget, oavsett vilket spel poängen kom ifrån — samma titlar för
+                      alla, så ingen behöver gissa vad en förkortning betyder.
+                      <strong> Tier</strong> (ikon/guld/silver/brons) är bara betyget i hinkar: 87+,
+                      75+, 60+, annars brons.
+                    </p>
+                    {legend.length > 0 && (
+                      <dl className="attr-legend">
+                        {legend.map((a) => (
+                          <div key={a.key}>
+                            <dt>
+                              <span className="attr-legend-key">{a.key}</span> {a.label}
+                            </dt>
+                            <dd>{a.description}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
+                    {wotLegend.length > 0 && (
+                      <>
+                        <p className="legend-subhead">World of Tanks</p>
+                        <dl className="attr-legend">
+                          {wotLegend.map((a) => (
+                            <div key={a.key}>
+                              <dt>
+                                <span className="attr-legend-key">{a.key}</span> {a.label}
+                              </dt>
+                              <dd>{a.description}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <p className="roster-note">
+              Betygen räknas fram ur gubbarnas riktiga CS2-statistik från Steam. Kommentarerna
+              skriver sig själva.
+            </p>
+          </>
+        )}
       </div>
     </section>
   )

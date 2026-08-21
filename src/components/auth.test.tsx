@@ -92,11 +92,10 @@ describe('Stats section', () => {
     ],
   }
 
-  it('shows real numbers and drops the demo badge once the API delivers', async () => {
-    vi.spyOn(api, 'fetchHighlights').mockResolvedValue({
-      highlights: [realHighlight],
-      memberCount: 10,
-      withStats: 4,
+  it('shows real numbers and never a demo badge', async () => {
+    vi.spyOn(api, 'fetchHighlightsResult').mockResolvedValue({
+      ok: true,
+      data: { highlights: [realHighlight], memberCount: 10, withStats: 4 },
     })
 
     const { Stats } = await import('./sections')
@@ -108,10 +107,9 @@ describe('Stats section', () => {
   })
 
   it('says how many profiles are still closed', async () => {
-    vi.spyOn(api, 'fetchHighlights').mockResolvedValue({
-      highlights: [realHighlight],
-      memberCount: 10,
-      withStats: 4,
+    vi.spyOn(api, 'fetchHighlightsResult').mockResolvedValue({
+      ok: true,
+      data: { highlights: [realHighlight], memberCount: 10, withStats: 4 },
     })
 
     const { Stats } = await import('./sections')
@@ -120,21 +118,21 @@ describe('Stats section', () => {
     expect(await screen.findByText(/4 av 10/)).toBeInTheDocument()
   })
 
-  // Innan någon öppnat sin profil finns inga riktiga siffror — då är demo-datan
-  // ärligare än en tom sektion, så länge den är märkt.
-  it('falls back to clearly marked demo data when no real stats exist', async () => {
-    vi.spyOn(api, 'fetchHighlights').mockResolvedValue({
-      highlights: [],
-      memberCount: 10,
-      withStats: 0,
+  // Innan någon öppnat sin profil finns inga riktiga siffror — då ska sektionen
+  // säga det rakt ut i stället för att hitta på ett rekord.
+  it('says there is no stats yet when no real stats exist', async () => {
+    vi.spyOn(api, 'fetchHighlightsResult').mockResolvedValue({
+      ok: true,
+      data: { highlights: [], memberCount: 10, withStats: 0 },
     })
 
     const { Stats } = await import('./sections')
     render(<Stats />)
 
     await waitFor(() => {
-      expect(screen.getByText('Demo-data')).toBeInTheDocument()
+      expect(screen.getByText(/ingen statistik än/i)).toBeInTheDocument()
     })
+    expect(screen.queryByText('Demo-data')).not.toBeInTheDocument()
   })
 })
 
@@ -166,20 +164,23 @@ describe('Discord links', () => {
 
 describe('Roster with live data', () => {
   it('shows real members once the API returns them', async () => {
-    vi.spyOn(api, 'fetchMembers').mockResolvedValue([
-      {
-        steamid64: '76561198053832683',
-        personaName: '[BVS] #Mag',
-        avatarUrl: 'https://avatars.example/mag.jpg',
-        discordName: 'mag', wotNickname: null,
-      },
-      {
-        steamid64: '76561197963771177',
-        personaName: '[BVS] g0nza',
-        avatarUrl: null,
-        discordName: null, wotNickname: null,
-      },
-    ])
+    vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          steamid64: '76561198053832683',
+          personaName: '[BVS] #Mag',
+          avatarUrl: 'https://avatars.example/mag.jpg',
+          discordName: 'mag', wotNickname: null,
+        },
+        {
+          steamid64: '76561197963771177',
+          personaName: '[BVS] g0nza',
+          avatarUrl: null,
+          discordName: null, wotNickname: null,
+        },
+      ],
+    })
 
     const { Roster } = await import('./sections')
     render(<Roster />)
@@ -189,23 +190,27 @@ describe('Roster with live data', () => {
     expect(screen.queryByRole('heading', { name: 'Gubbe #1' })).not.toBeInTheDocument()
   })
 
-  it('keeps the placeholder roster when nobody has logged in yet', async () => {
-    vi.spyOn(api, 'fetchMembers').mockResolvedValue([])
+  it('says nobody has logged in yet instead of showing a fictional roster', async () => {
+    vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({ ok: true, data: [] })
 
     const { Roster } = await import('./sections')
     render(<Roster />)
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Gubbe #1' })).toBeInTheDocument()
+      expect(screen.getByText(/ingen har loggat in än/i)).toBeInTheDocument()
     })
+    expect(screen.queryByRole('heading', { name: 'Gubbe #1' })).not.toBeInTheDocument()
   })
 
   it('marks who is online and what they are playing', async () => {
-    vi.spyOn(api, 'fetchMembers').mockResolvedValue([
-      { steamid64: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null , wotNickname: null},
-      { steamid64: '2', personaName: 'Vaken', avatarUrl: null, discordName: null , wotNickname: null},
-      { steamid64: '3', personaName: 'Borta', avatarUrl: null, discordName: null , wotNickname: null},
-    ])
+    vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({
+      ok: true,
+      data: [
+        { steamid64: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null , wotNickname: null},
+        { steamid64: '2', personaName: 'Vaken', avatarUrl: null, discordName: null , wotNickname: null},
+        { steamid64: '3', personaName: 'Borta', avatarUrl: null, discordName: null , wotNickname: null},
+      ],
+    })
     vi.spyOn(api, 'fetchPresence').mockResolvedValue({
       '1': { status: 'in-game', game: 'Counter-Strike 2' },
       '2': { status: 'online', game: null },
@@ -227,9 +232,10 @@ describe('Roster with live data', () => {
   })
 
   it('renders the roster even when presence is unavailable', async () => {
-    vi.spyOn(api, 'fetchMembers').mockResolvedValue([
-      { steamid64: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null , wotNickname: null},
-    ])
+    vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({
+      ok: true,
+      data: [{ steamid64: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null , wotNickname: null}],
+    })
     vi.spyOn(api, 'fetchPresence').mockResolvedValue({})
 
     const { Roster } = await import('./sections')
@@ -240,14 +246,17 @@ describe('Roster with live data', () => {
   })
 
   it('shows an avatar image when Steam provides one', async () => {
-    vi.spyOn(api, 'fetchMembers').mockResolvedValue([
-      {
-        steamid64: '76561198053832683',
-        personaName: '[BVS] #Mag',
-        avatarUrl: 'https://avatars.example/mag.jpg',
-        discordName: null, wotNickname: null,
-      },
-    ])
+    vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          steamid64: '76561198053832683',
+          personaName: '[BVS] #Mag',
+          avatarUrl: 'https://avatars.example/mag.jpg',
+          discordName: null, wotNickname: null,
+        },
+      ],
+    })
 
     const { Roster } = await import('./sections')
     render(<Roster />)
