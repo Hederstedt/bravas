@@ -33,3 +33,7 @@ PLAN.local.md
 playwright-report
 test-results
 coverage
+
+# Genereras av scripts/generate-seo-files.mjs (prebuild) från src/routeMeta.json
+public/sitemap.xml
+public/robots.txt

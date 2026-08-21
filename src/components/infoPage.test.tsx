@@ -13,9 +13,13 @@ function renderPage() {
 }
 
 describe('InfoPage', () => {
-  it('has a page heading', () => {
+  // h1 — varje publik rutt ska ha en egen sidrubrik, inte bara h2:orna som
+  // hör hemma inuti startsidans sektioner. Se docs/improvmentplan.md Etapp 2.
+  it('has a single page heading, level 1', () => {
     renderPage()
-    expect(screen.getByRole('heading', { name: 'Kom igång' })).toBeInTheDocument()
+    const heading = screen.getByRole('heading', { level: 1 })
+    expect(heading).toHaveTextContent('Kom igång med Bravas')
+    expect(screen.queryAllByRole('heading', { level: 1 })).toHaveLength(1)
   })
 
   it('explains that Steam login is required to appear at all', () => {

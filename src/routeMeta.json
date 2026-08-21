@@ -1,0 +1,17 @@
+[
+  {
+    "path": "/",
+    "title": "BVS — Bravas | Goa gubbar från Västra Götaland",
+    "description": "BVS — Bravas. Goa gubbar från Västra Götaland som lirar CS2, World of Tanks, Valheim och Satisfactory på egen server."
+  },
+  {
+    "path": "/kom-igang",
+    "title": "Kom igång med Bravas | BVS",
+    "description": "Så blir du synlig på BVS: Steam-inloggning, öppen spelinformation, Discord-namn för hand och länken till World of Tanks utan att dela lösenord."
+  },
+  {
+    "path": "/manager",
+    "title": "Bravas CS Manager | BVS",
+    "description": "Bygg ett lag, spela säsongen och klättra i tabellen — BVS egen Counter-Strike-manager, byggd som klanens gamla Hattrick-favoriter."
+  }
+]
