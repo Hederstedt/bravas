@@ -638,6 +638,75 @@ a.steam-login:hover {
   margin-top: 6px;
 }
 
+/* Kom igång: den korta punktlistan för en anonym besökare (ingen ram, bara
+   luft) och den personliga checklistan för en medlem (varje steg i en egen
+   panel, samma idé som .account-links ovan). */
+.info-steps {
+  list-style: none;
+  margin: 20px 0 28px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.info-steps:not(.info-steps-personal) li {
+  padding-left: 22px;
+  position: relative;
+  color: var(--muted);
+}
+
+.info-steps:not(.info-steps-personal) li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+}
+
+.info-steps-personal {
+  gap: 16px;
+}
+
+.info-steps-personal li {
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-left: 3px solid var(--accent-line);
+  padding: 16px 20px;
+}
+
+.info-steps-personal h2 {
+  font-size: 15px;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.step-status {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 20px;
+  margin-bottom: 10px;
+}
+
+.step-done {
+  background: rgba(74, 222, 128, 0.14);
+  color: var(--green);
+}
+
+.step-action {
+  background: var(--accent-dim);
+  color: var(--accent-soft);
+}
+
+.step-optional {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+}
+
 /* Bara på egna citat. Dämpad tills man nuddar den — att ta bort sitt eget
    citat är sällsynt och ska inte konkurrera med rösta-knappen. */
 .quote-delete {
