@@ -230,6 +230,14 @@ export async function deleteQuote(id: number): Promise<boolean> {
 // skrivas in för hand och hamnar på ditt eget spelarkort.
 export const MAX_DISCORD_NAME = 64
 
+export async function unlinkDiscord(): Promise<boolean> {
+  return (await send<Record<string, never>>('/api/members/discord/unlink', 'POST')) !== null
+}
+
+export async function unlinkWot(): Promise<boolean> {
+  return (await send<Record<string, never>>('/api/members/wot/unlink', 'POST')) !== null
+}
+
 export async function linkDiscord(discordName: string): Promise<boolean> {
   const token = await csrfToken()
   if (!token) return false

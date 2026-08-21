@@ -638,6 +638,15 @@ a.steam-login:hover {
   margin-top: 6px;
 }
 
+.unlink-row {
+  margin-top: 10px;
+}
+
+.unlink-btn {
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
 /* Kom igång: den korta punktlistan för en anonym besökare (ingen ram, bara
    luft) och den personliga checklistan för en medlem (varje steg i en egen
    panel, samma idé som .account-links ovan). */

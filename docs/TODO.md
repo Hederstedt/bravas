@@ -56,6 +56,28 @@ och sidan ska svara. Gör den inte det står fel id i variabeln.
 
 ---
 
+## 3. Säkerhetsheaders i nginx
+
+**Läget nu:** `server/deploy/nginx-security-headers.conf` finns i repot
+(CSP, HSTS, X-Content-Type-Options, Referrer-Policy, X-Frame-Options) men är
+inte applicerad på servern — samma "kopiera för hand"-mönster som
+`nginx-api-location.conf` och `nginx-spa-location.conf`.
+
+- [ ] Klistra in blocket i `/etc/nginx/sites-available/bravas`, utanför
+      location-blocken
+- [ ] `sudo nginx -t && sudo systemctl reload nginx`
+- [ ] Öppna sajten i en riktig webbläsare — kolla att avatarerna (Steam-CDN)
+      fortfarande laddar och att konsolen inte visar nya CSP-fel på `/`,
+      `/manager` och `/mitt-konto`
+- [ ] Kolla om Cloudflare-tunnelns "Always Use HTTPS"/HSTS redan är på innan
+      `Strict-Transport-Security`-raden dubbelsätts
+
+**Kolla att det tog:** `curl -sI https://www.bravas.se/` ska visa alla fem
+headrarna. CSP:n är en första, oprövad gissning — se kommentaren i filen för
+vad som specifikt kan gå sönder (avatarer, inline style på spelarkorten).
+
+---
+
 ## Gjort och i drift
 
 Kvitteras här så listan inte blandar ihop det som väntar med det som redan

@@ -46,6 +46,12 @@ describe('RouteMeta on a public page', () => {
     renderAt('/manager')
     expect(document.title).toBe('Bravas CS Manager | BVS')
   })
+
+  it('sets the title for /integritet', () => {
+    renderAt('/integritet')
+    expect(document.title).toBe('Integritet på Bravas | BVS')
+    expect(robots()).toBe('index, follow')
+  })
 })
 
 describe('RouteMeta on a private or unknown page', () => {

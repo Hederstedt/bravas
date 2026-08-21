@@ -188,6 +188,68 @@ describe('linking a Discord name', () => {
   })
 })
 
+// Andra klicket, inte en dialogruta — samma mönster som att ta bort ett
+// citat, se quotes.tsx.
+describe('unlinking a Discord name', () => {
+  it('offers to unlink only when a name is already connected', async () => {
+    stubApi(signedIn)
+    renderPage()
+    expect(await screen.findByRole('button', { name: 'Koppla bort Discord' })).toBeInTheDocument()
+  })
+
+  it('does not offer to unlink when nothing is connected', async () => {
+    stubApi({ members: [{ ...MAG, discordName: null }], session: signedIn.session })
+    renderPage()
+
+    await screen.findByRole('button', { name: 'Koppla till kortet' })
+    expect(screen.queryByRole('button', { name: 'Koppla bort Discord' })).not.toBeInTheDocument()
+  })
+
+  it('requires a second click to confirm before calling the API', async () => {
+    const user = userEvent.setup()
+    stubApi(signedIn)
+    const unlink = vi.spyOn(api, 'unlinkDiscord').mockResolvedValue(true)
+    renderPage()
+
+    const button = await screen.findByRole('button', { name: 'Koppla bort Discord' })
+    await user.click(button)
+    expect(unlink).not.toHaveBeenCalled()
+    expect(button).toHaveTextContent(/säkert/i)
+
+    await user.click(button)
+    expect(unlink).toHaveBeenCalled()
+  })
+
+  it('refreshes so the form reverts to asking for a name once unlinked', async () => {
+    const user = userEvent.setup()
+    stubApi(signedIn)
+    vi.spyOn(api, 'unlinkDiscord').mockResolvedValue(true)
+    vi.spyOn(api, 'fetchMembers')
+      .mockResolvedValueOnce([MAG])
+      .mockResolvedValueOnce([{ ...MAG, discordName: null }])
+    renderPage()
+
+    const button = await screen.findByRole('button', { name: 'Koppla bort Discord' })
+    await user.click(button)
+    await user.click(button)
+
+    expect(await screen.findByLabelText(/Vad heter du i Discorden/)).toBeInTheDocument()
+  })
+
+  it('says so when the server refused to unlink', async () => {
+    const user = userEvent.setup()
+    stubApi(signedIn)
+    vi.spyOn(api, 'unlinkDiscord').mockResolvedValue(false)
+    renderPage()
+
+    const button = await screen.findByRole('button', { name: 'Koppla bort Discord' })
+    await user.click(button)
+    await user.click(button)
+
+    expect(await screen.findByText(/kunde inte koppla bort/i)).toBeInTheDocument()
+  })
+})
+
 // Ingen egen inloggning eller formulär att fylla i — bara en länk ut till
 // Wargaming och tillbaka, så testerna kollar länken snarare än ett anrop.
 // Så var och en ser var hen ligger — se monthlyStandings.test.tsx för
@@ -238,5 +300,74 @@ describe('linking a World of Tanks account', () => {
 
     await screen.findByRole('link', { name: /logga in med steam/i })
     expect(screen.queryByRole('link', { name: /World of Tanks/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('unlinking a World of Tanks account', () => {
+  const linked = {
+    members: [{ ...MAG, wotNickname: 'GubbeIRL' }],
+    session: { steamid64: MAG.steamid64, isMember: true, isAdmin: false },
+  }
+
+  it('offers to unlink only when an account is already connected', async () => {
+    stubApi(linked)
+    renderPage()
+    expect(
+      await screen.findByRole('button', { name: 'Koppla bort World of Tanks' }),
+    ).toBeInTheDocument()
+  })
+
+  it('does not offer to unlink when nothing is connected', async () => {
+    stubApi(signedIn)
+    renderPage()
+
+    await screen.findByRole('link', { name: 'Länka World of Tanks' })
+    expect(
+      screen.queryByRole('button', { name: 'Koppla bort World of Tanks' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('requires a second click to confirm before calling the API', async () => {
+    const user = userEvent.setup()
+    stubApi(linked)
+    const unlink = vi.spyOn(api, 'unlinkWot').mockResolvedValue(true)
+    renderPage()
+
+    const button = await screen.findByRole('button', { name: 'Koppla bort World of Tanks' })
+    await user.click(button)
+    expect(unlink).not.toHaveBeenCalled()
+    expect(button).toHaveTextContent(/säkert/i)
+
+    await user.click(button)
+    expect(unlink).toHaveBeenCalled()
+  })
+
+  it('refreshes so the invite to link comes back once unlinked', async () => {
+    const user = userEvent.setup()
+    stubApi(linked)
+    vi.spyOn(api, 'unlinkWot').mockResolvedValue(true)
+    vi.spyOn(api, 'fetchMembers')
+      .mockResolvedValueOnce(linked.members)
+      .mockResolvedValueOnce([MAG])
+    renderPage()
+
+    const button = await screen.findByRole('button', { name: 'Koppla bort World of Tanks' })
+    await user.click(button)
+    await user.click(button)
+
+    expect(await screen.findByRole('link', { name: 'Länka World of Tanks' })).toBeInTheDocument()
+  })
+
+  it('says so when the server refused to unlink', async () => {
+    const user = userEvent.setup()
+    stubApi(linked)
+    vi.spyOn(api, 'unlinkWot').mockResolvedValue(false)
+    renderPage()
+
+    const button = await screen.findByRole('button', { name: 'Koppla bort World of Tanks' })
+    await user.click(button)
+    await user.click(button)
+
+    expect(await screen.findByText(/kunde inte koppla bort/i)).toBeInTheDocument()
   })
 })

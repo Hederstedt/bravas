@@ -4,7 +4,7 @@ import { findRouteMeta, publicRoutes } from './routeMeta'
 describe('publicRoutes', () => {
   it('lists the three indexable pages, each with a title and description', () => {
     const paths = publicRoutes.map((r) => r.path)
-    expect(paths).toEqual(['/', '/kom-igang', '/manager'])
+    expect(paths).toEqual(['/', '/kom-igang', '/manager', '/integritet'])
     for (const r of publicRoutes) {
       expect(r.title.length).toBeGreaterThan(0)
       expect(r.description.length).toBeGreaterThan(0)
