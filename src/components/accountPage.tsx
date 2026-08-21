@@ -58,7 +58,7 @@ export function AccountPage() {
   }, [load])
 
   return (
-    <main>
+    <main id="main" tabIndex={-1}>
       <section id="mitt-konto">
         <div className="container">
           <div className="section-head">

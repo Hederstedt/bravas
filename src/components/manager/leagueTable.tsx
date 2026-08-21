@@ -17,6 +17,10 @@ export function LeagueTable({
   return (
     <div className="league-table-wrap">
       <table className="league-table" aria-label="Ligatabellen">
+        <caption className="sr-only">
+          Ligatabellen. Kolumner: S spelade, V vunna, O oavgjorda, F förlorade, Rundor
+          vunna–förlorade, +/− rundskillnad, P poäng.
+        </caption>
         <thead>
           <tr>
             <th scope="col" className="num">

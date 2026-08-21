@@ -7,6 +7,7 @@ import { ApplyPage } from './components/applyPage'
 import { HomePage } from './components/home'
 import { InfoPage } from './components/infoPage'
 import { NotFoundPage } from './components/notFoundPage'
+import { RouteFocus } from './components/routeFocus'
 import { RouteMeta } from './components/routeMeta'
 import { Nav, Footer } from './components/sections'
 
@@ -24,7 +25,11 @@ const MatchReportPage = lazy(() =>
 function App() {
   return (
     <>
+      <a href="#main" className="skip-link">
+        Hoppa till huvudinnehåll
+      </a>
       <RouteMeta />
+      <RouteFocus />
       <Nav />
       <Suspense fallback={<p className="roster-note route-loading">Hämtar managern…</p>}>
         <Routes>

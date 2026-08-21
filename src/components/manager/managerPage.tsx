@@ -41,7 +41,7 @@ export function ManagerPage() {
   useLiveEvent('training', reload)
 
   return (
-    <main>
+    <main id="main" tabIndex={-1}>
       <section id="manager">
         <div className="container">
           <div className="section-head">

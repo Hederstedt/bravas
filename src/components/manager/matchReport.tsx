@@ -55,7 +55,7 @@ export function MatchReportPage() {
   }, [id])
 
   return (
-    <main>
+    <main id="main" tabIndex={-1}>
       <section id="matchreferat">
         <div className="container">
           <div className="section-head">

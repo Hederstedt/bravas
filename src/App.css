@@ -1607,11 +1607,15 @@ a.steam-login:hover {
 
 /* Attributet är en knapp, inte bara text: på touch finns ingen hover att
    sväva med, och sidan har lika mycket mobiltrafik som desktop. */
+/* min-height 44px är pekytemålet — knappen var annars bara ~26px hög, styrd
+   av den korta radens egen typsnittsstorlek. grid centrerar innehållet
+   vertikalt i den nu högre knappen i stället för att flytta det uppåt. */
 .attr-toggle {
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
   gap: 8px;
+  min-height: 44px;
   width: 100%;
   background: none;
   border: none;
@@ -1692,10 +1696,13 @@ a.steam-login:hover {
 /* Samma mönster som .nav-burger: aria-expanded styr både texten (i JSX) och
    pilens rotation här. Stängd som standard — ingen fattade "65 ENTRY" förut,
    men förklaringen ska inte tvinga sig på alla som bara vill se korten. */
+/* min-height 44px är pekytemålet — texten och pilen är kvar i sin egen
+   storlek, bara den klickbara ytan runt dem växer. */
 .legend-toggle {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-height: 44px;
   background: none;
   border: none;
   padding: 0;
@@ -1774,7 +1781,13 @@ a.steam-login:hover {
 }
 
 /* ---------- Rangordningen bakom ett klanrekord ---------- */
+/* min-height 44px är pekytemålet, inte en visuell omdesign — padding ensam
+   gjorde knappen bara ~26px hög. display:inline-flex centrerar den korta
+   texten i den nu högre knappen i stället för att den hamnar upptill. */
 .stat-expand {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   margin-top: 14px;
   align-self: flex-start;
   padding: 5px 12px;

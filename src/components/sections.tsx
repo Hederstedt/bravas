@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import {
   fetchDiscordStatus,
   fetchHighlightsResult,
@@ -83,6 +83,9 @@ export function Nav() {
   const [open, setOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const burgerRef = useRef<HTMLButtonElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const overlayId = useId()
+  const location = useLocation()
 
   // Admin-länken är bekvämlighet, inte skydd — servern gatear varje
   // admin-endpoint oavsett vad menyn visar. Men en död länk för alla andra
@@ -114,6 +117,42 @@ export function Nav() {
     return () => document.removeEventListener('keydown', onKey)
   }, [open])
 
+  // Fokus till första länken vid öppning, och sidan bakom slutar rulla —
+  // annars kan man skrolla runt på en sida man inte ser. Effekten städar sig
+  // själv (overflow tillbaka till normalt) både vid stängning och avmontering.
+  useEffect(() => {
+    if (!open) return
+    overlayRef.current?.querySelector<HTMLElement>('a, button')?.focus()
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [open])
+
+  // Utan en fälla kan Tab lämna dialogen och fortsätta ut i sidan bakom, som
+  // ligger dold men fortfarande kvar i DOM:en.
+  function trapTab(e: React.KeyboardEvent) {
+    if (e.key !== 'Tab') return
+    const focusable = overlayRef.current?.querySelectorAll<HTMLElement>('a, button')
+    if (!focusable || focusable.length === 0) return
+    const first = focusable[0]!
+    const last = focusable[focusable.length - 1]!
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault()
+      first.focus()
+    }
+  }
+
+  // Bara riktiga sidlänkar kan vara "aktuella" — Gubbarna/Spel/Siffrorna m.fl.
+  // pekar alla på "/" med olika ankare, och utan skrollspaning finns ingen
+  // ensam rätt bland dem att märka.
+  function isCurrentPage(to: string) {
+    return !to.includes('#') && to === location.pathname
+  }
+
   // OBS: overlayn ligger som syskon till <nav>, inte inuti den. `.nav` har
   // backdrop-filter, och ett filter gör elementet till containing block för
   // allt med position: fixed inuti — då räknas overlayns `inset: 64px 0 0`
@@ -129,7 +168,7 @@ export function Nav() {
           </Link>
           <div className="nav-links">
             {links.map((l) => (
-              <Link key={l.to} to={l.to}>
+              <Link key={l.to} to={l.to} aria-current={isCurrentPage(l.to) ? 'page' : undefined}>
                 {l.label}
               </Link>
             ))}
@@ -141,6 +180,7 @@ export function Nav() {
             className="nav-burger"
             aria-label={open ? 'Stäng menyn' : 'Öppna menyn'}
             aria-expanded={open}
+            aria-controls={overlayId}
             onClick={() => setOpen(!open)}
           >
             <span />
@@ -150,9 +190,22 @@ export function Nav() {
         </div>
       </nav>
       {open && (
-        <div className="nav-overlay" role="dialog" aria-modal="true" aria-label="Meny">
+        <div
+          id={overlayId}
+          ref={overlayRef}
+          className="nav-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Meny"
+          onKeyDown={trapTab}
+        >
           {links.map((l) => (
-            <Link key={l.to} to={l.to} onClick={() => setOpen(false)}>
+            <Link
+              key={l.to}
+              to={l.to}
+              aria-current={isCurrentPage(l.to) ? 'page' : undefined}
+              onClick={() => setOpen(false)}
+            >
               {l.label}
             </Link>
           ))}
@@ -494,12 +547,19 @@ export function Stats() {
                                 type="button"
                                 className="stat-expand"
                                 aria-expanded={isOpen}
+                                aria-controls={`stat-standings-${id}`}
+                                // Samma synliga text ("Visa alla 3") upprepas på varje kort i
+                                // rutnätet — utan ett eget namn per knapp låter alla likadant
+                                // för den som navigerar med skärmläsare.
+                                aria-label={
+                                  isOpen ? `Dölj listan för ${s.label}` : `Visa hela listan för ${s.label}`
+                                }
                                 onClick={() => setOpenRecord(isOpen ? null : id)}
                               >
                                 {isOpen ? 'Dölj listan' : `Visa alla ${standings.length}`}
                               </button>
                               {isOpen && (
-                                <ol className="stat-standings">
+                                <ol className="stat-standings" id={`stat-standings-${id}`}>
                                   {standings.map((row, i) => (
                                     <li key={row.name}>
                                       <span className="rank">{i + 1}</span>

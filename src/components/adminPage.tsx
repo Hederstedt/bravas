@@ -81,7 +81,7 @@ export function AdminPage() {
   }
 
   return (
-    <main>
+    <main id="main" tabIndex={-1}>
       <section id="admin">
         <div className="container">
           <div className="section-head">

@@ -59,7 +59,7 @@ export function ApplyPage() {
   }, [])
 
   return (
-    <main>
+    <main id="main" tabIndex={-1}>
       <section id="ansok">
         <div className="container">
           <div className="section-head">

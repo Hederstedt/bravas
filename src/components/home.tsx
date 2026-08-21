@@ -34,7 +34,7 @@ export function HomePage() {
     <>
       <ScrollToHash />
       <Hero />
-      <main>
+      <main id="main" tabIndex={-1}>
         <AuthNotice />
         <Roster />
         <Games />

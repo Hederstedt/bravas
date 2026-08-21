@@ -197,6 +197,7 @@ function PlayerCardView({
                   type="button"
                   className="attr-toggle"
                   aria-expanded={isOpen}
+                  aria-controls={`attr-detail-${entry.id}`}
                   onClick={() => setOpen(isOpen ? null : a.key)}
                 >
                   <span className="attr-key">{a.key}</span>
@@ -232,7 +233,7 @@ function PlayerCardView({
       )}
 
       {openAttr && (
-        <div className="attr-detail">
+        <div className="attr-detail" id={`attr-detail-${entry.id}`}>
           <p className="attr-detail-name">
             {openAttr.label} · {openAttr.rating}
           </p>
@@ -406,13 +407,14 @@ export function Roster() {
                   type="button"
                   className="legend-toggle"
                   aria-expanded={legendOpen}
+                  aria-controls="attr-legend-body"
                   onClick={() => setLegendOpen(!legendOpen)}
                 >
                   <ChevronIcon />
                   {legendOpen ? 'Dölj hur betyget räknas' : 'Hur räknas betyget fram?'}
                 </button>
                 {legendOpen && (
-                  <div className="legend-body">
+                  <div className="legend-body" id="attr-legend-body">
                     <p>
                       <strong>BVS-betyget</strong> är en viktad summa av dina attribut — den som väger
                       tyngst (Frag) räknas mer än den som väger minst (Tid). Länkar du fler spel läggs
