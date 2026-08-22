@@ -201,8 +201,9 @@ function Pool({ pool }: { pool: PoolPlayer[] }) {
   // Dyrast först — det är stjärnorna man kommer hit för att titta på.
   const sorted = [...pool].sort((a, b) => b.value - a.value)
 
+  // tabIndex gör den rullbara ytan nåbar med tangentbord, se leagueTable.tsx.
   return (
-    <div className="pool-wrap">
+    <div className="pool-wrap" tabIndex={0}>
       <table className="pool-table" aria-label="Spelarpoolen">
         <thead>
           <tr>

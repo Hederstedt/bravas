@@ -90,7 +90,9 @@ export function TransferDesk({
 
         <div className="transfer-side">
           <h4>Lediga gubbar — välj vem som köps</h4>
-          <div className="pool-wrap">
+          {/* tabIndex gör den rullbara ytan nåbar med tangentbord, se
+              leagueTable.tsx. */}
+          <div className="pool-wrap" tabIndex={0}>
             <table className="pool-table" aria-label="Lediga gubbar">
               <thead>
                 <tr>

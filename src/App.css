@@ -1972,6 +1972,13 @@ a.steam-login:hover {
   padding-left: 14px;
 }
 
+/* En länk mitt i den dämpade brödtexten skiljde sig annars bara genom
+   färgen — 1.46:1 mot den kringliggande texten, långt under de 3:1 WCAG
+   kräver när färgen är den enda signalen (axe: link-in-text-block). */
+.roster-note a {
+  text-decoration: underline;
+}
+
 /* ---------- Stats (mock) ---------- */
 .demo-badge {
   font-family: var(--font-display);

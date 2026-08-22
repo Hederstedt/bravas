@@ -72,7 +72,9 @@ export function SquadBuilder({
       </button>
       {error && <p className="quote-error">{error}</p>}
 
-      <div className="pool-wrap">
+      {/* tabIndex gör den rullbara ytan nåbar med tangentbord, se
+          leagueTable.tsx. */}
+      <div className="pool-wrap" tabIndex={0}>
         <table className="pool-table" aria-label="Spelarpoolen">
           <thead>
             <tr>

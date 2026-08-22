@@ -14,8 +14,11 @@ export function LeagueTable({
     return <p className="roster-note">Tabellen fylls på när serien drar igång.</p>
   }
 
+  // tabIndex gör den horisontellt rullbara ytan nåbar med tangentbord —
+  // annars finns ingen väg att skrolla tabellen utan mus/touch, se axe:
+  // scrollable-region-focusable.
   return (
-    <div className="league-table-wrap">
+    <div className="league-table-wrap" tabIndex={0}>
       <table className="league-table" aria-label="Ligatabellen">
         <caption className="sr-only">
           Ligatabellen. Kolumner: S spelade, V vunna, O oavgjorda, F förlorade, Rundor

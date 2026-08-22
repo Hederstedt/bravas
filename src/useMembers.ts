@@ -31,8 +31,9 @@ export function useMembers(): { result: Result | null; reload: () => void } {
 
   useEffect(() => {
     subscribers.add(setResult)
-    if (cached) setResult(cached)
-    else load()
+    // cached redan fångat av useState-initieraren ovan om det fanns vid
+    // montering — bara ett tomt cache behöver trigga en hämtning här.
+    if (!cached) load()
     return () => {
       subscribers.delete(setResult)
     }
