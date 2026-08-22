@@ -4,9 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { Quotes } from './quotes'
 import * as api from '../api'
 import { emitLiveEvent, installLiveEvents, teardownLiveEvents } from '../test/liveEvents'
+import { resetSessionCache } from '../useSession'
 
 beforeEach(() => {
   installLiveEvents()
+  resetSessionCache()
 })
 
 afterEach(() => {

@@ -111,7 +111,16 @@ export function AdminPage() {
                   {state.applications.map((a) => (
                     <li key={a.steamid64} className="admin-application">
                       <p className="account-who">
-                        {a.avatarUrl && <img src={a.avatarUrl} alt={a.personaName} />}
+                        {a.avatarUrl && (
+                          <img
+                            src={a.avatarUrl}
+                            alt={a.personaName}
+                            width={44}
+                            height={44}
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        )}
                         <span>{a.personaName}</span>
                       </p>
                       <p className="admin-message">{a.message}</p>

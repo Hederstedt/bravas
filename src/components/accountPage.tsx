@@ -95,7 +95,13 @@ export function AccountPage() {
               {state.mine && (
                 <p className="account-who">
                   {state.mine.avatarUrl && (
-                    <img src={state.mine.avatarUrl} alt={state.mine.personaName} />
+                    <img
+                      src={state.mine.avatarUrl}
+                      alt={state.mine.personaName}
+                      width={44}
+                      height={44}
+                      decoding="async"
+                    />
                   )}
                   <span>{state.mine.personaName}</span>
                 </p>

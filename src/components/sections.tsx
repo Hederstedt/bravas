@@ -4,8 +4,6 @@ import { Link, useLocation } from 'react-router'
 import {
   fetchDiscordStatus,
   fetchHighlightsResult,
-  fetchMembersResult,
-  fetchSession,
   fetchValheimStatus,
   type DiscordStatus,
   type Highlights,
@@ -14,6 +12,8 @@ import {
 import { games, gameStatsBlurbs } from '../data/clan'
 import { groupHighlights } from '../statsGrouping'
 import { useLiveEvent } from '../useLiveEvents'
+import { useMembers } from '../useMembers'
+import { useSession } from '../useSession'
 import { useSiteConfig } from '../useSiteConfig'
 import { SteamLogin } from './auth'
 import { BvsMark } from './BvsMark'
@@ -81,7 +81,6 @@ const navLinks = [
 
 export function Nav() {
   const [open, setOpen] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(false)
   const burgerRef = useRef<HTMLButtonElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
   const overlayId = useId()
@@ -90,15 +89,10 @@ export function Nav() {
   // Admin-länken är bekvämlighet, inte skydd — servern gatear varje
   // admin-endpoint oavsett vad menyn visar. Men en död länk för alla andra
   // vore bara skräp, så den ritas bara för den som faktiskt kan använda den.
-  useEffect(() => {
-    let cancelled = false
-    void fetchSession().then((s) => {
-      if (!cancelled) setIsAdmin(s?.isAdmin === true)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  // Delad session — SteamLogin (monterad två gånger: desktop + mobilöverlägg)
+  // frågar samma cache i stället för att själv fråga API:et igen.
+  const session = useSession()
+  const isAdmin = session?.isAdmin === true
 
   // navLinks driver både desktopmenyn och mobilöverlägget, så en villkorad
   // post räcker för båda.
@@ -589,21 +583,13 @@ export function Stats() {
 }
 
 export function About() {
-  const [memberCount, setMemberCount] = useState<number | null>(null)
-
   // Räknaren visade tidigare den hårdkodade platshållarlängden tills en
   // riktig siffra kom in — om API:et var nere kom den aldrig, och sajten
   // påstod ett medlemsantal som inte fanns. Nu visar den ett streck tills ett
-  // äkta svar kommit, även om svaret råkar vara noll.
-  useEffect(() => {
-    let cancelled = false
-    void fetchMembersResult().then((result) => {
-      if (!cancelled && result.ok) setMemberCount(result.data.length)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  // äkta svar kommit, även om svaret råkar vara noll. Delad med Roster — ett
+  // vanligt startsidesbesök gör bara ett anrop till /api/members, inte två.
+  const { result } = useMembers()
+  const memberCount = result?.ok ? result.data.length : null
 
   return (
     <section id="om" className="about">

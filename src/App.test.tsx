@@ -1,8 +1,17 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import * as api from './api'
 import App from './App'
+import { resetMembersCache } from './useMembers'
+import { resetSessionCache } from './useSession'
+
+// Sessionen delas nu via en modulnivå-cache (useSession, se Nav) — utan att
+// nollställa den läcker ett tests mockade svar in i nästa.
+beforeEach(() => {
+  resetMembersCache()
+  resetSessionCache()
+})
 
 afterEach(() => {
   vi.restoreAllMocks()

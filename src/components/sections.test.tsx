@@ -7,6 +7,16 @@ import { games, statHighlights } from '../data/clan'
 import * as api from '../api'
 import type { Highlights, ValheimStatus } from '../api'
 import { emitLiveEvent, installLiveEvents, teardownLiveEvents } from '../test/liveEvents'
+import { resetMembersCache } from '../useMembers'
+import { resetSessionCache } from '../useSession'
+
+// Medlemslistan och sessionen delas nu via en modulnivå-cache (useMembers/
+// useSession, se Nav/About) — utan att nollställa den läcker ett tests
+// mockade svar in i nästa.
+beforeEach(() => {
+  resetMembersCache()
+  resetSessionCache()
+})
 
 // Nav använder Link och behöver en router omkring sig.
 function renderNav() {

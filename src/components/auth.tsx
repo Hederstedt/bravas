@@ -1,60 +1,42 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { fetchMembers, fetchSession, STEAM_LOGIN_URL } from '../api'
+import { STEAM_LOGIN_URL } from '../api'
+import { useMembers } from '../useMembers'
+import { useSession } from '../useSession'
 import { SteamIcon } from './icons'
 
-type State =
-  | { status: 'loading' }
-  | { status: 'anonymous' }
-  | { status: 'signed-in'; personaName: string; avatarUrl: string | null }
-
+// Delar session och medlemslista med Nav/Roster/About i stället för att
+// hämta sitt eget — SteamLogin monteras dessutom två gånger samtidigt
+// (desktopmenyn och mobilöverlägget), så det hade räckt att öppna sidan för
+// att dubbla antalet anrop.
 export function SteamLogin() {
-  const [state, setState] = useState<State>({ status: 'loading' })
+  const session = useSession()
+  const { result } = useMembers()
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      try {
-        const session = await fetchSession()
-        if (!session) {
-          if (!cancelled) setState({ status: 'anonymous' })
-          return
-        }
-        const me = (await fetchMembers()).find((m) => m.steamid64 === session.steamid64)
-        if (cancelled) return
-        setState({
-          status: 'signed-in',
-          personaName: me?.personaName ?? session.steamid64,
-          avatarUrl: me?.avatarUrl ?? null,
-        })
-      } catch {
-        if (!cancelled) setState({ status: 'anonymous' })
-      }
-    }
-
-    void load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  if (state.status === 'loading') return null
-
-  if (state.status === 'anonymous') {
+  // undefined = sessionen inte hämtad än. Väntar hellre tyst än gissar fel
+  // och byter sig — samma för medlemslistan när man väl vet att man är
+  // inloggad, annars blinkar namnet förbi som ett rått steamid64 en stund.
+  if (session === undefined) return null
+  if (session === null) {
     return (
       <a className="steam-login" href={STEAM_LOGIN_URL}>
         <SteamIcon /> Logga in med Steam
       </a>
     )
   }
+  if (result === null) return null
+
+  const mine = result.ok ? result.data.find((m) => m.steamid64 === session.steamid64) : undefined
+  const personaName = mine?.personaName ?? session.steamid64
+  const avatarUrl = mine?.avatarUrl ?? null
 
   // Namnet är vägen till kontosidan — det var förut en död text, och då fanns
   // ingenstans att gå för den som ville koppla konton eller logga ut.
   return (
     <Link to="/mitt-konto" className="steam-me">
-      {state.avatarUrl && <img src={state.avatarUrl} alt={state.personaName} />}
-      <span>{state.personaName}</span>
+      {avatarUrl && (
+        <img src={avatarUrl} alt={personaName} width={26} height={26} decoding="async" />
+      )}
+      <span>{personaName}</span>
     </Link>
   )
 }

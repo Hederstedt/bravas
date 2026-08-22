@@ -3,19 +3,18 @@ import type { CSSProperties } from 'react'
 import { Link } from 'react-router'
 import {
   fetchCards,
-  fetchMembersResult,
   fetchPresence,
-  fetchSession,
   type CardAttribute,
   type CardTier,
   type PlayerCard,
   type Presence,
   type PresenceMap,
   type RosterMember,
-  type Session,
 } from '../api'
 import { compareAttribute } from '../cardStats'
 import { useLiveEvent } from '../useLiveEvents'
+import { useMembers } from '../useMembers'
+import { useSession } from '../useSession'
 import { BvsMark } from './BvsMark'
 import { ChevronIcon, DiscordIcon, StarIcon } from './icons'
 
@@ -160,7 +159,14 @@ function PlayerCardView({
       <div className="card-portrait">
         <div className="avatar">
           {entry.avatarUrl ? (
-            <img src={entry.avatarUrl} alt={entry.name} />
+            <img
+              src={entry.avatarUrl}
+              alt={entry.name}
+              width={116}
+              height={116}
+              loading="lazy"
+              decoding="async"
+            />
           ) : (
             initial(entry.name)
           )}
@@ -257,54 +263,52 @@ function PlayerCardView({
   )
 }
 
-type RosterStatus = 'loading' | 'error' | 'ready'
-
 export function Roster() {
-  // Gubbarna dyker upp här först när de loggat in med Steam. status skiljer
-  // "API:et har inte svarat än" och "API:et svarade med fel" från "svarade,
-  // och listan är faktiskt tom" — samma tomma array dolde tidigare alla tre
-  // bakom en påhittad laguppställning, så ett driftfel såg ut som en vanlig
-  // dag utan medlemmar.
-  const [status, setStatus] = useState<RosterStatus>('loading')
-  const [live, setLive] = useState<RosterMember[]>([])
+  // Gubbarna dyker upp här först när de loggat in med Steam. Medlemslistan
+  // och sessionen delas med About/Nav/SteamLogin i stället för att Roster
+  // hämtar sina egna — ett vanligt startsidesbesök gjorde tidigare flera
+  // identiska anrop till samma endpoints.
+  //
+  // result skiljer "API:et har inte svarat än" (null) och "API:et svarade med
+  // fel" (ok: false) från "svarade, och listan är faktiskt tom" (ok: true,
+  // data: []) — samma tomma array dolde tidigare alla tre bakom en påhittad
+  // laguppställning, så ett driftfel såg ut som en vanlig dag utan medlemmar.
+  const { result, reload: reloadMembers } = useMembers()
+  const session = useSession()
   const [cards, setCards] = useState<PlayerCard[]>([])
   const [presence, setPresence] = useState<PresenceMap>({})
   // Stängd som standard — ingen fattade "65 ENTRY" förut, men förklaringen
   // ska gå att hitta, inte tvinga sig på alla som bara vill se korten.
   const [legendOpen, setLegendOpen] = useState(false)
-  const [session, setSession] = useState<Session | null>(null)
   // Regerande vinnarens glitter, en gång per webbläsarsession — se
   // shouldPlayMonthGlitter ovan. Blir true högst en gång och stannar där.
   const [glitter, setGlitter] = useState(false)
-  // Ökas av "Försök igen" för att trigga om hämtningseffekten utan att bygga
-  // en egen refetch-funktion att hålla synkad med effektens cancelled-flagga.
+  // Ökas av "Försök igen" för att trigga om kort/presence utan att bygga en
+  // egen refetch-funktion att hålla synkad med effektens cancelled-flagga.
+  // Medlemslistan har sin egen omladdning via useMembers().reload().
   const [retryTick, setRetryTick] = useState(0)
 
   useEffect(() => {
     let cancelled = false
-    setStatus('loading')
-    void fetchMembersResult().then((result) => {
-      if (cancelled) return
-      if (result.ok) {
-        setLive(result.data)
-        setStatus('ready')
-      } else {
-        setStatus('error')
-      }
-    })
     void fetchCards().then((c) => {
       if (!cancelled) setCards(c)
     })
     void fetchPresence().then((p) => {
       if (!cancelled) setPresence(p)
     })
-    void fetchSession().then((s) => {
-      if (!cancelled) setSession(s)
-    })
     return () => {
       cancelled = true
     }
   }, [retryTick])
+
+  const status: 'loading' | 'error' | 'ready' =
+    result === null ? 'loading' : result.ok ? 'ready' : 'error'
+  const live = result?.ok ? result.data : []
+
+  function retry() {
+    reloadMembers()
+    setRetryTick((t) => t + 1)
+  }
 
   // Pollern på servern säger till när någon loggat in i ett spel. Bara
   // prickarna byts — korten och betygen rörs inte, så raden hoppar inte till.
@@ -367,7 +371,7 @@ export function Roster() {
             <p className="roster-note" role="alert">
               Kunde inte hämta gubbarna just nu. Kika in igen om en stund.
             </p>
-            <button type="button" className="btn btn-ghost" onClick={() => setRetryTick((t) => t + 1)}>
+            <button type="button" className="btn btn-ghost" onClick={retry}>
               Försök igen
             </button>
           </div>
