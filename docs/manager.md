@@ -57,6 +57,15 @@ Kubisk gör att en stjärna kostar ungefär två medelgubbar. Budgeten på **20 
 räcker till fem solida gubbar, eller en stjärna buren av billigare lagkamrater —
 men inte fem stjärnor. Det är där valet uppstår.
 
+### Truppfönstret stänger med serien
+
+Ett lag går bara att skapa i byggfasen. Spelschemat läggs en gång, från
+vilka lag som finns när första omgången spelas (`scheduleSeason` i
+`leagueService.ts`) — ett lag som skrevs på efter den punkten hade aldrig
+fått en enda fixture och kunnat vinna en enda poäng. `POST /api/manager/team`
+svarar `409 season_locked` i seriefasen, samma mönster som trupp, transfer
+och träning redan har.
+
 ### Knappheten upprätthålls av databasen
 
 `squads` har primärnyckel på **spelaren**, inte på paret lag-och-spelare — samma

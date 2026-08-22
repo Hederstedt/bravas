@@ -13,10 +13,17 @@ export function SeasonLobby({
   signedIn,
   onStarted,
   lastFinished,
+  // Speglar SEASON_BUDGET/SQUAD_SIZE i server/src/season.ts — förvalen finns
+  // bara för de tester som inte bryr sig om exakta siffror. managerPage.tsx
+  // skickar alltid de riktiga, live värdena från vyn.
+  budget = 20_000,
+  squadSize = 5,
 }: {
   signedIn: boolean
   onStarted: () => void
   lastFinished?: FinishedSeason | null
+  budget?: number
+  squadSize?: number
 }) {
   const [name, setName] = useState('')
   const [starting, setStarting] = useState(false)
@@ -52,13 +59,14 @@ export function SeasonLobby({
             </>
           )}
           . Dags för nästa: poolen fryses om med gubbarnas kort som de står i dag, och alla
-          bygger nytt lag för 20 000.
+          bygger nytt lag för {budget.toLocaleString('sv-SE')}.
         </p>
       ) : (
         <p className="roster-note">
           Ingen säsong igång ännu. Så här funkar det: poolen fryses med gubbarnas kort som de står
-          i dag, varje manager bygger ett lag för 20 000, serien spelas omgång för omgång och
-          tabellen skiljer agnarna från vetet.
+          i dag, varje manager bygger ett lag på {squadSize} spelare för{' '}
+          {budget.toLocaleString('sv-SE')}, serien spelas omgång för omgång och tabellen skiljer
+          agnarna från vetet.
         </p>
       )}
 

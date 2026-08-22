@@ -29,11 +29,13 @@ import {
   validateSquad,
   type PoolPlayer,
 } from "./season.ts";
-import { SELL_RATE } from "./market.ts";
+import { SELL_RATE, TRANSFERS_PER_MATCHDAY } from "./market.ts";
 import { transfersLeft } from "./marketService.ts";
 import { trainingLeft } from "./trainingService.ts";
+import { SESSIONS_PER_MATCHDAY } from "./training.ts";
 import { bonusFor } from "./activityService.ts";
 import type { ActivityBonus } from "./activity.ts";
+import { POINTS_DRAW, POINTS_WIN } from "./league.ts";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -117,6 +119,13 @@ export interface SeasonView {
   // går via transfermarknaden.
   locked: boolean;
   sellRate: number;
+  // De centrala reglerna, så att gränssnittets "Så funkar Manager"-text kan
+  // citera de faktiska konstanterna i stället för att skriva av dem — annars
+  // kan siffrorna glida isär från vad servern faktiskt gör.
+  pointsWin: number;
+  pointsDraw: number;
+  transfersPerMatchday: number;
+  trainingPerMatchday: number;
   pool: PublicPlayer[];
   myTeam: {
     id: number;
@@ -157,6 +166,10 @@ export function seasonView(steamid64: string | null): SeasonView {
       squadSize: SQUAD_SIZE,
       locked: false,
       sellRate: SELL_RATE,
+      pointsWin: POINTS_WIN,
+      pointsDraw: POINTS_DRAW,
+      transfersPerMatchday: TRANSFERS_PER_MATCHDAY,
+      trainingPerMatchday: SESSIONS_PER_MATCHDAY,
       pool: [],
       myTeam: null,
       teams: [],
@@ -184,6 +197,10 @@ export function seasonView(steamid64: string | null): SeasonView {
     squadSize: SQUAD_SIZE,
     locked: anyFixturePlayed(season.id),
     sellRate: SELL_RATE,
+    pointsWin: POINTS_WIN,
+    pointsDraw: POINTS_DRAW,
+    transfersPerMatchday: TRANSFERS_PER_MATCHDAY,
+    trainingPerMatchday: SESSIONS_PER_MATCHDAY,
     pool: listPool(season.id).map((r) => toPublic(r, owner.get(r.player_key) ?? null)),
     myTeam: mine
       ? {

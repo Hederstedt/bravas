@@ -38,6 +38,10 @@ function view(state: StubState) {
       squadSize: 5,
       locked: false,
       sellRate: 0.7,
+      pointsWin: 3,
+      pointsDraw: 1,
+      transfersPerMatchday: 1,
+      trainingPerMatchday: 2,
       pool: [],
       myTeam: null,
       teams: [],
@@ -92,6 +96,10 @@ function view(state: StubState) {
     squadSize: 5,
     locked: state.played > 0,
     sellRate: 0.7,
+    pointsWin: 3,
+    pointsDraw: 1,
+    transfersPerMatchday: 1,
+    trainingPerMatchday: 2,
     pool,
     myTeam: state.teamName
       ? {
@@ -288,8 +296,10 @@ test('anonymous visitors can look but not touch', async ({ page }) => {
   await expect(page.getByRole('table', { name: 'Ligatabellen' })).toBeVisible()
   await expect(page.getByRole('table', { name: 'Spelarpoolen' })).toBeVisible()
 
-  // Inga knappar för den som inte är inloggad — läsvyn är öppen, resten stängd.
-  await expect(page.locator('#manager').getByRole('button')).toHaveCount(0)
+  // Enda knappen för den som inte är inloggad är regelblockets egen — läsvyn
+  // är öppen, resten stängd.
+  await expect(page.locator('#manager').getByRole('button')).toHaveCount(1)
+  await expect(page.getByRole('button', { name: 'Så funkar Manager' })).toBeVisible()
 })
 
 // En delad referatlänk ska fungera som direktladdning — det är den här vägen

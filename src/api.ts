@@ -491,6 +491,12 @@ export interface ManagerView {
   // Seriefas: trupperna är låsta och all förändring går via transfer.
   locked: boolean
   sellRate: number
+  // De centrala reglerna, live från servern — så "Så funkar Manager"-texten
+  // citerar de faktiska konstanterna i stället för att skriva av dem.
+  pointsWin: number
+  pointsDraw: number
+  transfersPerMatchday: number
+  trainingPerMatchday: number
   pool: PoolPlayer[]
   myTeam: ManagerTeam | null
   // Senast färdigspelade säsongen, satt bara när ingen säsong är igång — så

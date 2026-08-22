@@ -73,6 +73,17 @@ describe('SeasonLobby', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
 
+  // Texten skrev tidigare av "20 000" för hand — glider isär från servern om
+  // budgeten någonsin ändras. budget/squadSize kommer nu från vyn.
+  it('quotes the real budget instead of a hardcoded number', () => {
+    render(<SeasonLobby signedIn onStarted={() => {}} budget={25_000} squadSize={6} />)
+    // toLocaleString('sv-SE') avgränsar tusental med hårt mellanslag (vilket
+    // exakt tecken beror på ICU-versionen) — normalisera innan jämförelsen.
+    expect(
+      screen.getByText((t) => t.replace(/\s/g, ' ').includes('25 000')),
+    ).toBeInTheDocument()
+  })
+
   it('offers Steam login instead of a form to anonymous visitors', () => {
     render(<SeasonLobby signedIn={false} onStarted={() => {}} />)
 

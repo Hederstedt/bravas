@@ -61,6 +61,12 @@ export function LeagueTable({
                     BOT
                   </span>
                 )}
+                {/* Spelschemat läggs en gång, från vilka lag som fanns när
+                    första omgången spelades — ett lag utan en enda match är
+                    inte ett datafel, det anslöt bara efter den punkten. */}
+                {row.played === 0 && (
+                  <span className="team-note">Anslöt efter att serien startat</span>
+                )}
               </td>
               <td className="num">{row.played}</td>
               <td className="num">{row.won}</td>

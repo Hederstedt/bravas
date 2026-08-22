@@ -75,4 +75,43 @@ describe('LeagueTable', () => {
     render(<LeagueTable table={ROWS} />)
     expect(screen.getByText(/S spelade, V vunna, O oavgjorda, F förlorade/)).toBeInTheDocument()
   })
+
+  // Ett lag skrivet på efter att schemat lades (POST /api/manager/team svarar
+  // numera 409 season_locked, men äldre rader kan finnas kvar) hade annars
+  // sett ut som ett datafel — en rad nollor utan förklaring.
+  describe('a team with zero played matches', () => {
+    const WITH_LATECOMER: TableRow[] = [
+      ...ROWS,
+      {
+        teamId: 3,
+        name: 'Sent ute',
+        played: 0,
+        won: 0,
+        drawn: 0,
+        lost: 0,
+        roundsFor: 0,
+        roundsAgainst: 0,
+        diff: 0,
+        points: 0,
+      },
+    ]
+
+    it('notes that the team joined after the schedule was set', () => {
+      render(<LeagueTable table={WITH_LATECOMER} />)
+
+      const rows = within(screen.getByRole('table', { name: 'Ligatabellen' }))
+        .getAllByRole('row')
+        .slice(1)
+      expect(within(rows[2]).getByText(/Anslöt efter att serien startat/)).toBeInTheDocument()
+    })
+
+    it('says nothing extra about a team that has actually played', () => {
+      render(<LeagueTable table={WITH_LATECOMER} />)
+
+      const rows = within(screen.getByRole('table', { name: 'Ligatabellen' }))
+        .getAllByRole('row')
+        .slice(1)
+      expect(within(rows[0]).queryByText(/Anslöt efter/)).not.toBeInTheDocument()
+    })
+  })
 })

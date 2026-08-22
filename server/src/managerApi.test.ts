@@ -110,6 +110,18 @@ describe("GET /api/manager", () => {
     expect(members).toHaveLength(2);
     expect(generated.length).toBeGreaterThan(0);
   });
+
+  // Ett självförklarande gränssnitt kan bara citera riktiga regler om de
+  // faktiska konstanterna följer med svaret — annars är det en text som kan
+  // glida isär från vad servern faktiskt gör, exakt det granskningen varnade
+  // för. Fälten ska finnas oavsett om en säsong är igång eller inte.
+  it("carries the league and quota rules alongside the season, even before one exists", async () => {
+    const res = await request(app).get("/api/manager").expect(200);
+    expect(res.body.pointsWin).toBe(3);
+    expect(res.body.pointsDraw).toBe(1);
+    expect(res.body.transfersPerMatchday).toBe(1);
+    expect(res.body.trainingPerMatchday).toBe(2);
+  });
 });
 
 describe("POST /api/manager/season", () => {
@@ -143,6 +155,20 @@ describe("POST /api/manager/team", () => {
   it("refuses a blank name", async () => {
     const mag = await startSeason();
     await mag.post("/api/manager/team", { name: "   " }).expect(400);
+  });
+
+  // Schemat läggs en gång, från vilka lag som finns när första omgången spelas
+  // (scheduleSeason i leagueService.ts) — ett lag skrivet på efter den punkten
+  // får aldrig en enda fixture och kan alltså aldrig vinna en poäng. Samma
+  // låsning som redan gäller för PUT /squad, POST /transfer och POST /training.
+  it("refuses a new team once the season has started", async () => {
+    const mag = await startSeason();
+    await mag.post("/api/manager/team", { name: "Mags Marodörer" }).expect(201);
+    await mag.post("/api/manager/matchday").expect(201);
+
+    const kungalv = await authed(KUNGALV);
+    const res = await kungalv.post("/api/manager/team", { name: "Sent ute" }).expect(409);
+    expect(res.body.error).toBe("season_locked");
   });
 });
 
