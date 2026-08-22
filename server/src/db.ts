@@ -21,8 +21,14 @@ db.exec(`
     added_at INTEGER NOT NULL
   );
 
+  -- public_id är det opaka id som visas publikt i stället för steamid64 (se
+  -- GET /api/members). Förvalet gör att en rad skriven utan att nämna
+  -- kolumnen ändå får ett giltigt id; upsertMemberLogin sätter ändå alltid
+  -- ett eget explicit. Unikheten ligger i ett index i stället för i kolumnen,
+  -- så att migrationen nedan kan bygga om tabellen med samma definition.
   CREATE TABLE IF NOT EXISTS members (
     steamid64 TEXT PRIMARY KEY REFERENCES allowlist(steamid64),
+    public_id TEXT DEFAULT (lower(hex(randomblob(16)))),
     persona_name TEXT NOT NULL,
     avatar_url TEXT,
     discord_name TEXT,
@@ -254,25 +260,48 @@ if (!memberColumns.some((c) => c.name === "wot_account_id")) {
   db.exec("ALTER TABLE members ADD COLUMN wot_nickname TEXT");
 }
 
-// Opakt id att visa publikt i stället för steamid64 (se GET /api/members) —
-// kom efter members-tabellen och produktionen har redan medlemmar, så en
-// UNIQUE-kolumn med NOT NULL går inte att lägga till direkt (SQLite tillåter
-// varken på en tabell med rader). Kolumnen läggs till nullbar med ett
-// SQL-genererat förval — det gör att befintliga rader (fyllda i för hand
-// nedan) och rader skrivna utan att nämna kolumnen alls (t.ex. äldre testkod)
-// ändå får ett giltigt id, utan att varje sådant ställe behöver uppdateras.
-// upsertMemberLogin sätter ändå alltid ett eget id explicit vid en riktig
-// inloggning. Unikheten upprätthålls av ett index i stället för en
-// kolumnbegränsning.
+// public_id kom efter members-tabellen och produktionen har redan medlemmar.
+// Kolumnen går inte att lägga till med ALTER: förvalet är slumpat, och SQLite
+// vägrar "ADD COLUMN ... DEFAULT (lower(hex(randomblob(16))))" så fort tabellen
+// har rader att fylla i det på. Att den ändå gick igenom i testerna beror på
+// att en tom tabell aldrig behöver räkna ut förvalet — samma sats som var grön
+// i CI kraschade alltså vid start i drift. Alltså byggs tabellen om, precis
+// som teams nedan: den nya tabellen har förvalet med sig från CREATE TABLE
+// (där det är tillåtet) och varje kopierad rad får sitt eget id av att
+// INSERT:en inte nämner kolumnen. Främmande nycklar stängs av under bytet —
+// teams.manager_steamid64 pekar hit och skulle annars kaskadera.
 if (!memberColumns.some((c) => c.name === "public_id")) {
-  db.exec("ALTER TABLE members ADD COLUMN public_id TEXT DEFAULT (lower(hex(randomblob(16))))");
-  const withoutPublicId = db
-    .prepare("SELECT steamid64 FROM members WHERE public_id IS NULL")
-    .all() as { steamid64: string }[];
-  const setPublicId = db.prepare("UPDATE members SET public_id = ? WHERE steamid64 = ?");
-  for (const { steamid64 } of withoutPublicId) setPublicId.run(randomUUID(), steamid64);
-  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_members_public_id ON members(public_id)");
+  db.pragma("foreign_keys = OFF");
+  db.transaction(() => {
+    db.exec(`
+      CREATE TABLE members_rebuilt (
+        steamid64 TEXT PRIMARY KEY REFERENCES allowlist(steamid64),
+        public_id TEXT DEFAULT (lower(hex(randomblob(16)))),
+        persona_name TEXT NOT NULL,
+        avatar_url TEXT,
+        discord_name TEXT,
+        first_login INTEGER NOT NULL,
+        last_login INTEGER NOT NULL,
+        wot_account_id TEXT,
+        wot_nickname TEXT
+      );
+      INSERT INTO members_rebuilt (
+        steamid64, persona_name, avatar_url, discord_name,
+        first_login, last_login, wot_account_id, wot_nickname
+      )
+        SELECT steamid64, persona_name, avatar_url, discord_name,
+               first_login, last_login, wot_account_id, wot_nickname
+        FROM members;
+      DROP TABLE members;
+      ALTER TABLE members_rebuilt RENAME TO members;
+    `);
+  })();
+  db.pragma("foreign_keys = ON");
 }
+
+// Utanför guarden ovan: en färsk databas får kolumnen från CREATE TABLE och
+// går aldrig in i ombyggnaden, men behöver indexet lika mycket.
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_members_public_id ON members(public_id)");
 
 // Lagkassan kom efter teams-tabellen och produktionen har redan lag, så
 // kolumnen läggs till guardat och fylls i från truppens värde: det som är
