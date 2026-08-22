@@ -697,6 +697,92 @@ describe("GET /api/members/wot/callback", () => {
   });
 });
 
+// Hjälpfunktion delad av båda unlink-testerna nedan — hämtar en giltig
+// CSRF-kaka+token åt en redan inloggad medlem.
+async function csrfFor(agent: ReturnType<typeof request.agent>, steamid64: string) {
+  const session = sessionFor(steamid64);
+  const tokenRes = await agent.get("/api/auth/csrf-token").set("Cookie", session).expect(200);
+  const csrfCookie = (tokenRes.headers["set-cookie"] as unknown as string[])
+    .find((c) => c.startsWith("bvs_csrf="))!
+    .split(";")[0]!;
+  return { session, csrfCookie, csrfToken: tokenRes.body.csrfToken as string };
+}
+
+describe("POST /api/members/discord/unlink", () => {
+  it("rejects an anonymous caller", async () => {
+    await request(app).post("/api/members/discord/unlink").expect(403);
+  });
+
+  it("clears the Discord name for a signed-in member", async () => {
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, discord_name, first_login, last_login) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "[BVS] #Mag", null, "mag#1234", Date.now(), Date.now());
+
+    const agent = request.agent(app);
+    const { session, csrfCookie, csrfToken } = await csrfFor(agent, ALLOWED);
+
+    await agent
+      .post("/api/members/discord/unlink")
+      .set("Cookie", [session, csrfCookie])
+      .set("x-csrf-token", csrfToken)
+      .expect(204);
+
+    const stored = db.prepare("SELECT discord_name FROM members WHERE steamid64 = ?").get(ALLOWED) as {
+      discord_name: string | null;
+    };
+    expect(stored.discord_name).toBeNull();
+  });
+});
+
+describe("POST /api/members/wot/unlink", () => {
+  it("rejects an anonymous caller", async () => {
+    await request(app).post("/api/members/wot/unlink").expect(403);
+  });
+
+  // Kopplingen och den cachade statistiken hör ihop — en föräldralös
+  // wot_stats-rad för ett konto ingen längre pekar på är bara skräp.
+  it("clears the World of Tanks account and its cached stats for a signed-in member", async () => {
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, wot_account_id, wot_nickname, first_login, last_login) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "[BVS] #Mag", null, "500123456", "GubbeIRL", Date.now(), Date.now());
+    db.prepare(
+      "INSERT INTO wot_stats (wot_account_id, stats_json, fetched_at) VALUES (?, ?, ?)"
+    ).run("500123456", "{}", Date.now());
+
+    const agent = request.agent(app);
+    const { session, csrfCookie, csrfToken } = await csrfFor(agent, ALLOWED);
+
+    await agent
+      .post("/api/members/wot/unlink")
+      .set("Cookie", [session, csrfCookie])
+      .set("x-csrf-token", csrfToken)
+      .expect(204);
+
+    const stored = db.prepare("SELECT wot_account_id, wot_nickname FROM members WHERE steamid64 = ?").get(
+      ALLOWED
+    ) as { wot_account_id: string | null; wot_nickname: string | null };
+    expect(stored).toEqual({ wot_account_id: null, wot_nickname: null });
+
+    const cached = db.prepare("SELECT 1 FROM wot_stats WHERE wot_account_id = ?").get("500123456");
+    expect(cached).toBeUndefined();
+  });
+
+  it("does nothing harmful when nothing was linked", async () => {
+    db.prepare(
+      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+
+    const agent = request.agent(app);
+    const { session, csrfCookie, csrfToken } = await csrfFor(agent, ALLOWED);
+
+    await agent
+      .post("/api/members/wot/unlink")
+      .set("Cookie", [session, csrfCookie])
+      .set("x-csrf-token", csrfToken)
+      .expect(204);
+  });
+});
+
 describe("CSRF protection", () => {
   it("blocks a state-changing request that carries a session but no CSRF token", async () => {
     db.prepare(

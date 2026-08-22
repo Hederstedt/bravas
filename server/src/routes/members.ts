@@ -2,6 +2,8 @@ import { Router } from "express";
 import { parseApplicationInput } from "../applications.ts";
 import { config } from "../config.ts";
 import {
+  clearDiscordName,
+  clearWotAccount,
   getApplication,
   getMember,
   listMembers,
@@ -57,6 +59,19 @@ membersRouter.post("/link", mutationLimiter, requireAuth, (req, res) => {
     return;
   }
   setDiscordName(req.member!.steamid64, discordName);
+  res.status(204).end();
+});
+
+// Symmetriskt bortkopplingspar till /link och /wot/login-/wot/callback ovan.
+// Idempotent med avsikt: att koppla bort något som redan är bortkopplat är
+// inget fel, bara ett no-op.
+membersRouter.post("/discord/unlink", mutationLimiter, requireAuth, (req, res) => {
+  clearDiscordName(req.member!.steamid64);
+  res.status(204).end();
+});
+
+membersRouter.post("/wot/unlink", mutationLimiter, requireAuth, (req, res) => {
+  clearWotAccount(req.member!.steamid64);
   res.status(204).end();
 });
 

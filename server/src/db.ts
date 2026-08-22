@@ -442,6 +442,26 @@ export function setDiscordName(steamid64: string, discordName: string): void {
   db.prepare("UPDATE members SET discord_name = ? WHERE steamid64 = ?").run(discordName, steamid64);
 }
 
+export function clearDiscordName(steamid64: string): void {
+  db.prepare("UPDATE members SET discord_name = NULL WHERE steamid64 = ?").run(steamid64);
+}
+
+// Rensar både kopplingen och den cachade statistiken för kontot — en
+// wot_stats-rad ingen medlem längre pekar på är bara skräp som blir liggande.
+export function clearWotAccount(steamid64: string): void {
+  const member = getMember(steamid64);
+  db.prepare("UPDATE members SET wot_account_id = NULL, wot_nickname = NULL WHERE steamid64 = ?").run(
+    steamid64
+  );
+  if (!member?.wot_account_id) return;
+  const stillLinked = db
+    .prepare("SELECT 1 FROM members WHERE wot_account_id = ?")
+    .get(member.wot_account_id);
+  if (!stillLinked) {
+    db.prepare("DELETE FROM wot_stats WHERE wot_account_id = ?").run(member.wot_account_id);
+  }
+}
+
 export function listMembers(): Member[] {
   return db.prepare("SELECT * FROM members ORDER BY persona_name COLLATE NOCASE").all() as Member[];
 }

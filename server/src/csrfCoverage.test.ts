@@ -37,6 +37,8 @@ beforeEach(() => {
 const WRITES: { method: "post" | "put" | "delete"; path: string; body?: unknown }[] = [
   { method: "post", path: "/api/auth/logout" },
   { method: "post", path: "/api/members/link", body: { discordName: "mag" } },
+  { method: "post", path: "/api/members/discord/unlink" },
+  { method: "post", path: "/api/members/wot/unlink" },
   { method: "post", path: "/api/members/apply", body: { message: "Släpp in mig" } },
   { method: "post", path: `/api/admin/applications/${MEMBER}/approve` },
   { method: "post", path: `/api/admin/applications/${MEMBER}/reject` },

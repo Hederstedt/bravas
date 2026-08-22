@@ -13,5 +13,10 @@
     "path": "/manager",
     "title": "Bravas CS Manager | BVS",
     "description": "Bygg ett lag, spela säsongen och klättra i tabellen — BVS egen Counter-Strike-manager, byggd som klanens gamla Hattrick-favoriter."
+  },
+  {
+    "path": "/integritet",
+    "title": "Integritet på Bravas | BVS",
+    "description": "Vad BVS hämtar från Steam och Wargaming, vad som visas offentligt, hur länge det sparas och hur du kopplar bort eller tar bort ditt konto."
   }
 ]

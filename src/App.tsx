@@ -7,6 +7,7 @@ import { ApplyPage } from './components/applyPage'
 import { HomePage } from './components/home'
 import { InfoPage } from './components/infoPage'
 import { NotFoundPage } from './components/notFoundPage'
+import { PrivacyPage } from './components/privacyPage'
 import { RouteFocus } from './components/routeFocus'
 import { RouteMeta } from './components/routeMeta'
 import { Nav, Footer } from './components/sections'
@@ -35,6 +36,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/kom-igang" element={<InfoPage />} />
+          <Route path="/integritet" element={<PrivacyPage />} />
           {/* Utan lazy() — sidan är för lätt för att vara värd en egen chunk. */}
           <Route path="/mitt-konto" element={<AccountPage />} />
           <Route path="/ansok" element={<ApplyPage />} />

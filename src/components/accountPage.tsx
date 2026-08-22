@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import {
   fetchMembers,
   fetchSession,
@@ -7,6 +7,8 @@ import {
   logout,
   MAX_DISCORD_NAME,
   STEAM_LOGIN_URL,
+  unlinkDiscord,
+  unlinkWot,
   WOT_LOGIN_URL,
   type RosterMember,
 } from '../api'
@@ -103,13 +105,18 @@ export function AccountPage() {
                 <div className="account-links">
                   <h3>Koppla dina konton</h3>
                   <DiscordLink mine={state.mine} onLinked={reload} />
-                  <WotLink mine={state.mine} />
+                  <WotLink mine={state.mine} onUnlinked={reload} />
                 </div>
               )}
 
               <MonthlyStandings />
 
               <SignOut />
+
+              <p className="roster-note">
+                <Link to="/integritet">Integritet på Bravas</Link> — vad som lagras och hur du
+                kopplar bort eller tar bort ditt konto.
+              </p>
             </>
           )}
         </div>
@@ -143,6 +150,42 @@ function SignOut() {
     <div className="account-signout">
       <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void signOut()}>
         {busy ? 'Loggar ut…' : 'Logga ut'}
+      </button>
+      {error && <p className="quote-error">{error}</p>}
+    </div>
+  )
+}
+
+// Andra klicket i stället för en dialogruta bekräftar — samma mönster som att
+// ta bort ett citat, se quotes.tsx. Delad av Discord- och WoT-kopplingen: båda
+// är samma interaktion, bara vilket anrop och vilken etikett som skiljer.
+function UnlinkButton({ label, onUnlink }: { label: string; onUnlink: () => Promise<boolean> }) {
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  async function click() {
+    if (!confirming) {
+      setConfirming(true)
+      return
+    }
+    setBusy(true)
+    setError('')
+    const ok = await onUnlink()
+    setBusy(false)
+    setConfirming(false)
+    if (!ok) setError('Kunde inte koppla bort. Försök igen.')
+  }
+
+  return (
+    <div className="unlink-row">
+      <button
+        type="button"
+        className="btn btn-ghost unlink-btn"
+        disabled={busy}
+        onClick={() => void click()}
+      >
+        {busy ? 'Kopplar bort…' : confirming ? 'Säkert? Klicka igen' : `Koppla bort ${label}`}
       </button>
       {error && <p className="quote-error">{error}</p>}
     </div>
@@ -195,6 +238,16 @@ function DiscordLink({ mine, onLinked }: { mine: RosterMember; onLinked: () => v
       </button>
       {error && <p className="quote-error">{error}</p>}
       {saved && !error && <p className="roster-note">Sparat — namnet syns på ditt kort.</p>}
+      {mine.discordName && (
+        <UnlinkButton
+          label="Discord"
+          onUnlink={async () => {
+            const ok = await unlinkDiscord()
+            if (ok) onLinked()
+            return ok
+          }}
+        />
+      )}
     </form>
   )
 }
@@ -203,19 +256,29 @@ function DiscordLink({ mine, onLinked }: { mine: RosterMember; onLinked: () => v
 // idé som Discord-namnet men med en kontokoll i stället för fritext. En hel
 // sidnavigering, inte ett fetch-anrop: det är en OAuth-liknande redirect ut
 // till Wargaming och tillbaka.
-function WotLink({ mine }: { mine: RosterMember }) {
+function WotLink({ mine, onUnlinked }: { mine: RosterMember; onUnlinked: () => void }) {
   return (
-    <p className="roster-note wot-link">
+    <div className="roster-note wot-link">
       {mine.wotNickname ? (
         <>
-          Länkad mot World of Tanks som <strong>{mine.wotNickname}</strong>.{' '}
-          <a href={WOT_LOGIN_URL}>Byt konto</a>
+          <p>
+            Länkad mot World of Tanks som <strong>{mine.wotNickname}</strong>.{' '}
+            <a href={WOT_LOGIN_URL}>Byt konto</a>
+          </p>
+          <UnlinkButton
+            label="World of Tanks"
+            onUnlink={async () => {
+              const ok = await unlinkWot()
+              if (ok) onUnlinked()
+              return ok
+            }}
+          />
         </>
       ) : (
         <a className="btn btn-ghost" href={WOT_LOGIN_URL}>
           Länka World of Tanks
         </a>
       )}
-    </p>
+    </div>
   )
 }

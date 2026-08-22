@@ -730,6 +730,7 @@ export function Footer() {
           Västra Götaland
         </span>
         <span>Hostad i ett garage nära dig</span>
+        <Link to="/integritet">Integritet</Link>
       </div>
     </footer>
   )

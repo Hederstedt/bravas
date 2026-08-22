@@ -83,6 +83,11 @@ export function InfoPage() {
           )}
 
           <RatingExplanation />
+
+          <p className="roster-note">
+            Fundera på vad som lagras och visas om dig? Läs{' '}
+            <Link to="/integritet">Integritet på Bravas</Link>.
+          </p>
         </div>
       </section>
     </main>
