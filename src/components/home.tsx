@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useLocation, useSearchParams } from 'react-router'
+import { useApiOutage } from '../useApiOutage'
 import { Quotes } from './quotes'
 import { About, DiscordCta, Games, Hero, Roster, Stats } from './sections'
 
@@ -15,6 +16,27 @@ function AuthNotice() {
       Inloggningen med Steam gick inte igenom. Försök igen — hjälper det inte kan Steam vara nere
       för stunden.
     </p>
+  )
+}
+
+// Gubbarna, Siffrorna och Citaten hämtar från samma API. Ligger det nere
+// felar de samtidigt, och startsidan visade då tre likadana rutor med var sin
+// "Försök igen" — som om det vore tre olika problem. Beskedet ges en gång här
+// i stället, med den enda knappen som hämtar om allt på en gång.
+function ApiOutageNotice() {
+  const { outage, retry } = useApiOutage()
+  if (!outage) return null
+
+  return (
+    <div className="api-outage" role="alert">
+      <p>
+        Sajten <strong>når inte servern just nu</strong>, så flera avsnitt står tomma. Inget har
+        försvunnit — det kommer tillbaka så fort servern svarar igen.
+      </p>
+      <button type="button" className="btn btn-ghost" onClick={retry}>
+        Försök igen
+      </button>
+    </div>
   )
 }
 
@@ -35,6 +57,7 @@ export function HomePage() {
       <ScrollToHash />
       <Hero />
       <main id="main" tabIndex={-1}>
+        <ApiOutageNotice />
         <AuthNotice />
         <Roster />
         <Games />

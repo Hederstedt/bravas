@@ -30,7 +30,7 @@ const MY_QUOTE: api.Quote = { ...QUOTE, id: 2, text: 'Mitt eget citat', mine: tr
 
 describe('Quotes', () => {
   it('lists the quotes with their attribution and vote count', async () => {
-    vi.spyOn(api, 'fetchQuotes').mockResolvedValue([QUOTE])
+    vi.spyOn(api, 'fetchQuotesResult').mockResolvedValue({ ok: true, data: [QUOTE] })
     vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
 
     render(<Quotes />)
@@ -41,7 +41,7 @@ describe('Quotes', () => {
   })
 
   it('invites the visitor to log in instead of showing a form', async () => {
-    vi.spyOn(api, 'fetchQuotes').mockResolvedValue([QUOTE])
+    vi.spyOn(api, 'fetchQuotesResult').mockResolvedValue({ ok: true, data: [QUOTE] })
     vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
 
     render(<Quotes />)
@@ -53,7 +53,7 @@ describe('Quotes', () => {
   })
 
   it('says the wall is empty rather than showing nothing', async () => {
-    vi.spyOn(api, 'fetchQuotes').mockResolvedValue([])
+    vi.spyOn(api, 'fetchQuotesResult').mockResolvedValue({ ok: true, data: [] })
     vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
 
     render(<Quotes />)
@@ -63,7 +63,7 @@ describe('Quotes', () => {
 
   it('lets a signed-in member add a quote and shows it straight away', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'fetchQuotes').mockResolvedValue([])
+    vi.spyOn(api, 'fetchQuotesResult').mockResolvedValue({ ok: true, data: [] })
     vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '76561198060166361', isMember: true, isAdmin: false })
     const add = vi.spyOn(api, 'addQuote').mockResolvedValue({
       id: 7,
@@ -86,7 +86,7 @@ describe('Quotes', () => {
 
   it('refuses to submit an empty quote', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'fetchQuotes').mockResolvedValue([])
+    vi.spyOn(api, 'fetchQuotesResult').mockResolvedValue({ ok: true, data: [] })
     vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1', isMember: true, isAdmin: false })
     const add = vi.spyOn(api, 'addQuote').mockResolvedValue(null)
 
@@ -98,7 +98,7 @@ describe('Quotes', () => {
 
   it('updates the count when a member votes', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'fetchQuotes').mockResolvedValue([QUOTE])
+    vi.spyOn(api, 'fetchQuotesResult').mockResolvedValue({ ok: true, data: [QUOTE] })
     vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1', isMember: true, isAdmin: false })
     vi.spyOn(api, 'toggleQuoteVote').mockResolvedValue({ votes: 4, voted: true })
 
@@ -111,7 +111,7 @@ describe('Quotes', () => {
   // Väggen ska inte se trasig ut för att en röst inte gick fram.
   it('leaves the count alone when the vote fails', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'fetchQuotes').mockResolvedValue([QUOTE])
+    vi.spyOn(api, 'fetchQuotesResult').mockResolvedValue({ ok: true, data: [QUOTE] })
     vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1', isMember: true, isAdmin: false })
     vi.spyOn(api, 'toggleQuoteVote').mockResolvedValue(null)
 
@@ -124,7 +124,7 @@ describe('Quotes', () => {
   })
 
   it('does not offer voting to anonymous visitors', async () => {
-    vi.spyOn(api, 'fetchQuotes').mockResolvedValue([QUOTE])
+    vi.spyOn(api, 'fetchQuotesResult').mockResolvedValue({ ok: true, data: [QUOTE] })
     vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
 
     render(<Quotes />)
@@ -137,7 +137,7 @@ describe('Quotes', () => {
   // bara egna citat, och `mine` avgör vilka kort som får knappen.
   describe('removing your own quote', () => {
     it('offers the button only on your own quotes', async () => {
-      vi.spyOn(api, 'fetchQuotes').mockResolvedValue([QUOTE, MY_QUOTE])
+      vi.spyOn(api, 'fetchQuotesResult').mockResolvedValue({ ok: true, data: [QUOTE, MY_QUOTE] })
       vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1', isMember: true, isAdmin: false })
 
       render(<Quotes />)
@@ -151,7 +151,7 @@ describe('Quotes', () => {
     // Radering går inte att ångra, så första klicket frågar bara.
     it('asks once before actually removing it', async () => {
       const user = userEvent.setup()
-      vi.spyOn(api, 'fetchQuotes').mockResolvedValue([MY_QUOTE])
+      vi.spyOn(api, 'fetchQuotesResult').mockResolvedValue({ ok: true, data: [MY_QUOTE] })
       vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1', isMember: true, isAdmin: false })
       const remove = vi.spyOn(api, 'deleteQuote').mockResolvedValue(true)
 
@@ -169,7 +169,7 @@ describe('Quotes', () => {
 
     it('keeps the quote and says so when the removal fails', async () => {
       const user = userEvent.setup()
-      vi.spyOn(api, 'fetchQuotes').mockResolvedValue([MY_QUOTE])
+      vi.spyOn(api, 'fetchQuotesResult').mockResolvedValue({ ok: true, data: [MY_QUOTE] })
       vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: '1', isMember: true, isAdmin: false })
       vi.spyOn(api, 'deleteQuote').mockResolvedValue(false)
 
@@ -186,9 +186,10 @@ describe('Quotes', () => {
   // React escapar automatiskt — testet finns för att fånga om någon senare
   // byter till dangerouslySetInnerHTML.
   it('renders markup in a quote as text, never as HTML', async () => {
-    vi.spyOn(api, 'fetchQuotes').mockResolvedValue([
-      { ...QUOTE, text: '<img src=x onerror=alert(1)>' },
-    ])
+    vi.spyOn(api, 'fetchQuotesResult').mockResolvedValue({
+      ok: true,
+      data: [{ ...QUOTE, text: '<img src=x onerror=alert(1)>' }],
+    })
     vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
 
     const { container } = render(<Quotes />)
@@ -200,14 +201,14 @@ describe('Quotes', () => {
 
 describe('the wall keeping itself current', () => {
   it('picks up a quote someone else added, without a reload', async () => {
-    const fetchQuotes = vi.spyOn(api, 'fetchQuotes').mockResolvedValue([QUOTE])
+    const fetchQuotes = vi.spyOn(api, 'fetchQuotesResult').mockResolvedValue({ ok: true, data: [QUOTE] })
     vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
 
     render(<Quotes />)
     await screen.findByText(/Jag hade ju träklubban/)
 
     const added = { ...QUOTE, id: 2, text: 'Rush B, tänk inte', saidBy: 'Gubbe #1', votes: 0 }
-    fetchQuotes.mockResolvedValue([QUOTE, added])
+    fetchQuotes.mockResolvedValue({ ok: true, data: [QUOTE, added] })
 
     act(() => emitLiveEvent('quote', { reason: 'added' }))
 
@@ -215,16 +216,41 @@ describe('the wall keeping itself current', () => {
   })
 
   it('picks up a vote cast in another tab', async () => {
-    const fetchQuotes = vi.spyOn(api, 'fetchQuotes').mockResolvedValue([QUOTE])
+    const fetchQuotes = vi.spyOn(api, 'fetchQuotesResult').mockResolvedValue({ ok: true, data: [QUOTE] })
     vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
 
     render(<Quotes />)
     const card = (await screen.findByText(/Jag hade ju träklubban/)).closest('article')!
     expect(within(card).getByText('3')).toBeInTheDocument()
 
-    fetchQuotes.mockResolvedValue([{ ...QUOTE, votes: 4 }])
+    fetchQuotes.mockResolvedValue({ ok: true, data: [{ ...QUOTE, votes: 4 }] })
     act(() => emitLiveEvent('quote', { reason: 'voted', id: 1 }))
 
     await waitFor(() => expect(within(card).getByText('4')).toBeInTheDocument())
+  })
+})
+
+// "Tomt" och "gick inte att hämta" såg likadana ut: den gamla fetchQuotes svarade
+// tom lista på ett trasigt anrop, så väggen påstod "först till kvarn" medan
+// API:et låg nere och citaten fanns kvar i databasen hela tiden.
+describe('Quotes när API:et inte svarar', () => {
+  it('säger att citaten inte gick att hämta i stället för att väggen är tom', async () => {
+    vi.spyOn(api, 'fetchQuotesResult').mockResolvedValue({ ok: false })
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+
+    render(<Quotes />)
+
+    expect(await screen.findByText(/Kunde inte hämta citaten/)).toBeInTheDocument()
+    expect(screen.queryByText(/Inga citat ännu/)).not.toBeInTheDocument()
+  })
+
+  it('håller isär ett tomt svar från ett uteblivet', async () => {
+    vi.spyOn(api, 'fetchQuotesResult').mockResolvedValue({ ok: true, data: [] })
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+
+    render(<Quotes />)
+
+    expect(await screen.findByText(/Inga citat ännu/)).toBeInTheDocument()
+    expect(screen.queryByText(/Kunde inte hämta citaten/)).not.toBeInTheDocument()
   })
 })

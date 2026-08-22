@@ -12,6 +12,7 @@ import {
   type RosterMember,
 } from '../api'
 import { compareAttribute } from '../cardStats'
+import { useSectionStatus } from '../useApiOutage'
 import { useLiveEvent } from '../useLiveEvents'
 import { useMembers } from '../useMembers'
 import { BvsMark } from './BvsMark'
@@ -308,6 +309,10 @@ export function Roster() {
     setRetryTick((t) => t + 1)
   }
 
+  // Felar fler sektioner samtidigt tar bannern på startsidan över beskedet och
+  // knappen — se home.tsx. Sektionen säger då bara varför den är tom.
+  const covered = useSectionStatus('gubbarna', status === 'error', retry)
+
   // Pollern på servern säger till när någon loggat in i ett spel. Bara
   // prickarna byts — korten och betygen rörs inte, så raden hoppar inte till.
   const onPresence = useCallback((data: unknown) => {
@@ -365,16 +370,19 @@ export function Roster() {
           </p>
         )}
 
-        {status === 'error' && (
-          <div className="roster-error">
-            <p className="roster-note" role="alert">
-              Kunde inte hämta gubbarna just nu. Kika in igen om en stund.
-            </p>
-            <button type="button" className="btn btn-ghost" onClick={retry}>
-              Försök igen
-            </button>
-          </div>
-        )}
+        {status === 'error' &&
+          (covered ? (
+            <p className="roster-note">Kunde inte hämta gubbarna just nu.</p>
+          ) : (
+            <div className="roster-error">
+              <p className="roster-note" role="alert">
+                Kunde inte hämta gubbarna just nu. Kika in igen om en stund.
+              </p>
+              <button type="button" className="btn btn-ghost" onClick={retry}>
+                Försök igen
+              </button>
+            </div>
+          ))}
 
         {status === 'ready' && live.length === 0 && (
           <p className="roster-note">

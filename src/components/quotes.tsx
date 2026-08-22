@@ -2,18 +2,21 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   addQuote,
   deleteQuote,
-  fetchQuotes,
+  fetchQuotesResult,
   toggleQuoteVote,
   MAX_QUOTE_LENGTH,
   MAX_SAID_BY_LENGTH,
   type Quote,
 } from '../api'
+import { useSectionStatus } from '../useApiOutage'
 import { useLiveEvent } from '../useLiveEvents'
 import { useSession } from '../useSession'
 import { TrophyIcon } from './icons'
 
 export function Quotes() {
   const [quotes, setQuotes] = useState<Quote[]>([])
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [retryTick, setRetryTick] = useState(0)
   // Delad med Nav/SteamLogin/Roster i stället för ett eget anrop — se
   // useSession.ts. !! ger false både under laddning (undefined) och för en
   // anonym besökare (null), precis som den gamla lokala useState(false) gjorde.
@@ -25,22 +28,34 @@ export function Quotes() {
   // Vilket citat som väntar på en bekräftelse av raderingen.
   const [confirming, setConfirming] = useState<number | null>(null)
 
+  // Statusen går aldrig tillbaka till 'loading' här: effekten kör om både när
+  // någon annan skrivit ett citat och när "Försök igen" trycks, och en
+  // laddningstext som blinkar förbi vid varje röst någon annan lägger vore
+  // sämre än att bara byta ut listan när svaret kommit.
   useEffect(() => {
     let cancelled = false
-    void fetchQuotes().then((q) => {
-      if (!cancelled) setQuotes(q)
+    void fetchQuotesResult().then((result) => {
+      if (cancelled) return
+      if (result.ok) {
+        setQuotes(result.data)
+        setStatus('ready')
+      } else {
+        setStatus('error')
+      }
     })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [retryTick])
 
   // Någon annan har skrivit, röstat eller raderat. Hämta om väggen så att den
   // som redan har sidan öppen ser det utan att ladda om.
-  const reload = useCallback(() => {
-    void fetchQuotes().then(setQuotes)
-  }, [])
+  const reload = useCallback(() => setRetryTick((t) => t + 1), [])
   useLiveEvent('quote', reload)
+
+  // Felar fler sektioner samtidigt tar bannern på startsidan över beskedet och
+  // knappen — se home.tsx.
+  const covered = useSectionStatus('citaten', status === 'error', reload)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -121,9 +136,31 @@ export function Quotes() {
           <p className="roster-note">Logga in med Steam för att lägga till och rösta på citat.</p>
         )}
 
-        {quotes.length === 0 ? (
+        {status === 'loading' && (
+          <p className="roster-note route-loading" role="status">
+            Hämtar citaten…
+          </p>
+        )}
+
+        {status === 'error' &&
+          (covered ? (
+            <p className="roster-note">Kunde inte hämta citaten just nu.</p>
+          ) : (
+            <div className="roster-error">
+              <p className="roster-note" role="alert">
+                Kunde inte hämta citaten just nu. Kika in igen om en stund.
+              </p>
+              <button type="button" className="btn btn-ghost" onClick={reload}>
+                Försök igen
+              </button>
+            </div>
+          ))}
+
+        {status === 'ready' && quotes.length === 0 && (
           <p className="roster-note">Inga citat ännu — först till kvarn.</p>
-        ) : (
+        )}
+
+        {quotes.length > 0 && (
           <div className="quote-grid">
             {quotes.map((q) => (
               <article key={q.id} className="quote-card">
