@@ -495,6 +495,77 @@ a.steam-login:hover {
   color: var(--text);
 }
 
+/* Loggboken. En rad per händelse: ikon, vad som hände, och när. Tiden ligger
+   sist på egen kolumn så att raderna radar upp sig mot varandra i stället för
+   att tidsangivelsen flyter runt beroende på hur lång texten är. */
+.feed {
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+}
+
+.feed li {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  align-items: start;
+  gap: 4px 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--panel-edge);
+}
+
+.feed li:last-child {
+  border-bottom: 0;
+}
+
+.feed p {
+  margin: 0;
+}
+
+.feed q {
+  font-style: italic;
+}
+
+.feed-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  color: var(--muted);
+}
+
+/* Guldstjärnan för Månadens BVS:are — samma färg som kortets ram, så att det
+   är samma utmärkelse man känner igen. */
+.feed-icon.gold {
+  color: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+.feed-icon svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+}
+
+.feed time {
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* På en smal skärm får tiden inte konkurrera med texten om bredden — då
+   hamnar den under i stället, i textens kolumn. */
+@media (max-width: 560px) {
+  .feed li {
+    grid-template-columns: 34px 1fr;
+  }
+
+  .feed time {
+    grid-column: 2;
+  }
+}
+
 /* Beskedet när API:et inte svarar alls. Ligger direkt i <main> som
    .auth-notice och delar dess mått, men bär knappen bredvid texten: den är
    startsidans enda "Försök igen" så länge bannern syns. */

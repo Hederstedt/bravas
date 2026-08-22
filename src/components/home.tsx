@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useLocation, useSearchParams } from 'react-router'
 import { useApiOutage } from '../useApiOutage'
+import { Feed } from './feed'
 import { Quotes } from './quotes'
 import { About, DiscordCta, Games, Hero, Roster, Stats } from './sections'
 
@@ -63,6 +64,7 @@ export function HomePage() {
         <Games />
         <Stats />
         <Quotes />
+        <Feed />
         <About />
         <DiscordCta />
       </main>

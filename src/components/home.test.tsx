@@ -21,6 +21,9 @@ beforeEach(() => {
   resetSiteConfigCache()
 
   vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+  // Loggboken hämtar också från API:et. Den mockas som lyckad här så att varje
+  // test styr själv exakt vilka sektioner som felar.
+  vi.spyOn(api, 'fetchFeedResult').mockResolvedValue({ ok: true, data: [] })
   vi.spyOn(api, 'fetchCards').mockResolvedValue([])
   vi.spyOn(api, 'fetchPresence').mockResolvedValue({})
   vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({ discordInviteUrl: '' })
