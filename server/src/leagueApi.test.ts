@@ -100,6 +100,29 @@ async function league(withSquads = true) {
   return first;
 }
 
+// player_key byggs en gång vid säsongsstart och sparas i databasen — läcker
+// den ut biter den fast för hela säsongens historik, till skillnad från
+// GET /api/members m.fl. som bara läcker medan svaret läses. Se season.ts.
+describe("player identity in the manager game", () => {
+  it("never exposes a manager's real steamid64 through the pool or squad keys", async () => {
+    await league();
+    const view = await request(app).get("/api/manager").expect(200);
+    const body = JSON.stringify(view.body);
+    for (const [id] of MANAGERS) expect(body).not.toContain(id);
+  });
+
+  it("never exposes it through a match report either", async () => {
+    const mag = await league();
+    await mag.post("/api/manager/matchday").expect(201);
+
+    const view = await request(app).get("/api/manager").expect(200);
+    const played = (view.body.fixtures as { id: number; played: boolean }[]).find((f) => f.played)!;
+    const report = await request(app).get(`/api/manager/match/${played.id}`).expect(200);
+    const body = JSON.stringify(report.body);
+    for (const [id] of MANAGERS) expect(body).not.toContain(id);
+  });
+});
+
 describe("the fixture list", () => {
   it("appears once the first matchday is played", async () => {
     const mag = await league();
