@@ -61,11 +61,8 @@ function view(state: StubState) {
 
   const windowOpen = state.played > 0 && state.played < MATCHDAYS
   // Motståndarna är ett botlag: det är så en ensam manager får någon att möta.
-  const teams: { id: number; name: string; manager: string | null; bot: boolean }[] = [
-    { id: 1, name: 'Motståndarna', manager: null, bot: true },
-  ]
-  if (state.teamName)
-    teams.push({ id: 2, name: state.teamName, manager: '76561198000000001', bot: false })
+  const teams: { id: number; name: string; bot: boolean }[] = [{ id: 1, name: 'Motståndarna', bot: true }]
+  if (state.teamName) teams.push({ id: 2, name: state.teamName, bot: false })
 
   const tableRow = (id: number, name: string, won: boolean) => ({
     teamId: id,

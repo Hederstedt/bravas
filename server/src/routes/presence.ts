@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { listMembers } from "../db.ts";
 import { readLimiter } from "../middleware/rateLimit.ts";
-import { currentPresence, refreshPresence } from "../presencePoller.ts";
+import { currentPresence, publicPresence, refreshPresence } from "../presencePoller.ts";
 
 export const presenceRouter = Router();
 
@@ -22,5 +22,5 @@ presenceRouter.get("/", readLimiter, async (_req, res) => {
   // varv och ska inte mötas av en tom roster.
   if (Object.keys(currentPresence()).length === 0) await refreshPresence();
 
-  res.json({ presence: currentPresence() });
+  res.json({ presence: publicPresence() });
 });

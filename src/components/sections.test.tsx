@@ -368,10 +368,10 @@ describe('DiscordCta', () => {
 describe('About', () => {
   it('counts the real crew once the roster has loaded', async () => {
     const eight = Array.from({ length: 8 }, (_, i) => ({
-      steamid64: `7656119800000000${i}`,
+      id: `test-public-id-${i}`,
       personaName: `Gubbe ${i}`,
       avatarUrl: null,
-      discordName: null, wotNickname: null,
+      discordName: null, wotNickname: null, mine: false,
     }))
     vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({ ok: true, data: eight })
 

@@ -100,6 +100,29 @@ async function league(withSquads = true) {
   return first;
 }
 
+// player_key byggs en gång vid säsongsstart och sparas i databasen — läcker
+// den ut biter den fast för hela säsongens historik, till skillnad från
+// GET /api/members m.fl. som bara läcker medan svaret läses. Se season.ts.
+describe("player identity in the manager game", () => {
+  it("never exposes a manager's real steamid64 through the pool or squad keys", async () => {
+    await league();
+    const view = await request(app).get("/api/manager").expect(200);
+    const body = JSON.stringify(view.body);
+    for (const [id] of MANAGERS) expect(body).not.toContain(id);
+  });
+
+  it("never exposes it through a match report either", async () => {
+    const mag = await league();
+    await mag.post("/api/manager/matchday").expect(201);
+
+    const view = await request(app).get("/api/manager").expect(200);
+    const played = (view.body.fixtures as { id: number; played: boolean }[]).find((f) => f.played)!;
+    const report = await request(app).get(`/api/manager/match/${played.id}`).expect(200);
+    const body = JSON.stringify(report.body);
+    for (const [id] of MANAGERS) expect(body).not.toContain(id);
+  });
+});
+
 describe("the fixture list", () => {
   it("appears once the first matchday is played", async () => {
     const mag = await league();
@@ -256,11 +279,11 @@ describe("POST /api/manager/matchday", () => {
       await mag.post("/api/manager/matchday").expect(201);
 
       const view = await request(app).get("/api/manager").expect(200);
-      const teams = view.body.teams as { name: string; manager: string | null; bot: boolean }[];
+      const teams = view.body.teams as { name: string; bot: boolean }[];
       expect(teams).toHaveLength(MIN_TEAMS);
       expect(teams.filter((t) => t.bot)).toHaveLength(MIN_TEAMS - 1);
-      // Botlagen har ingen gubbe bakom sig.
-      for (const bot of teams.filter((t) => t.bot)) expect(bot.manager).toBeNull();
+      // manager_steamid64 är internt — den publika vyn ska aldrig bära den.
+      expect(JSON.stringify(view.body)).not.toContain("manager");
     });
 
     it("gives every bot a full squad inside the budget", async () => {

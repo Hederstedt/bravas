@@ -15,14 +15,14 @@ export interface AttributeComparison {
 // att låta dem dra ner snittet vore missvisande.
 export function compareAttribute(
   cards: PlayerCard[],
-  steamid64: string,
+  id: string,
   key: string,
 ): AttributeComparison | null {
   const values = cards
-    .map((c) => ({ id: c.steamid64, rating: c.attributes.find((a) => a.key === key)?.rating }))
+    .map((c) => ({ id: c.id, rating: c.attributes.find((a) => a.key === key)?.rating }))
     .filter((v): v is { id: string; rating: number } => typeof v.rating === 'number')
 
-  const mine = values.find((v) => v.id === steamid64)
+  const mine = values.find((v) => v.id === id)
   if (!mine) return null
 
   const total = values.reduce((sum, v) => sum + v.rating, 0)

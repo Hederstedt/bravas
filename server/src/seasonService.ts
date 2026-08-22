@@ -6,6 +6,7 @@ import {
   getTeam,
   keysTakenByOtherTeams,
   lastFinishedSeason,
+  listMembers,
   listPool,
   listTeams,
   savePool,
@@ -86,10 +87,19 @@ export async function startSeason(name: string): Promise<SeasonRow> {
   const season = createSeason(name, startsAt, startsAt + SEASON_WEEKS * WEEK_MS);
 
   const { cards } = await getCards();
+  // buildPool bakar steamid64 in i player_key, som sparas i databasen och
+  // skickas till klienten (PublicPlayer.key, matchrapportens PlayerLine.id)
+  // för resten av säsongens historik. Växlar till public_id här, en gång,
+  // i stället för att låta det riktiga steamid64:t fastna i den frysta poolen.
+  const publicIdBySteamid64 = new Map(listMembers().map((m) => [m.steamid64, m.public_id]));
+  const anonymizedCards = cards.map((c) => ({
+    ...c,
+    steamid64: publicIdBySteamid64.get(c.steamid64) ?? c.steamid64,
+  }));
   savePool(
     season.id,
     buildPool({
-      members: cards,
+      members: anonymizedCards,
       historical: [],
       generatedCount: FREE_AGENTS,
       seed: `${season.id}:${name}`,
@@ -139,7 +149,7 @@ export interface SeasonView {
     // dyker ett extra träningspass upp utan förklaring.
     activity: ActivityBonus;
   } | null;
-  teams: { id: number; name: string; manager: string | null; bot: boolean }[];
+  teams: { id: number; name: string; bot: boolean }[];
   table: TableRow[];
   fixtures: PublicFixture[];
 }
@@ -214,10 +224,12 @@ export function seasonView(steamid64: string | null): SeasonView {
           activity: bonusFor(season, mine),
         }
       : null,
+    // manager_steamid64 skickas medvetet inte ut — bot-flaggan räcker för att
+    // visa vilka lag som saknar en gubbe bakom sig, utan att läcka ett riktigt
+    // steamid64 för de andra.
     teams: teams.map((t) => ({
       id: t.id,
       name: t.name,
-      manager: t.manager_steamid64,
       bot: t.bot === 1,
     })),
     table: seasonTable(season.id),

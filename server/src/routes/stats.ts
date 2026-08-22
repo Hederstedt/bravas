@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { config } from "../config.ts";
-import { isAllowlisted } from "../db.ts";
+import { isAllowlisted, listMembers } from "../db.ts";
 import { readLimiter } from "../middleware/rateLimit.ts";
 import { getMonthlyStatus } from "../bvsMonthService.ts";
 import { getCards, getHighlights } from "../statsService.ts";
@@ -16,8 +16,20 @@ statsRouter.get("/highlights", readLimiter, async (_req, res) => {
 });
 
 // Samma sak här — "cards" är inget steam-id och får inte hamna i den routen.
+//
+// getCards() jobbar internt med steamid64 (seasonService.ts fryser poolen med
+// det), så översättningen till opakt id görs här vid API-gränsen i stället —
+// samma mönster som publicPresence() i presencePoller.ts.
 statsRouter.get("/cards", readLimiter, async (_req, res) => {
-  res.json(await getCards());
+  const { cards, ...rest } = await getCards();
+  const publicIdBySteamid64 = new Map(listMembers().map((m) => [m.steamid64, m.public_id]));
+  res.json({
+    ...rest,
+    cards: cards.flatMap(({ steamid64, ...card }) => {
+      const id = publicIdBySteamid64.get(steamid64);
+      return id ? [{ id, ...card }] : [];
+    }),
+  });
 });
 
 // Samma sak: "month" är inget steam-id och får inte hamna i /:steamId.

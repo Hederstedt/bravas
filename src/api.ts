@@ -1,11 +1,14 @@
 export const STEAM_LOGIN_URL = '/api/auth/steam/login'
 
 export interface RosterMember {
-  steamid64: string
+  id: string
   personaName: string
   avatarUrl: string | null
   discordName: string | null
   wotNickname: string | null
+  // Sätts av servern mot den inloggade besökarens egen session — klienten
+  // slipper någonsin jämföra id mot sitt eget steamid64.
+  mine: boolean
 }
 
 export const WOT_LOGIN_URL = '/api/members/wot/login'
@@ -46,7 +49,7 @@ export interface CardAttribute {
 // Speglar server/src/cs2Cards.ts. Betygen är redan uträknade där — frontenden
 // räknar inte om något, den ritar bara kortet.
 export interface PlayerCard {
-  steamid64: string
+  id: string
   personaName: string
   hasStats: boolean
   overall: number
@@ -347,7 +350,16 @@ export async function removeMember(steamid64: string): Promise<boolean> {
 // ---------- Månadens BVS:are ----------
 
 export interface MonthStanding {
-  steamid64: string
+  id: string
+  personaName: string
+  score: number
+}
+
+// Vinnaren kan ha lämnat BVS sedan kröningen — då finns ingen medlemsrad kvar
+// att slå upp ett id mot, och id blir null i stället för att läcka steamid64.
+export interface LastMonthWinner {
+  month: string
+  id: string | null
   personaName: string
   score: number
 }
@@ -357,7 +369,7 @@ export interface MonthlyStatus {
   // Fallande på poäng, alla medlemmar med — inte bara de aktiva, så var och
   // en ser var hen ligger.
   standings: MonthStanding[]
-  lastMonth: (MonthStanding & { month: string }) | null
+  lastMonth: LastMonthWinner | null
 }
 
 export async function fetchMonthlyStatus(): Promise<MonthlyStatus> {
@@ -502,9 +514,10 @@ export interface ManagerView {
   // Senast färdigspelade säsongen, satt bara när ingen säsong är igång — så
   // att lobbyn kan visa förra tabellen i stället för att allt ser raderat ut.
   lastFinished: FinishedSeason | null
-  // manager är null för botlagen — serien fylls på med datorstyrt motstånd så
-  // att den som är först in kan spela en hel säsong, se server/src/bots.ts.
-  teams: { id: number; name: string; manager: string | null; bot: boolean }[]
+  // bot är sant för datorstyrt motstånd — serien fylls på så att den som är
+  // först in kan spela en hel säsong, se server/src/bots.ts. Vem som är
+  // manager för de riktiga lagen skickas medvetet inte ut.
+  teams: { id: number; name: string; bot: boolean }[]
   table: TableRow[]
   fixtures: PublicFixture[]
 }

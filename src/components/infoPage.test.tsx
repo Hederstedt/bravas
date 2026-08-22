@@ -17,16 +17,19 @@ function renderPage() {
   )
 }
 
+const MAG_STEAMID64 = '76561198053832683'
+
 const MAG = {
-  steamid64: '76561198053832683',
+  id: 'test-public-id-mag',
   personaName: '[BVS] #Mag',
   avatarUrl: null,
   discordName: null as string | null,
   wotNickname: null as string | null,
+  mine: true,
 }
 
 const MAG_CARD = {
-  steamid64: MAG.steamid64,
+  id: MAG.id,
   personaName: MAG.personaName,
   hasStats: true,
   overall: 74,
@@ -75,7 +78,7 @@ describe('InfoPage for an anonymous visitor', () => {
 describe('InfoPage for an applicant', () => {
   function stubApplicant(status: api.ApplicationStatus | 'none') {
     vi.spyOn(api, 'fetchSession').mockResolvedValue({
-      steamid64: MAG.steamid64,
+      steamid64: MAG_STEAMID64,
       isMember: false,
       isAdmin: false,
     })
@@ -118,7 +121,7 @@ describe('InfoPage for an applicant', () => {
 describe('InfoPage for a confirmed member', () => {
   function stubMember(overrides: { hasStats?: boolean; discordName?: string | null; wotNickname?: string | null } = {}) {
     vi.spyOn(api, 'fetchSession').mockResolvedValue({
-      steamid64: MAG.steamid64,
+      steamid64: MAG_STEAMID64,
       isMember: true,
       isAdmin: false,
     })
