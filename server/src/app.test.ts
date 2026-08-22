@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "./app.ts";
 import { broadcast, closeAllSubscribers, subscriberCount } from "./events.ts";
 import { resetPresenceSnapshot } from "./presencePoller.ts";
-import { crownBvsMonth, db } from "./db.ts";
+import { crownBvsMonth, db, getMember } from "./db.ts";
 import { resetRateLimits } from "./middleware/rateLimit.ts";
 import { createSessionCookieValue } from "./session.ts";
 import { sessionCookie } from "./session.ts";
@@ -72,14 +72,55 @@ describe("GET /api/members", () => {
     expect(res.body).toEqual({ members: [] });
   });
 
-  it("lists members that have logged in", async () => {
+  // steamid64 är ett stabilt, skrapbart id kopplat till besökarens riktiga
+  // Steam-konto — publika svar visar ett opakt id i stället, se db.ts.
+  it("lists members with an opaque id, never the real steamid64", async () => {
     db.prepare(
-      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
-    ).run(ALLOWED, "[BVS] #Mag", "https://avatars.example/mag.jpg", Date.now(), Date.now());
+      "INSERT INTO members (steamid64, public_id, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "test-public-id-mag", "[BVS] #Mag", "https://avatars.example/mag.jpg", Date.now(), Date.now());
 
     const res = await request(app).get("/api/members").expect(200);
     expect(res.body.members).toHaveLength(1);
-    expect(res.body.members[0]).toMatchObject({ steamid64: ALLOWED, personaName: "[BVS] #Mag" });
+    expect(res.body.members[0]).toMatchObject({ id: "test-public-id-mag", personaName: "[BVS] #Mag" });
+    expect(JSON.stringify(res.body)).not.toContain(ALLOWED);
+  });
+
+  // "mine" berättar för den inloggade vilken rad som är hens egen — utan att
+  // klienten någonsin behöver jämföra id mot sin egen steamid64.
+  it("marks the signed-in visitor's own row mine, and nobody else's", async () => {
+    const OTHER = "76561198060166361";
+    db.prepare(
+      "INSERT INTO members (steamid64, public_id, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "test-public-id-mag", "[BVS] #Mag", null, Date.now(), Date.now());
+    // members.steamid64 refererar allowlist(steamid64) — den andra raden
+    // behöver alltså stå i allowlisten precis som ALLOWED redan gör.
+    db.prepare("INSERT INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(
+      OTHER,
+      "[BVS] Kungalv",
+      Date.now(),
+    );
+    db.prepare(
+      "INSERT INTO members (steamid64, public_id, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(OTHER, "test-public-id-other", "[BVS] Kungalv", null, Date.now(), Date.now());
+
+    const res = await request(app)
+      .get("/api/members")
+      .set("Cookie", sessionFor(ALLOWED))
+      .expect(200);
+
+    const mine = res.body.members.find((m: { id: string }) => m.id === "test-public-id-mag");
+    const other = res.body.members.find((m: { id: string }) => m.id === "test-public-id-other");
+    expect(mine.mine).toBe(true);
+    expect(other.mine).toBe(false);
+  });
+
+  it("marks nothing mine for an anonymous visitor", async () => {
+    db.prepare(
+      "INSERT INTO members (steamid64, public_id, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(ALLOWED, "test-public-id-mag", "[BVS] #Mag", null, Date.now(), Date.now());
+
+    const res = await request(app).get("/api/members").expect(200);
+    expect(res.body.members[0].mine).toBe(false);
   });
 });
 
@@ -204,7 +245,7 @@ describe("GET /api/stats/cards", () => {
     expect(res.body).toEqual({ cards: [], memberCount: 0, withStats: 0 });
   });
 
-  it("builds a rated card from a member's Steam stats", async () => {
+  it("builds a rated card from a member's Steam stats, with an opaque id instead of the real steamid64", async () => {
     addMember(ALLOWED, "[BVS] #Mag");
     vi.spyOn(globalThis, "fetch").mockResolvedValue(steamStats(FULL_STATS));
 
@@ -213,7 +254,7 @@ describe("GET /api/stats/cards", () => {
     expect(res.body).toMatchObject({ memberCount: 1, withStats: 1 });
     expect(res.body.cards).toHaveLength(1);
     expect(res.body.cards[0]).toMatchObject({
-      steamid64: ALLOWED,
+      id: getMember(ALLOWED)?.public_id,
       personaName: "[BVS] #Mag",
       hasStats: true,
       overall: 74,
@@ -222,6 +263,7 @@ describe("GET /api/stats/cards", () => {
     });
     expect(res.body.cards[0].attributes).toHaveLength(6);
     expect(res.body.cards[0].comments.length).toBeGreaterThan(0);
+    expect(JSON.stringify(res.body)).not.toContain(ALLOWED);
   });
 
   it("still returns a card for a member whose profile Steam won't share", async () => {
@@ -237,7 +279,7 @@ describe("GET /api/stats/cards", () => {
     expect(res.body).toMatchObject({ memberCount: 1, withStats: 0 });
     expect(res.body.cards).toHaveLength(1);
     expect(res.body.cards[0]).toMatchObject({
-      steamid64: ALLOWED,
+      id: getMember(ALLOWED)?.public_id,
       hasStats: false,
       tier: "okänd",
       position: "OKÄND",
@@ -267,7 +309,7 @@ describe("GET /api/stats/cards", () => {
     crownBvsMonth({ month: "2026-07", steamid64: ALLOWED, score: 12.5 });
 
     const res = await request(app).get("/api/stats/cards").expect(200);
-    expect(res.body.cards[0]).toMatchObject({ steamid64: ALLOWED, memberOfMonth: true });
+    expect(res.body.cards[0]).toMatchObject({ id: getMember(ALLOWED)?.public_id, memberOfMonth: true });
   });
 
   it("marks nobody when there is no reigning winner yet", async () => {
@@ -285,7 +327,7 @@ describe("GET /api/stats/cards", () => {
     crownBvsMonth({ month: "2026-07", steamid64: "76561198060166361", score: 11 });
 
     const res = await request(app).get("/api/stats/cards").expect(200);
-    expect(res.body.cards[0]).toMatchObject({ steamid64: ALLOWED, memberOfMonth: false });
+    expect(res.body.cards[0]).toMatchObject({ id: getMember(ALLOWED)?.public_id, memberOfMonth: false });
   });
 });
 
@@ -306,21 +348,28 @@ describe("GET /api/presence", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("reports presence for members that have logged in", async () => {
+  const MAG_PUBLIC_ID = "test-public-id-mag";
+
+  function insertMag() {
     db.prepare(
-      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
-    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+      "INSERT INTO members (steamid64, public_id, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(ALLOWED, MAG_PUBLIC_ID, "[BVS] #Mag", null, Date.now(), Date.now());
+  }
+
+  // Presence-kartan är nyckla på det opaka id:t GET /api/members redan visar
+  // — aldrig den riktiga steamid64:an, se publicPresence() i presencePoller.ts.
+  it("reports presence for members that have logged in", async () => {
+    insertMag();
     stubSteam([{ steamid: ALLOWED, personastate: 1, gameextrainfo: "Counter-Strike 2" }]);
 
     const res = await request(app).get("/api/presence").expect(200);
-    expect(res.body.presence[ALLOWED]).toEqual({ status: "in-game", game: "Counter-Strike 2" });
+    expect(res.body.presence[MAG_PUBLIC_ID]).toEqual({ status: "in-game", game: "Counter-Strike 2" });
+    expect(JSON.stringify(res.body)).not.toContain(ALLOWED);
   });
 
   // Presence is decoration: if Steam is down the roster must still render.
   it("degrades to an empty map when Steam fails and nothing was known yet", async () => {
-    db.prepare(
-      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
-    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+    insertMag();
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("steam is down"));
 
     const res = await request(app).get("/api/presence").expect(200);
@@ -330,29 +379,25 @@ describe("GET /api/presence", () => {
   it("keeps serving the last known presence when Steam goes down mid-session", async () => {
     // Pollern äger ögonblicksbilden nu, så ett avbrott mot Steam behöver inte
     // längre tömma rostern — den blir bara en stund gammal.
-    db.prepare(
-      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
-    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+    insertMag();
     stubSteam([{ steamid: ALLOWED, personastate: 1, gameextrainfo: "Valheim" }]);
     await request(app).get("/api/presence").expect(200);
 
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("steam is down"));
 
     const res = await request(app).get("/api/presence").expect(200);
-    expect(res.body.presence[ALLOWED]).toEqual({ status: "in-game", game: "Valheim" });
+    expect(res.body.presence[MAG_PUBLIC_ID]).toEqual({ status: "in-game", game: "Valheim" });
   });
 
   it("never reports presence for someone who is not a member", async () => {
-    db.prepare(
-      "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
-    ).run(ALLOWED, "[BVS] #Mag", null, Date.now(), Date.now());
+    insertMag();
     stubSteam([
       { steamid: ALLOWED, personastate: 1 },
       { steamid: NOT_ALLOWED, personastate: 1 },
     ]);
 
     const res = await request(app).get("/api/presence").expect(200);
-    expect(Object.keys(res.body.presence)).toEqual([ALLOWED]);
+    expect(Object.keys(res.body.presence)).toEqual([MAG_PUBLIC_ID]);
   });
 });
 

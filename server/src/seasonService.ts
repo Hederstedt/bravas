@@ -139,7 +139,7 @@ export interface SeasonView {
     // dyker ett extra träningspass upp utan förklaring.
     activity: ActivityBonus;
   } | null;
-  teams: { id: number; name: string; manager: string | null; bot: boolean }[];
+  teams: { id: number; name: string; bot: boolean }[];
   table: TableRow[];
   fixtures: PublicFixture[];
 }
@@ -214,10 +214,12 @@ export function seasonView(steamid64: string | null): SeasonView {
           activity: bonusFor(season, mine),
         }
       : null,
+    // manager_steamid64 skickas medvetet inte ut — bot-flaggan räcker för att
+    // visa vilka lag som saknar en gubbe bakom sig, utan att läcka ett riktigt
+    // steamid64 för de andra.
     teams: teams.map((t) => ({
       id: t.id,
       name: t.name,
-      manager: t.manager_steamid64,
       bot: t.bot === 1,
     })),
     table: seasonTable(season.id),

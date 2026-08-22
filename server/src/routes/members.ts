@@ -14,6 +14,7 @@ import {
 import { authLimiter, mutationLimiter, readLimiter } from "../middleware/rateLimit.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
 import { requireSteamIdentity } from "../middleware/requireSteamIdentity.ts";
+import { sessionCookie, verifySessionCookieValue } from "../session.ts";
 import { fetchPlayerSummaries } from "../steamAuth.ts";
 import { buildLoginRedirectUrl, verifyCallback } from "../wotAuth.ts";
 
@@ -41,13 +42,20 @@ async function steamIdentity(
   return { personaName: steamid64, avatarUrl: null };
 }
 
-membersRouter.get("/", readLimiter, (_req, res) => {
+// steamid64 är kontots riktiga, stabila Steam-id — publikt gör det sajten till
+// en skrapbar korsreferens till annat på nätet ingen bad om. Klienten behöver
+// bara ett internt id och, för den inloggade, veta vilken rad som är hens
+// egen — servern räknar ut "mine" här, precis som quotesRouter redan gör för
+// citaten, i stället för att skicka steamid64 och låta klienten jämföra.
+membersRouter.get("/", readLimiter, (req, res) => {
+  const steamid64 = verifySessionCookieValue(req.cookies?.[sessionCookie.name]);
   const members = listMembers().map((m) => ({
-    steamid64: m.steamid64,
+    id: m.public_id,
     personaName: m.persona_name,
     avatarUrl: m.avatar_url,
     discordName: m.discord_name,
     wotNickname: m.wot_nickname,
+    mine: steamid64 !== null && m.steamid64 === steamid64,
   }));
   res.json({ members });
 });

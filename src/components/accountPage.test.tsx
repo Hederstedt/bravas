@@ -6,12 +6,15 @@ import * as api from '../api'
 import type { RosterMember } from '../api'
 import { AccountPage } from './accountPage'
 
+const MAG_STEAMID64 = '76561198053832683'
+
 const MAG: RosterMember = {
-  steamid64: '76561198053832683',
+  id: 'test-public-id-mag',
   personaName: '[BVS] #Mag',
   avatarUrl: 'https://avatars.example/mag.jpg',
   discordName: 'mag',
   wotNickname: null,
+  mine: true,
 }
 
 // jsdom kan inte navigera på riktigt. Utloggningen byter adress för att
@@ -44,7 +47,7 @@ function renderPage(path = '/mitt-konto') {
   )
 }
 
-const signedIn = { members: [MAG], session: { steamid64: MAG.steamid64, isMember: true, isAdmin: false } }
+const signedIn = { members: [MAG], session: { steamid64: MAG_STEAMID64, isMember: true, isAdmin: false } }
 
 describe('AccountPage', () => {
   it('has a page heading', async () => {
@@ -154,7 +157,7 @@ describe('logging out', () => {
 describe('linking a Discord name', () => {
   it('saves the name and refreshes so the card updates', async () => {
     const user = userEvent.setup()
-    stubApi({ members: [{ ...MAG, discordName: null }], session: { steamid64: MAG.steamid64, isMember: true, isAdmin: false } })
+    stubApi({ members: [{ ...MAG, discordName: null }], session: { steamid64: MAG_STEAMID64, isMember: true, isAdmin: false } })
     const link = vi.spyOn(api, 'linkDiscord').mockResolvedValue(true)
 
     renderPage()
@@ -259,7 +262,7 @@ describe('the monthly standings', () => {
     stubApi(signedIn)
     vi.spyOn(api, 'fetchMonthlyStatus').mockResolvedValue({
       month: '2026-08',
-      standings: [{ steamid64: MAG.steamid64, personaName: MAG.personaName, score: 5 }],
+      standings: [{ id: MAG.id, personaName: MAG.personaName, score: 5 }],
       lastMonth: null,
     })
 
@@ -281,7 +284,7 @@ describe('linking a World of Tanks account', () => {
   it('shows the linked nickname instead of the invitation once linked', async () => {
     stubApi({
       members: [{ ...MAG, wotNickname: 'GubbeIRL' }],
-      session: { steamid64: MAG.steamid64, isMember: true, isAdmin: false },
+      session: { steamid64: MAG_STEAMID64, isMember: true, isAdmin: false },
     })
     renderPage()
 
@@ -306,7 +309,7 @@ describe('linking a World of Tanks account', () => {
 describe('unlinking a World of Tanks account', () => {
   const linked = {
     members: [{ ...MAG, wotNickname: 'GubbeIRL' }],
-    session: { steamid64: MAG.steamid64, isMember: true, isAdmin: false },
+    session: { steamid64: MAG_STEAMID64, isMember: true, isAdmin: false },
   }
 
   it('offers to unlink only when an account is already connected', async () => {

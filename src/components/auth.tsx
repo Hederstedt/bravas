@@ -25,7 +25,7 @@ export function SteamLogin() {
   }
   if (result === null) return null
 
-  const mine = result.ok ? result.data.find((m) => m.steamid64 === session.steamid64) : undefined
+  const mine = result.ok ? result.data.find((m) => m.mine) : undefined
   const personaName = mine?.personaName ?? session.steamid64
   const avatarUrl = mine?.avatarUrl ?? null
 

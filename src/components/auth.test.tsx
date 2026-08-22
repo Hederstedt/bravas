@@ -28,12 +28,14 @@ afterEach(() => {
 })
 
 describe('SteamLogin', () => {
+  const MAG_STEAMID64 = '76561198053832683'
   const MAG = {
-    steamid64: '76561198053832683',
+    id: 'test-public-id-mag',
     personaName: '[BVS] #Mag',
     avatarUrl: 'https://avatars.example/mag.jpg',
     discordName: null,
     wotNickname: null,
+    mine: true,
   }
 
   it('offers a Steam login link when nobody is signed in', async () => {
@@ -45,7 +47,7 @@ describe('SteamLogin', () => {
   })
 
   it('greets the signed-in member by persona name', async () => {
-    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: MAG.steamid64, isMember: true, isAdmin: false })
+    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: MAG_STEAMID64, isMember: true, isAdmin: false })
     vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({ ok: true, data: [MAG] })
 
     renderLogin()
@@ -57,7 +59,7 @@ describe('SteamLogin', () => {
   // Namnet var förut en död text. Nu är det vägen till kontosidan — utan den
   // fanns ingenstans att koppla konton eller logga ut.
   it('makes the name a link to the account page', async () => {
-    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: MAG.steamid64, isMember: true, isAdmin: false })
+    vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: MAG_STEAMID64, isMember: true, isAdmin: false })
     vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({ ok: true, data: [MAG] })
 
     renderLogin()
@@ -172,16 +174,16 @@ describe('Roster with live data', () => {
       ok: true,
       data: [
         {
-          steamid64: '76561198053832683',
+          id: 'test-public-id-mag',
           personaName: '[BVS] #Mag',
           avatarUrl: 'https://avatars.example/mag.jpg',
-          discordName: 'mag', wotNickname: null,
+          discordName: 'mag', wotNickname: null, mine: false,
         },
         {
-          steamid64: '76561197963771177',
+          id: 'test-public-id-g0nza',
           personaName: '[BVS] g0nza',
           avatarUrl: null,
-          discordName: null, wotNickname: null,
+          discordName: null, wotNickname: null, mine: false,
         },
       ],
     })
@@ -210,9 +212,9 @@ describe('Roster with live data', () => {
     vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({
       ok: true,
       data: [
-        { steamid64: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null , wotNickname: null},
-        { steamid64: '2', personaName: 'Vaken', avatarUrl: null, discordName: null , wotNickname: null},
-        { steamid64: '3', personaName: 'Borta', avatarUrl: null, discordName: null , wotNickname: null},
+        { id: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null, wotNickname: null, mine: false },
+        { id: '2', personaName: 'Vaken', avatarUrl: null, discordName: null, wotNickname: null, mine: false },
+        { id: '3', personaName: 'Borta', avatarUrl: null, discordName: null, wotNickname: null, mine: false },
       ],
     })
     vi.spyOn(api, 'fetchPresence').mockResolvedValue({
@@ -238,7 +240,7 @@ describe('Roster with live data', () => {
   it('renders the roster even when presence is unavailable', async () => {
     vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({
       ok: true,
-      data: [{ steamid64: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null , wotNickname: null}],
+      data: [{ id: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null, wotNickname: null, mine: false }],
     })
     vi.spyOn(api, 'fetchPresence').mockResolvedValue({})
 
@@ -254,10 +256,10 @@ describe('Roster with live data', () => {
       ok: true,
       data: [
         {
-          steamid64: '76561198053832683',
+          id: 'test-public-id-mag',
           personaName: '[BVS] #Mag',
           avatarUrl: 'https://avatars.example/mag.jpg',
-          discordName: null, wotNickname: null,
+          discordName: null, wotNickname: null, mine: false,
         },
       ],
     })

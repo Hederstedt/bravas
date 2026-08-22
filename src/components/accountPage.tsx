@@ -37,7 +37,7 @@ export function AccountPage() {
     try {
       const session = await fetchSession()
       if (!session) return { status: 'anonymous' }
-      const mine = (await fetchMembers()).find((m) => m.steamid64 === session.steamid64) ?? null
+      const mine = (await fetchMembers()).find((m) => m.mine) ?? null
       return { status: 'signed-in', mine }
     } catch {
       return { status: 'anonymous' }

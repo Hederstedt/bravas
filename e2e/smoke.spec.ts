@@ -156,10 +156,12 @@ test('signed-in members appear in the roster', async ({ page, isMobile }) => {
       json: {
         members: [
           {
-            steamid64: '76561198060166361',
+            id: 'e2e-public-id-kungalv',
             personaName: '[BVS] Kungalv',
             avatarUrl: null,
             discordName: null,
+            wotNickname: null,
+            mine: true,
           },
         ],
       },
@@ -264,10 +266,12 @@ test('opening an attribute does not resize the lineup', async ({ page }) => {
       json: {
         members: [
           {
-            steamid64: '76561198060166361',
+            id: 'e2e-public-id-kungalv',
             personaName: '[BVS] Kungalv',
             avatarUrl: null,
             discordName: null,
+            wotNickname: null,
+            mine: false,
           },
         ],
       },
@@ -278,7 +282,7 @@ test('opening an attribute does not resize the lineup', async ({ page }) => {
       json: {
         cards: [
           {
-            steamid64: '76561198060166361',
+            id: 'e2e-public-id-kungalv',
             personaName: '[BVS] Kungalv',
             hasStats: true,
             overall: 74,

@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { compareAttribute } from './cardStats'
 import type { PlayerCard } from './api'
 
-function card(steamid64: string, sik: number, hasStats = true): PlayerCard {
+function card(id: string, sik: number, hasStats = true): PlayerCard {
   return {
-    steamid64,
-    personaName: `Gubbe ${steamid64}`,
+    id,
+    personaName: `Gubbe ${id}`,
     hasStats,
     overall: sik,
     tier: 'silver',

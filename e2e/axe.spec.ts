@@ -189,11 +189,12 @@ test('Mitt konto has no serious accessibility violations, signed in', async ({ p
       json: {
         members: [
           {
-            steamid64: '76561198060166361',
+            id: 'e2e-public-id-kungalv',
             personaName: '[BVS] Kungalv',
             avatarUrl: null,
             discordName: 'kungalv',
             wotNickname: 'KungalvIRL',
+            mine: true,
           },
         ],
       },
@@ -203,7 +204,7 @@ test('Mitt konto has no serious accessibility violations, signed in', async ({ p
     route.fulfill({
       json: {
         month: '2026-08',
-        standings: [{ steamid64: '76561198060166361', personaName: '[BVS] Kungalv', score: 12 }],
+        standings: [{ id: 'e2e-public-id-kungalv', personaName: '[BVS] Kungalv', score: 12 }],
         lastMonth: null,
       },
     }),

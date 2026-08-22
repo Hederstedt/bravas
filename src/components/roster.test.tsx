@@ -6,7 +6,6 @@ import * as api from '../api'
 import type { PlayerCard, RosterMember } from '../api'
 import { emitLiveEvent, installLiveEvents, teardownLiveEvents } from '../test/liveEvents'
 import { resetMembersCache } from '../useMembers'
-import { resetSessionCache } from '../useSession'
 import { Roster } from './roster'
 
 beforeEach(() => {
@@ -14,11 +13,9 @@ beforeEach(() => {
   // Glittret spelas högst en gång per webbläsarsession — utan att nollställa
   // den här skulle det andra testet i samma fil se den föregåendes flagga.
   sessionStorage.clear()
-  // Medlemslistan och sessionen delas nu via en modulnivå-cache (useMembers/
-  // useSession) — utan att nollställa den läcker ett tests mockade svar in i
-  // nästa.
+  // Medlemslistan delas nu via en modulnivå-cache (useMembers) — utan att
+  // nollställa den läcker ett tests mockade svar in i nästa.
   resetMembersCache()
-  resetSessionCache()
 })
 
 afterEach(() => {
@@ -27,21 +24,21 @@ afterEach(() => {
 })
 
 const MAG: RosterMember = {
-  steamid64: '76561198053832683',
+  id: 'test-public-id-mag',
   personaName: '[BVS] #Mag',
   avatarUrl: 'https://avatars.example/mag.jpg',
-  discordName: 'mag', wotNickname: null,
+  discordName: 'mag', wotNickname: null, mine: false,
 }
 
 const HIDDEN: RosterMember = {
-  steamid64: '76561198000000002',
+  id: 'test-public-id-hidden',
   personaName: '[BVS] Hemlig',
   avatarUrl: null,
-  discordName: null, wotNickname: null,
+  discordName: null, wotNickname: null, mine: false,
 }
 
 const MAG_CARD: PlayerCard = {
-  steamid64: MAG.steamid64,
+  id: MAG.id,
   personaName: MAG.personaName,
   hasStats: true,
   overall: 84,
@@ -66,12 +63,10 @@ function stubApi(overrides: {
   members?: RosterMember[]
   cards?: PlayerCard[]
   presence?: api.PresenceMap
-  session?: api.Session | null
 } = {}) {
   vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({ ok: true, data: overrides.members ?? [] })
   vi.spyOn(api, 'fetchCards').mockResolvedValue(overrides.cards ?? [])
   vi.spyOn(api, 'fetchPresence').mockResolvedValue(overrides.presence ?? {})
-  vi.spyOn(api, 'fetchSession').mockResolvedValue(overrides.session ?? null)
 }
 
 // Hänvisningen till kontosidan är en Link, och en Link utan router kraschar —
@@ -124,7 +119,7 @@ describe('Roster with live members', () => {
     stubApi({
       members: [MAG],
       cards: [MAG_CARD],
-      presence: { [MAG.steamid64]: { status: 'in-game', game: 'Counter-Strike 2' } },
+      presence: { [MAG.id]: { status: 'in-game', game: 'Counter-Strike 2' } },
     })
     renderRoster()
 
@@ -136,7 +131,7 @@ describe('Roster with live members', () => {
   it('sorts the lineup the way the API returned it', async () => {
     const hiddenCard: PlayerCard = {
       ...MAG_CARD,
-      steamid64: HIDDEN.steamid64,
+      id: HIDDEN.id,
       personaName: HIDDEN.personaName,
       overall: 51,
       tier: 'brons',
@@ -154,7 +149,7 @@ describe('Roster degrading gracefully', () => {
   it('still renders a member whose card has no stats', async () => {
     // Låst Steam-profil: kortet ska finnas i raden, inte lämna ett hål.
     const locked: PlayerCard = {
-      steamid64: HIDDEN.steamid64,
+      id: HIDDEN.id,
       personaName: HIDDEN.personaName,
       hasStats: false,
       overall: 0,
@@ -208,7 +203,6 @@ describe('Roster loading and error states', () => {
     vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({ ok: false })
     vi.spyOn(api, 'fetchCards').mockResolvedValue([])
     vi.spyOn(api, 'fetchPresence').mockResolvedValue({})
-    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
     renderRoster()
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/kunde inte hämta/i)
@@ -224,7 +218,6 @@ describe('Roster loading and error states', () => {
       .mockResolvedValueOnce({ ok: true, data: [MAG] })
     vi.spyOn(api, 'fetchCards').mockResolvedValue([MAG_CARD])
     vi.spyOn(api, 'fetchPresence').mockResolvedValue({})
-    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
     renderRoster()
 
     await screen.findByRole('alert')
@@ -246,15 +239,15 @@ describe('the lineup row', () => {
 
 describe('comparing an attribute', () => {
   const RIVAL: RosterMember = {
-    steamid64: '76561198000000003',
+    id: 'test-public-id-rival',
     personaName: '[BVS] Rival',
     avatarUrl: null,
-    discordName: null, wotNickname: null,
+    discordName: null, wotNickname: null, mine: false,
   }
 
   const RIVAL_CARD: PlayerCard = {
     ...MAG_CARD,
-    steamid64: RIVAL.steamid64,
+    id: RIVAL.id,
     personaName: RIVAL.personaName,
     overall: 60,
     attributes: MAG_CARD.attributes.map((a) => ({ ...a, rating: a.key === 'SIK' ? 40 : a.rating })),
@@ -412,10 +405,8 @@ describe('World of Tanks attributes on the card', () => {
 // Kopplingarna bodde här förut. Nu bor de på kontosidan, men den som letar
 // där de låg ska hitta vägen dit i stället för ingenting.
 describe('the account links moving out of Gubbarna', () => {
-  const session = { steamid64: MAG.steamid64, isMember: true, isAdmin: false }
-
   it('points a signed-in member to the account page', async () => {
-    stubApi({ members: [MAG], cards: [MAG_CARD], session })
+    stubApi({ members: [{ ...MAG, mine: true }], cards: [MAG_CARD] })
     renderRoster()
 
     expect(await screen.findByRole('link', { name: 'Mitt konto' })).toHaveAttribute(
@@ -425,7 +416,7 @@ describe('the account links moving out of Gubbarna', () => {
   })
 
   it('no longer carries the linking forms itself', async () => {
-    stubApi({ members: [MAG], cards: [MAG_CARD], session })
+    stubApi({ members: [{ ...MAG, mine: true }], cards: [MAG_CARD] })
     renderRoster()
 
     await waitFor(() => cardFor(MAG.personaName))
@@ -434,7 +425,7 @@ describe('the account links moving out of Gubbarna', () => {
   })
 
   it('says nothing to an anonymous visitor', async () => {
-    stubApi({ members: [MAG], cards: [MAG_CARD], session: null })
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
     renderRoster()
 
     await waitFor(() => cardFor(MAG.personaName))
@@ -452,7 +443,7 @@ describe('live presence updates', () => {
 
     act(() => {
       emitLiveEvent('presence', {
-        presence: { [MAG.steamid64]: { status: 'in-game', game: 'Valheim' } },
+        presence: { [MAG.id]: { status: 'in-game', game: 'Valheim' } },
       })
     })
 
@@ -467,7 +458,7 @@ describe('live presence updates', () => {
     const card = await waitFor(() => cardFor(MAG.personaName))
     act(() => {
       emitLiveEvent('presence', {
-        presence: { [MAG.steamid64]: { status: 'online', game: null } },
+        presence: { [MAG.id]: { status: 'online', game: null } },
       })
     })
 
@@ -479,7 +470,7 @@ describe('live presence updates', () => {
     stubApi({
       members: [MAG],
       cards: [MAG_CARD],
-      presence: { [MAG.steamid64]: { status: 'online', game: null } },
+      presence: { [MAG.id]: { status: 'online', game: null } },
     })
     renderRoster()
 
@@ -526,7 +517,7 @@ describe('the member of the month', () => {
 
     await waitFor(() => cardFor(MAG.personaName))
     vi.spyOn(api, 'fetchCards').mockResolvedValue([{ ...MAG_CARD, memberOfMonth: true }])
-    act(() => emitLiveEvent('bvs-month', { month: '2026-08', steamid64: MAG.steamid64, score: 12 }))
+    act(() => emitLiveEvent('bvs-month', { month: '2026-08', id: MAG.id, score: 12 }))
 
     const card = await waitFor(() => cardFor(MAG.personaName))
     await waitFor(() => expect(within(card).getByText('Månadens BVS:are')).toBeInTheDocument())

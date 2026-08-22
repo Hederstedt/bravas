@@ -9,11 +9,12 @@ afterEach(() => {
 })
 
 const MAG: api.RosterMember = {
-  steamid64: '76561198053832683',
+  id: 'test-public-id-mag',
   personaName: '[BVS] #Mag',
   avatarUrl: null,
   discordName: null,
   wotNickname: null,
+  mine: false,
 }
 
 describe('useMembers', () => {

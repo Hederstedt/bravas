@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { config } from "./config.ts";
@@ -253,6 +254,26 @@ if (!memberColumns.some((c) => c.name === "wot_account_id")) {
   db.exec("ALTER TABLE members ADD COLUMN wot_nickname TEXT");
 }
 
+// Opakt id att visa publikt i stället för steamid64 (se GET /api/members) —
+// kom efter members-tabellen och produktionen har redan medlemmar, så en
+// UNIQUE-kolumn med NOT NULL går inte att lägga till direkt (SQLite tillåter
+// varken på en tabell med rader). Kolumnen läggs till nullbar med ett
+// SQL-genererat förval — det gör att befintliga rader (fyllda i för hand
+// nedan) och rader skrivna utan att nämna kolumnen alls (t.ex. äldre testkod)
+// ändå får ett giltigt id, utan att varje sådant ställe behöver uppdateras.
+// upsertMemberLogin sätter ändå alltid ett eget id explicit vid en riktig
+// inloggning. Unikheten upprätthålls av ett index i stället för en
+// kolumnbegränsning.
+if (!memberColumns.some((c) => c.name === "public_id")) {
+  db.exec("ALTER TABLE members ADD COLUMN public_id TEXT DEFAULT (lower(hex(randomblob(16))))");
+  const withoutPublicId = db
+    .prepare("SELECT steamid64 FROM members WHERE public_id IS NULL")
+    .all() as { steamid64: string }[];
+  const setPublicId = db.prepare("UPDATE members SET public_id = ? WHERE steamid64 = ?");
+  for (const { steamid64 } of withoutPublicId) setPublicId.run(randomUUID(), steamid64);
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_members_public_id ON members(public_id)");
+}
+
 // Lagkassan kom efter teams-tabellen och produktionen har redan lag, så
 // kolumnen läggs till guardat och fylls i från truppens värde: det som är
 // kvar av budgeten är budgeten minus det truppen kostade.
@@ -299,6 +320,7 @@ if (!teamColumns.some((c) => c.name === "bot")) {
 
 export interface Member {
   steamid64: string;
+  public_id: string;
   persona_name: string;
   avatar_url: string | null;
   discord_name: string | null;
@@ -323,14 +345,17 @@ export function upsertMemberLogin(input: {
   const now = Date.now();
   const existed =
     db.prepare("SELECT 1 FROM members WHERE steamid64 = ?").get(input.steamid64) !== undefined;
+  // publicId genereras varje gång men skrivs bara in på INSERT-grenen — ON
+  // CONFLICT-satsen nämner den aldrig, så en omloggning kan inte råka byta ut
+  // ett redan utdelat publikt id.
   db.prepare(
-    `INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login)
-     VALUES (@steamid64, @personaName, @avatarUrl, @now, @now)
+    `INSERT INTO members (steamid64, public_id, persona_name, avatar_url, first_login, last_login)
+     VALUES (@steamid64, @publicId, @personaName, @avatarUrl, @now, @now)
      ON CONFLICT(steamid64) DO UPDATE SET
        persona_name = @personaName,
        avatar_url = @avatarUrl,
        last_login = @now`
-  ).run({ ...input, now });
+  ).run({ ...input, publicId: randomUUID(), now });
   const member = db
     .prepare("SELECT * FROM members WHERE steamid64 = ?")
     .get(input.steamid64) as Member;

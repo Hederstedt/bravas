@@ -14,7 +14,6 @@ import {
 import { compareAttribute } from '../cardStats'
 import { useLiveEvent } from '../useLiveEvents'
 import { useMembers } from '../useMembers'
-import { useSession } from '../useSession'
 import { BvsMark } from './BvsMark'
 import { ChevronIcon, DiscordIcon, StarIcon } from './icons'
 
@@ -69,16 +68,16 @@ function buildLineup(
   cards: PlayerCard[],
   presence: PresenceMap,
 ): LineupEntry[] {
-  const byId = new Map(live.map((m) => [m.steamid64, m]))
+  const byId = new Map(live.map((m) => [m.id, m]))
   const rated: LineupEntry[] = []
   const seen = new Set<string>()
 
   for (const card of cards) {
-    const member = byId.get(card.steamid64)
+    const member = byId.get(card.id)
     if (!member) continue
-    seen.add(card.steamid64)
+    seen.add(card.id)
     rated.push({
-      id: card.steamid64,
+      id: card.id,
       name: member.personaName,
       avatarUrl: member.avatarUrl,
       discordName: member.discordName,
@@ -88,7 +87,7 @@ function buildLineup(
       attributes: card.attributes,
       wotAttributes: card.wotAttributes,
       comments: card.comments,
-      presence: presence[card.steamid64] ?? null,
+      presence: presence[card.id] ?? null,
       // "Kika in igen om en stund" var förr bara för den som saknades helt ur
       // cards-listan. Nu får den som inte har någon statistik alls (stängd
       // profil, inget länkat) ändå ett kort — men ska fortfarande visa "—",
@@ -99,9 +98,9 @@ function buildLineup(
   }
 
   const pending = live
-    .filter((m) => !seen.has(m.steamid64))
+    .filter((m) => !seen.has(m.id))
     .map((m) => ({
-      id: m.steamid64,
+      id: m.id,
       name: m.personaName,
       avatarUrl: m.avatarUrl,
       discordName: m.discordName,
@@ -111,7 +110,7 @@ function buildLineup(
       attributes: [],
       wotAttributes: [],
       comments: ['Statistiken hämtas från Steam. Kika in igen om en stund.'],
-      presence: presence[m.steamid64] ?? null,
+      presence: presence[m.id] ?? null,
       pending: true,
       memberOfMonth: false,
     }))
@@ -274,7 +273,6 @@ export function Roster() {
   // data: []) — samma tomma array dolde tidigare alla tre bakom en påhittad
   // laguppställning, så ett driftfel såg ut som en vanlig dag utan medlemmar.
   const { result, reload: reloadMembers } = useMembers()
-  const session = useSession()
   const [cards, setCards] = useState<PlayerCard[]>([])
   const [presence, setPresence] = useState<PresenceMap>({})
   // Stängd som standard — ingen fattade "65 ENTRY" förut, men förklaringen
@@ -336,8 +334,9 @@ export function Roster() {
   const wotLegend = lineup.find((e) => e.wotAttributes.length > 0)?.wotAttributes ?? []
 
   // Den inloggade besökarens egen rad i rostern, om hen finns med — avgör om
-  // hänvisningen till kontosidan är värd att visa.
-  const mine = session ? (live.find((m) => m.steamid64 === session.steamid64) ?? null) : null
+  // hänvisningen till kontosidan är värd att visa. Servern sätter mine mot
+  // sessionen, klienten slipper jämföra id mot ett eget steamid64.
+  const mine = live.find((m) => m.mine) ?? null
 
   // Avgörs högst en gång per montering: så fort en regerande vinnare synts
   // till (eller konstaterats saknas) rör vi inte sessionStorage igen. Ett

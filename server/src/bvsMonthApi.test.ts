@@ -1,7 +1,7 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "./app.ts";
-import { crownBvsMonth, db } from "./db.ts";
+import { crownBvsMonth, db, getMember } from "./db.ts";
 import { resetRateLimits } from "./middleware/rateLimit.ts";
 
 const app = createApp();
@@ -53,8 +53,9 @@ describe("GET /api/stats/month", () => {
 
     const res = await request(app).get("/api/stats/month").expect(200);
 
-    expect(res.body.standings[0]).toMatchObject({ steamid64: MAG, personaName: "[BVS] #Mag" });
+    expect(res.body.standings[0]).toMatchObject({ id: getMember(MAG)?.public_id, personaName: "[BVS] #Mag" });
     expect(res.body.standings[0].score).toBeGreaterThan(res.body.standings[1].score);
+    expect(JSON.stringify(res.body)).not.toContain(MAG);
   });
 
   // Var och en ska se var hen ligger, även på noll — inte bara de aktiva.
@@ -64,7 +65,7 @@ describe("GET /api/stats/month", () => {
     const res = await request(app).get("/api/stats/month").expect(200);
 
     expect(res.body.standings).toEqual([
-      { steamid64: MAG, personaName: "[BVS] #Mag", score: 0 },
+      { id: getMember(MAG)?.public_id, personaName: "[BVS] #Mag", score: 0 },
     ]);
   });
 
@@ -84,21 +85,23 @@ describe("GET /api/stats/month", () => {
 
     expect(res.body.lastMonth).toEqual({
       month,
-      steamid64: MAG,
+      id: getMember(MAG)?.public_id,
       personaName: "[BVS] #Mag",
       score: 17.5,
     });
   });
 
-  // En vinnare från förra veckan kan ha slutat sedan dess — historiken ska
-  // ändå gå att visa.
-  it("falls back to the steamid when the winner is no longer a member", async () => {
+  // En vinnare från förra månaden kan ha lämnat BVS sedan dess — historiken
+  // ska ändå gå att visa, men utan medlemsraden finns varken opakt id eller
+  // riktigt namn kvar att slå upp.
+  it("anonymizes a winner who is no longer a member, instead of leaking their steamid", async () => {
     const prev = new Date();
     prev.setMonth(prev.getMonth() - 1);
     const month = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`;
     crownBvsMonth({ month, steamid64: KUNGALV, score: 4 });
 
     const res = await request(app).get("/api/stats/month").expect(200);
-    expect(res.body.lastMonth).toMatchObject({ steamid64: KUNGALV, personaName: KUNGALV });
+    expect(res.body.lastMonth).toMatchObject({ id: null, personaName: "Tidigare medlem" });
+    expect(JSON.stringify(res.body)).not.toContain(KUNGALV);
   });
 });

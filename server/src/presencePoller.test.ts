@@ -13,6 +13,13 @@ import {
 const A = "76561198053832683";
 const B = "76561198060166361";
 
+// publicId är en förutsägbar funktion av steamid64:t bara för att testerna
+// ska kunna räkna ut samma värde utan en extra DB-läsning — riktig kod
+// slumpar ett eget via crypto.randomUUID(), se upsertMemberLogin i db.ts.
+function publicId(steamid64: string): string {
+  return `pub-${steamid64}`;
+}
+
 function addMember(steamid64: string, name: string) {
   db.prepare("INSERT OR IGNORE INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(
     steamid64,
@@ -20,8 +27,8 @@ function addMember(steamid64: string, name: string) {
     Date.now()
   );
   db.prepare(
-    "INSERT INTO members (steamid64, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?)"
-  ).run(steamid64, name, null, Date.now(), Date.now());
+    "INSERT INTO members (steamid64, public_id, persona_name, avatar_url, first_login, last_login) VALUES (?, ?, ?, ?, ?, ?)"
+  ).run(steamid64, publicId(steamid64), name, null, Date.now(), Date.now());
 }
 
 function steamSays(players: unknown[]) {
@@ -169,8 +176,11 @@ describe("pollOnce", () => {
 
     await pollOnce();
 
+    // (Opaciteten mot den riktiga steamid64:an testas i app.test.ts, mot ett
+    // riktigt slumpat id — publicId() här är bara förutsägbar för testets
+    // skull och innehåller B som delsträng, så den kollen hör inte hemma här.)
     expect(frames).toHaveLength(1);
-    expect(frames[0]).toContain(B);
+    expect(frames[0]).toContain(publicId(B));
   });
 });
 

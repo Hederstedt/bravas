@@ -40,7 +40,7 @@ export function MonthlyStandings() {
       ) : (
         <ol className="monthly-standings-list">
           {status.standings.map((row) => (
-            <li key={row.steamid64}>
+            <li key={row.id}>
               <span className="who">{row.personaName}</span>
               <span className="what">{row.score.toFixed(1)} p</span>
             </li>

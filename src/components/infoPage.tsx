@@ -38,11 +38,11 @@ export function InfoPage() {
       return { status: 'applicant', applicationStatus: mine?.status ?? 'none' }
     }
     const [members, cards] = await Promise.all([fetchMembers(), fetchCards()])
-    const mine = members.find((m) => m.steamid64 === session.steamid64)
+    const mine = members.find((m) => m.mine)
     // isMember=true borde alltid ha en rad i rostern. Om den saknas ändå
     // (ett API-race) är den generiska guiden ett säkrare fel än att krascha.
     if (!mine) return { status: 'anonymous' }
-    const card = cards.find((c) => c.steamid64 === session.steamid64)
+    const card = cards.find((c) => c.id === mine.id)
     return { status: 'member', mine, hasStats: card?.hasStats ?? false }
   }, [])
 

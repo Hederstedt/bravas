@@ -23,8 +23,8 @@ describe('MonthlyStandings', () => {
     vi.spyOn(api, 'fetchMonthlyStatus').mockResolvedValue({
       month: '2026-08',
       standings: [
-        { steamid64: '1', personaName: '[BVS] #Mag', score: 12.4 },
-        { steamid64: '2', personaName: '[BVS] Kungalv', score: 3 },
+        { id: '1', personaName: '[BVS] #Mag', score: 12.4 },
+        { id: '2', personaName: '[BVS] Kungalv', score: 3 },
       ],
       lastMonth: null,
     })
@@ -40,7 +40,7 @@ describe('MonthlyStandings', () => {
     vi.spyOn(api, 'fetchMonthlyStatus').mockResolvedValue({
       month: '2026-08',
       standings: [],
-      lastMonth: { month: '2026-07', steamid64: '1', personaName: '[BVS] #Mag', score: 21.7 },
+      lastMonth: { month: '2026-07', id: '1', personaName: '[BVS] #Mag', score: 21.7 },
     })
     render(<MonthlyStandings />)
 

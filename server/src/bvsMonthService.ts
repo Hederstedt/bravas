@@ -3,7 +3,17 @@ import { hoursPerGameWithDiscord, scoreFor } from "./bvsMonth.ts";
 import { previousMonth } from "./monthlyPoller.ts";
 
 export interface StandingRow {
-  steamid64: string;
+  id: string;
+  personaName: string;
+  score: number;
+}
+
+// Vinnaren kan ha lämnat BVS sedan kröningen — då finns ingen medlemsrad kvar
+// att slå upp ett opakt id mot, så id blir null i stället för att läcka det
+// riktiga steamid64:t.
+export interface LastMonthWinner {
+  month: string;
+  id: string | null;
   personaName: string;
   score: number;
 }
@@ -11,7 +21,7 @@ export interface StandingRow {
 export interface MonthlyStatus {
   month: string; // innevarande, ej ännu avgjorda, månad — 'YYYY-MM'
   standings: StandingRow[]; // fallande på poäng, alla medlemmar med
-  lastMonth: (StandingRow & { month: string }) | null;
+  lastMonth: LastMonthWinner | null;
 }
 
 function pad(n: number): string {
@@ -34,7 +44,7 @@ export function getMonthlyStatus(now = new Date()): MonthlyStatus {
 
   const standings = listMembers()
     .map((m) => ({
-      steamid64: m.steamid64,
+      id: m.public_id,
       personaName: m.persona_name,
       score: scoreFor(
         hoursPerGameWithDiscord(listPresenceSamples(m.steamid64, from), listDiscordSamples(m.steamid64, from), from, to)
@@ -43,13 +53,14 @@ export function getMonthlyStatus(now = new Date()): MonthlyStatus {
     .sort((a, b) => b.score - a.score || a.personaName.localeCompare(b.personaName, "sv"));
 
   const winner = getBvsMonthWinner(previousMonth(now).month);
-  // Vinnaren kan ha slutat sedan kröningen — historiken visas ändå, med
-  // steamid:t som namn i stället för att beskedet försvinner.
+  // Vinnaren kan ha slutat sedan kröningen — historiken visas ändå, men utan
+  // medlemsraden finns varken opakt id eller namn att visa längre.
+  const winnerMember = winner ? getMember(winner.steamid64) : undefined;
   const lastMonth = winner
     ? {
         month: winner.month,
-        steamid64: winner.steamid64,
-        personaName: getMember(winner.steamid64)?.persona_name ?? winner.steamid64,
+        id: winnerMember?.public_id ?? null,
+        personaName: winnerMember?.persona_name ?? "Tidigare medlem",
         score: winner.score,
       }
     : null;

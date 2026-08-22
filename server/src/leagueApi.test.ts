@@ -256,11 +256,11 @@ describe("POST /api/manager/matchday", () => {
       await mag.post("/api/manager/matchday").expect(201);
 
       const view = await request(app).get("/api/manager").expect(200);
-      const teams = view.body.teams as { name: string; manager: string | null; bot: boolean }[];
+      const teams = view.body.teams as { name: string; bot: boolean }[];
       expect(teams).toHaveLength(MIN_TEAMS);
       expect(teams.filter((t) => t.bot)).toHaveLength(MIN_TEAMS - 1);
-      // Botlagen har ingen gubbe bakom sig.
-      for (const bot of teams.filter((t) => t.bot)) expect(bot.manager).toBeNull();
+      // manager_steamid64 är internt — den publika vyn ska aldrig bära den.
+      expect(JSON.stringify(view.body)).not.toContain("manager");
     });
 
     it("gives every bot a full squad inside the budget", async () => {

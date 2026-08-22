@@ -10,10 +10,12 @@ test.beforeEach(async ({ page }) => {
       json: {
         members: [
           {
-            steamid64: '76561198060166361',
+            id: 'e2e-public-id-kungalv',
             personaName: '[BVS] Kungalv',
             avatarUrl: null,
             discordName: null,
+            wotNickname: null,
+            mine: false,
           },
         ],
       },
@@ -50,7 +52,7 @@ test.beforeEach(async ({ page }) => {
       json: {
         cards: [
           {
-            steamid64: '76561198060166361',
+            id: 'e2e-public-id-kungalv',
             personaName: '[BVS] Kungalv',
             hasStats: true,
             overall: 74,

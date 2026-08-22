@@ -15,6 +15,21 @@ export function currentPresence(): Record<string, Presence> {
   return snapshot;
 }
 
+// snapshot är nyckla på steamid64 internt (det är vad Steams API pratar) —
+// både GET /api/presence och SSE-strömmen ska visa ett opakt id i stället,
+// samma id som GET /api/members ger samma medlem. Delad av båda i stället
+// för att var och en gör sin egen översättning, för att de aldrig ska kunna
+// glida isär.
+export function publicPresence(): Record<string, Presence> {
+  const publicIdBySteamid64 = new Map(listMembers().map((m) => [m.steamid64, m.public_id]));
+  const result: Record<string, Presence> = {};
+  for (const [steamid64, presence] of Object.entries(snapshot)) {
+    const publicId = publicIdBySteamid64.get(steamid64);
+    if (publicId) result[publicId] = presence;
+  }
+  return result;
+}
+
 // Bara skillnader är värda en händelse. Utan jämförelsen hade varje poll
 // väckt alla öppna flikar var 45:e sekund trots att ingenting hänt.
 export function presenceChanged(
@@ -82,7 +97,7 @@ function remember(presence: Record<string, Presence>, at: number): void {
 }
 
 export async function pollOnce(): Promise<void> {
-  if (await refreshPresence()) broadcast("presence", { presence: snapshot });
+  if (await refreshPresence()) broadcast("presence", { presence: publicPresence() });
 }
 
 // Startas från index.ts, inte från createApp: annars hade varje testfil som
