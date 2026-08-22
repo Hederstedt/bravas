@@ -24,6 +24,10 @@ function view(overrides: Partial<api.ManagerView> = {}): api.ManagerView {
     squadSize: 5,
     locked: true,
     sellRate: 0.7,
+    pointsWin: 3,
+    pointsDraw: 1,
+    transfersPerMatchday: 1,
+    trainingPerMatchday: 2,
     pool: SQUAD,
     myTeam: {
       id: 2,

@@ -1176,6 +1176,48 @@ a.steam-login:hover {
   vertical-align: middle;
 }
 
+/* Ett lag utan en enda match är inte ett datafel — samma vikt som bot-badge,
+   men egen klass så den aldrig kan förväxlas med den. */
+.team-note {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+
+/* Säsongsstatusen bredvid Manager-rubriken — samma pill-form som demo-badgen
+   hade, men en färg per läge så det syns utan att läsa texten. */
+.season-status {
+  display: inline-block;
+  margin-bottom: 20px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.season-status.status-none,
+.season-status.status-finished {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+}
+
+.season-status.status-building {
+  background: var(--accent-dim);
+  color: var(--accent-soft);
+}
+
+.season-status.status-active {
+  background: rgba(74, 222, 128, 0.14);
+  color: var(--green);
+}
+
 /* ---------- Valheim-kortet: live-ram och flipp ---------- */
 /* Online signaleras av hela kortet: ramen pulserar grönt. Glowen ligger som
    inset-skugga — clip-path klipper bort allt som målas utanför kortkanten. */

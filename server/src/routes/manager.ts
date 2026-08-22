@@ -46,6 +46,18 @@ managerRouter.post("/team", mutationLimiter, requireAuth, (req, res) => {
     return;
   }
 
+  // Spelschemat läggs en gång, från vilka lag som finns när första omgången
+  // spelas (scheduleSeason i leagueService.ts). Ett lag skrivet på efter den
+  // punkten får aldrig en enda fixture och kan alltså aldrig vinna en poäng —
+  // samma låsning som redan gäller trupp, transfer och träning.
+  if (seasonLocked(season.id)) {
+    res.status(409).json({
+      error: "season_locked",
+      message: "Serien har redan börjat — nästa säsong går att gå med i från start.",
+    });
+    return;
+  }
+
   const raw: unknown = (req.body as { name?: unknown })?.name;
   const name = typeof raw === "string" ? raw.trim() : "";
   if (!name || name.length > MAX_TEAM_NAME) {

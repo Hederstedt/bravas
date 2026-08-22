@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { ManagerPage } from './managerPage'
 import * as api from '../../api'
@@ -23,6 +24,10 @@ const VIEW: api.ManagerView = {
   squadSize: 5,
   locked: false,
   sellRate: 0.7,
+  pointsWin: 3,
+  pointsDraw: 1,
+  transfersPerMatchday: 1,
+  trainingPerMatchday: 2,
   pool: [
     {
       key: 'm:a',
@@ -141,8 +146,8 @@ describe('ManagerPage', () => {
   })
 
   // Läsvyn är öppen: tabell, schema och pool ska synas utan inloggning — men
-  // inga knappar.
-  it('shows the season to anonymous visitors without any buttons', async () => {
+  // inga knappar utom regelblockets egen (stängd som standard).
+  it('shows the season to anonymous visitors without any action buttons', async () => {
     vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
     vi.spyOn(api, 'fetchManagerView').mockResolvedValue(VIEW)
 
@@ -163,7 +168,107 @@ describe('ManagerPage', () => {
     expect(within(pool).getByText('Fria Agenten')).toBeInTheDocument()
     expect(within(pool).getByText('Ledig')).toBeInTheDocument()
 
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button')).toEqual([
+      screen.getByRole('button', { name: 'Så funkar Manager' }),
+    ])
+  })
+
+  // Utan den vet en förstagångsbesökare inte vad hen tittar på.
+  it('always offers the compact rules block, built from the live numbers', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+    vi.spyOn(api, 'fetchManagerView').mockResolvedValue(VIEW)
+
+    renderPage()
+    await user.click(await screen.findByRole('button', { name: 'Så funkar Manager' }))
+
+    // toLocaleString('sv-SE') avgränsar tusental med hårt mellanslag (vilket
+    // exakt tecken beror på ICU-versionen) — normalisera innan jämförelsen.
+    expect(
+      screen.getByText((t) => t.replace(/\s/g, ' ').includes('20 000 att handla för')),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/5 spelare/)).toBeInTheDocument()
+    expect(screen.getByText(/3 för vinst/)).toBeInTheDocument()
+    expect(screen.getByText(/1 för oavgjort/)).toBeInTheDocument()
+  })
+
+  describe('the season status badge', () => {
+    it('says Ingen säsong when nothing has ever been played', async () => {
+      vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+      vi.spyOn(api, 'fetchManagerView').mockResolvedValue({
+        ...VIEW,
+        season: null,
+        lastFinished: null,
+        pool: [],
+        teams: [],
+        table: [],
+        fixtures: [],
+      })
+      renderPage()
+      expect(await screen.findByText('Ingen säsong')).toBeInTheDocument()
+    })
+
+    it('says Avslutad once a season has been played out', async () => {
+      vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+      vi.spyOn(api, 'fetchManagerView').mockResolvedValue({
+        ...VIEW,
+        season: null,
+        lastFinished: { name: 'Höstserien', table: VIEW.table, botTeamIds: [2] },
+        pool: [],
+        teams: [],
+        table: [],
+        fixtures: [],
+      })
+      renderPage()
+      expect(await screen.findByText('Avslutad')).toBeInTheDocument()
+    })
+
+    it('says Lagbygge before the first matchday is played', async () => {
+      vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+      vi.spyOn(api, 'fetchManagerView').mockResolvedValue({ ...VIEW, locked: false })
+      renderPage()
+      expect(await screen.findByText('Lagbygge')).toBeInTheDocument()
+    })
+
+    it('says Pågående once the series has started', async () => {
+      vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+      vi.spyOn(api, 'fetchManagerView').mockResolvedValue({ ...VIEW, locked: true })
+      renderPage()
+      expect(await screen.findByText('Pågående')).toBeInTheDocument()
+    })
+  })
+
+  describe('a primary next step for every state, even anonymous', () => {
+    it('invites an anonymous visitor to join during Lagbygge', async () => {
+      vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+      vi.spyOn(api, 'fetchManagerView').mockResolvedValue({ ...VIEW, locked: false })
+      renderPage()
+
+      expect(await screen.findByRole('link', { name: /logga in med steam/i })).toHaveAttribute(
+        'href',
+        api.STEAM_LOGIN_URL,
+      )
+    })
+
+    it('tells an anonymous visitor the squad window is closed once the series is running', async () => {
+      vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+      vi.spyOn(api, 'fetchManagerView').mockResolvedValue({ ...VIEW, locked: true })
+      renderPage()
+
+      expect(await screen.findByText(/nästa säsong/i)).toBeInTheDocument()
+    })
+
+    // Truppfönstret stänger med serien (server/src/routes/manager.ts,
+    // 409 season_locked) — ett formulär som ändå går att skicka in vore en
+    // lögn om vad som faktiskt händer när man trycker.
+    it('tells a signed-in visitor without a team the squad window is closed, instead of a dead form', async () => {
+      vi.spyOn(api, 'fetchSession').mockResolvedValue(SESSION)
+      vi.spyOn(api, 'fetchManagerView').mockResolvedValue({ ...VIEW, locked: true, myTeam: null })
+      renderPage()
+
+      expect(await screen.findByText(/truppfönstret är stängt/i)).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Döp ditt lag' })).not.toBeInTheDocument()
+    })
   })
 
   it('asks a signed-in visitor without a team to name one', async () => {

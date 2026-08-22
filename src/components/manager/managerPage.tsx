@@ -1,13 +1,32 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchManagerView, fetchSession, type ManagerView, type PoolPlayer } from '../../api'
+import { fetchManagerView, fetchSession, STEAM_LOGIN_URL, type ManagerView, type PoolPlayer } from '../../api'
 import { useLiveEvent } from '../../useLiveEvents'
+import { SteamIcon } from '../icons'
 import { Fixtures } from './fixtures'
 import { LeagueTable } from './leagueTable'
+import { ManagerRules } from './managerRules'
 import { SeasonLobby } from './seasonLobby'
 import { SquadBuilder } from './squadBuilder'
 import { TeamForm } from './teamForm'
 import { TrainingDesk } from './trainingDesk'
 import { TransferDesk } from './transferDesk'
+
+// De fyra lägen en säsong kan vara i, se docs/improvmentplan.md Etapp 6. En
+// avslutad säsong har season === null precis som "ingen säsong" — lastFinished
+// är det som skiljer dem åt.
+type SeasonStatus = 'none' | 'building' | 'active' | 'finished'
+
+const STATUS_LABEL: Record<SeasonStatus, string> = {
+  none: 'Ingen säsong',
+  building: 'Lagbygge',
+  active: 'Pågående',
+  finished: 'Avslutad',
+}
+
+function seasonStatus(view: ManagerView): SeasonStatus {
+  if (view.season === null) return view.lastFinished ? 'finished' : 'none'
+  return view.locked ? 'active' : 'building'
+}
 
 // Läsvyn är öppen — man ska kunna titta på tabellen och poolen utan att logga
 // in. Sessionen avgör vilka knappar som visas, servern avgör vad som får göras.
@@ -49,6 +68,26 @@ export function ManagerPage() {
             <h1>Bravas CS Manager</h1>
           </div>
 
+          {view !== 'loading' && view !== null && (
+            <span className={`season-status status-${seasonStatus(view)}`}>
+              {STATUS_LABEL[seasonStatus(view)]}
+            </span>
+          )}
+
+          {view !== 'loading' && view !== null && (
+            <ManagerRules
+              rules={{
+                budget: view.budget,
+                squadSize: view.squadSize,
+                sellRate: view.sellRate,
+                pointsWin: view.pointsWin,
+                pointsDraw: view.pointsDraw,
+                transfersPerMatchday: view.transfersPerMatchday,
+                trainingPerMatchday: view.trainingPerMatchday,
+              }}
+            />
+          )}
+
           {view === 'loading' && <p className="roster-note">Hämtar säsongen…</p>}
 
           {view === null && (
@@ -62,6 +101,8 @@ export function ManagerPage() {
               signedIn={signedIn}
               onStarted={reload}
               lastFinished={view.lastFinished}
+              budget={view.budget}
+              squadSize={view.squadSize}
             />
           )}
 
@@ -91,7 +132,29 @@ function SeasonBody({
         Säsong: <strong>{view.season!.name}</strong> · {view.teams.length} lag
       </p>
 
-      {signedIn && view.myTeam === null && <TeamForm onCreated={onReload} />}
+      {/* Primär nästa handling, ett läge i taget — även den som inte är
+          inloggad ska veta vad som väntar, inte bara se en tom rad. */}
+      {!signedIn && !view.locked && (
+        <p className="roster-note">
+          <a href={STEAM_LOGIN_URL}>
+            <SteamIcon /> Logga in med Steam
+          </a>{' '}
+          för att döpa ett lag och gå med i säsongen.
+        </p>
+      )}
+      {!signedIn && view.locked && (
+        <p className="roster-note">
+          Truppfönstret är stängt för den här säsongen.{' '}
+          <a href={STEAM_LOGIN_URL}>Logga in med Steam</a> för att gå med i nästa säsong.
+        </p>
+      )}
+      {signedIn && view.myTeam === null && !view.locked && <TeamForm onCreated={onReload} />}
+      {signedIn && view.myTeam === null && view.locked && (
+        <p className="roster-note">
+          Truppfönstret är stängt för den här säsongen — schemat lades redan när första omgången
+          spelades. Du kan gå med när nästa säsong börjar.
+        </p>
+      )}
 
       {/* Byggfas: fri ombyggnad. Seriefas: truppen är låst — träning och
           marknad gäller. */}
