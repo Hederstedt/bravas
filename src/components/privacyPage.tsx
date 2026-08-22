@@ -38,8 +38,9 @@ export function PrivacyPage() {
           <p className="roster-note">
             Namn, avatar, CS2/WoT-betyg och det Discord-namn du själv skrivit in är publikt synligt
             på sajten för alla besökare, inloggade eller inte — det är hela poängen med Gubbarna.
-            Ditt Steam-id (steamid64) och Wargaming-konto-id syns inte i sidans innehåll, men går i
-            dagsläget att se i API-svaren tekniska verktyg kan läsa.
+            Ditt Steam-id (steamid64) och Wargaming-konto-id skickas aldrig ut, varken i sidans
+            innehåll eller i API-svaren tekniska verktyg kan läsa — bara ett slumpat id som inte
+            går att koppla till ditt riktiga Steam-konto.
           </p>
 
           <h2>Vad vi sparar och hur länge</h2>
@@ -62,8 +63,9 @@ export function PrivacyPage() {
           <p className="roster-note">
             Discord-namn och World of Tanks-koppling tar du själv bort när du vill under{' '}
             <Link to="/mitt-konto">Mitt konto</Link> — ingen adminhjälp behövs. Vill du lämna BVS
-            helt, eller få något annat borttaget, hör av dig i Discorden så tar en admin bort din
-            rad.
+            helt, hör av dig i Discorden så tar en admin bort din rad. Citat du skickat in och din
+            plats i Manager-historiken finns kvar — annars försvinner andras minnen och gamla
+            tabeller bara för att en enda person slutar — men kopplas loss från ditt namn.
           </p>
         </div>
       </section>

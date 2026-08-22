@@ -437,15 +437,69 @@ export function rejectApplication(steamid64: string): boolean {
 // foreign_keys = ON. Lagen släpper därför sin manager först, sedan går medlemmen
 // och sist allowlist-raden.
 //
+// Historiken (citat, ligatabeller, matchreferat) raderas aldrig när någon
+// slutar — bara namnet kopplas loss. Citaten är redan anonyma (said_by är
+// fritext, submitted_by visas aldrig publikt, se quotes.ts), så de rörs inte
+// här. Manager-poolens namn däremot är den avgångnes riktiga persona_name,
+// fryst vid säsongsstart och synligt för vem som helst — den anonymiseras.
+export const ANONYMIZED_MEMBER_LABEL = "Tidigare medlem";
+
+interface AnonymizablePlayerLine {
+  id: string;
+  name: string;
+}
+
+interface AnonymizableReport {
+  scoreboard?: { home: AnonymizablePlayerLine[]; away: AnonymizablePlayerLine[] };
+  mvp?: AnonymizablePlayerLine | null;
+}
+
+// player_key för en medlem är "member:<public_id>" (se season.ts) — namnet
+// fryses in på två ställen: raden i season_players (poolen/truppvyn) och,
+// separat, som en egen kopia inuti varje redan spelad matchs report_json.
+// Båda måste skrivas om, annars dyker det riktiga namnet upp igen så fort
+// någon öppnar ett gammalt matchreferat.
+function anonymizeManagerHistory(publicId: string): void {
+  const playerKey = `member:${publicId}`;
+
+  db.prepare("UPDATE season_players SET name = ? WHERE steamid64 = ? AND source = 'member'").run(
+    ANONYMIZED_MEMBER_LABEL,
+    publicId
+  );
+
+  const rename = (line: AnonymizablePlayerLine | null | undefined) =>
+    line && line.id === playerKey ? { ...line, name: ANONYMIZED_MEMBER_LABEL } : line;
+
+  const fixtures = db
+    .prepare("SELECT id, report_json FROM fixtures WHERE report_json IS NOT NULL")
+    .all() as { id: number; report_json: string }[];
+  const update = db.prepare("UPDATE fixtures SET report_json = ? WHERE id = ?");
+
+  for (const fixture of fixtures) {
+    const report = JSON.parse(fixture.report_json) as AnonymizableReport;
+    if (!report.scoreboard) continue; // Valöver har inget scoreboard att skriva om.
+
+    const touched =
+      report.scoreboard.home.some((p) => p.id === playerKey) ||
+      report.scoreboard.away.some((p) => p.id === playerKey) ||
+      report.mvp?.id === playerKey;
+    if (!touched) continue;
+
+    report.scoreboard.home = report.scoreboard.home.map((p) => rename(p)!);
+    report.scoreboard.away = report.scoreboard.away.map((p) => rename(p)!);
+    report.mvp = rename(report.mvp);
+    update.run(JSON.stringify(report), fixture.id);
+  }
+}
+
 // Laget självt blir kvar utan ägare i stället för att raderas — tabellen och
-// matchhistoriken ska inte skrivas om för att någon slutat. Citat
-// (quotes.submitted_by) och säsongsdata (season_players.steamid64) har ingen
-// främmande nyckel alls och överlever av samma skäl.
+// ligahistoriken ska inte skrivas om för att någon slutat, bara namnet i den.
 export function removeMember(steamid64: string): boolean {
   return db.transaction(() => {
-    const exists = db.prepare("SELECT 1 FROM members WHERE steamid64 = ?").get(steamid64);
-    if (!exists) return false;
+    const member = getMember(steamid64);
+    if (!member) return false;
 
+    anonymizeManagerHistory(member.public_id);
     db.prepare("UPDATE teams SET manager_steamid64 = NULL WHERE manager_steamid64 = ?").run(
       steamid64
     );

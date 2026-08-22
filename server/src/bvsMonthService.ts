@@ -1,4 +1,11 @@
-import { getBvsMonthWinner, getMember, listDiscordSamples, listMembers, listPresenceSamples } from "./db.ts";
+import {
+  ANONYMIZED_MEMBER_LABEL,
+  getBvsMonthWinner,
+  getMember,
+  listDiscordSamples,
+  listMembers,
+  listPresenceSamples,
+} from "./db.ts";
 import { hoursPerGameWithDiscord, scoreFor } from "./bvsMonth.ts";
 import { previousMonth } from "./monthlyPoller.ts";
 
@@ -60,7 +67,7 @@ export function getMonthlyStatus(now = new Date()): MonthlyStatus {
     ? {
         month: winner.month,
         id: winnerMember?.public_id ?? null,
-        personaName: winnerMember?.persona_name ?? "Tidigare medlem",
+        personaName: winnerMember?.persona_name ?? ANONYMIZED_MEMBER_LABEL,
         score: winner.score,
       }
     : null;
