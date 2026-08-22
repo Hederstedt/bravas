@@ -78,6 +78,22 @@ vad som specifikt kan gå sönder (avatarer, inline style på spelarkorten).
 
 ---
 
+## 4. Cache-headers i nginx
+
+**Läget nu:** `server/deploy/nginx-cache-headers.conf` finns i repot (lång
+cache på Vites hashade JS/CSS-filer, kort cache på index.html/manifest/
+sitemap/robots) men är inte applicerad — samma mönster som punkt 3.
+
+- [ ] Klistra in blocket i `location /`-blocket i
+      `/etc/nginx/sites-available/bravas`, efter `try_files`
+- [ ] `sudo nginx -t && sudo systemctl reload nginx`
+
+**Kolla att det tog:** `curl -sI https://www.bravas.se/assets/<en-hashad-fil>.js`
+ska visa `Cache-Control: public, max-age=31536000, immutable`, och
+`curl -sI https://www.bravas.se/` ska visa `max-age=0, must-revalidate`.
+
+---
+
 ## Gjort och i drift
 
 Kvitteras här så listan inte blandar ihop det som väntar med det som redan

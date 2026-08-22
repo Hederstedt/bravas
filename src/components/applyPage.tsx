@@ -100,7 +100,9 @@ function Applicant({ mine, onSent }: { mine: MyApplication; onSent: () => void }
   return (
     <>
       <p className="account-who">
-        {mine.avatarUrl && <img src={mine.avatarUrl} alt={mine.personaName} />}
+        {mine.avatarUrl && (
+          <img src={mine.avatarUrl} alt={mine.personaName} width={44} height={44} decoding="async" />
+        )}
         <span>{mine.personaName}</span>
       </p>
 

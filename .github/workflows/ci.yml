@@ -37,6 +37,9 @@ jobs:
       - name: Type-check and build
         run: npm run build
 
+      - name: Check bundle size budget
+        run: npm run check-bundle-size
+
       - name: Install API dependencies
         run: npm ci
         working-directory: server

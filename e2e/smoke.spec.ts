@@ -29,6 +29,34 @@ test.beforeEach(async ({ page }) => {
   )
 })
 
+// Nav, SteamLogin (monterad två gånger: desktopmeny + mobilöverlägg), Roster
+// och About frågade förut var för sig efter samma sak — se useSession.ts och
+// useMembers.ts. Ett normalt besök ska bara göra ett anrop per grundresurs.
+test('a normal visit makes only one request per shared resource, even with the mobile menu open', async ({
+  page,
+  isMobile,
+}) => {
+  const requests: string[] = []
+  page.on('request', (req) => {
+    const url = new URL(req.url())
+    if (url.pathname === '/api/auth/me' || url.pathname === '/api/members') {
+      requests.push(url.pathname)
+    }
+  })
+
+  await page.goto('/')
+  await page.waitForLoadState('networkidle')
+
+  if (isMobile) {
+    await page.getByRole('button', { name: 'Öppna menyn' }).click()
+    await page.waitForLoadState('networkidle')
+  }
+
+  const count = (path: string) => requests.filter((r) => r === path).length
+  expect(count('/api/auth/me')).toBe(1)
+  expect(count('/api/members')).toBe(1)
+})
+
 test('landing page loads without console errors', async ({ page }) => {
   const errors: string[] = []
   page.on('console', (msg) => {

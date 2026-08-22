@@ -3,18 +3,21 @@ import {
   addQuote,
   deleteQuote,
   fetchQuotes,
-  fetchSession,
   toggleQuoteVote,
   MAX_QUOTE_LENGTH,
   MAX_SAID_BY_LENGTH,
   type Quote,
 } from '../api'
 import { useLiveEvent } from '../useLiveEvents'
+import { useSession } from '../useSession'
 import { TrophyIcon } from './icons'
 
 export function Quotes() {
   const [quotes, setQuotes] = useState<Quote[]>([])
-  const [signedIn, setSignedIn] = useState(false)
+  // Delad med Nav/SteamLogin/Roster i stället för ett eget anrop — se
+  // useSession.ts. !! ger false både under laddning (undefined) och för en
+  // anonym besökare (null), precis som den gamla lokala useState(false) gjorde.
+  const signedIn = !!useSession()
   const [text, setText] = useState('')
   const [saidBy, setSaidBy] = useState('')
   const [saving, setSaving] = useState(false)
@@ -26,9 +29,6 @@ export function Quotes() {
     let cancelled = false
     void fetchQuotes().then((q) => {
       if (!cancelled) setQuotes(q)
-    })
-    void fetchSession().then((s) => {
-      if (!cancelled) setSignedIn(s !== null)
     })
     return () => {
       cancelled = true

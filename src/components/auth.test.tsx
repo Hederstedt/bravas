@@ -3,6 +3,8 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { SteamLogin } from './auth'
 import * as api from '../api'
+import { resetMembersCache } from '../useMembers'
+import { resetSessionCache } from '../useSession'
 import { resetSiteConfigCache } from '../useSiteConfig'
 
 // Det inloggade namnet är en Link till kontosidan, och en Link utan router
@@ -17,6 +19,8 @@ function renderLogin() {
 
 beforeEach(() => {
   resetSiteConfigCache()
+  resetMembersCache()
+  resetSessionCache()
 })
 
 afterEach(() => {
@@ -42,7 +46,7 @@ describe('SteamLogin', () => {
 
   it('greets the signed-in member by persona name', async () => {
     vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: MAG.steamid64, isMember: true, isAdmin: false })
-    vi.spyOn(api, 'fetchMembers').mockResolvedValue([MAG])
+    vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({ ok: true, data: [MAG] })
 
     renderLogin()
 
@@ -54,7 +58,7 @@ describe('SteamLogin', () => {
   // fanns ingenstans att koppla konton eller logga ut.
   it('makes the name a link to the account page', async () => {
     vi.spyOn(api, 'fetchSession').mockResolvedValue({ steamid64: MAG.steamid64, isMember: true, isAdmin: false })
-    vi.spyOn(api, 'fetchMembers').mockResolvedValue([MAG])
+    vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({ ok: true, data: [MAG] })
 
     renderLogin()
 

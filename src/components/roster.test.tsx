@@ -5,6 +5,8 @@ import { MemoryRouter } from 'react-router'
 import * as api from '../api'
 import type { PlayerCard, RosterMember } from '../api'
 import { emitLiveEvent, installLiveEvents, teardownLiveEvents } from '../test/liveEvents'
+import { resetMembersCache } from '../useMembers'
+import { resetSessionCache } from '../useSession'
 import { Roster } from './roster'
 
 beforeEach(() => {
@@ -12,6 +14,11 @@ beforeEach(() => {
   // Glittret spelas högst en gång per webbläsarsession — utan att nollställa
   // den här skulle det andra testet i samma fil se den föregåendes flagga.
   sessionStorage.clear()
+  // Medlemslistan och sessionen delas nu via en modulnivå-cache (useMembers/
+  // useSession) — utan att nollställa den läcker ett tests mockade svar in i
+  // nästa.
+  resetMembersCache()
+  resetSessionCache()
 })
 
 afterEach(() => {
