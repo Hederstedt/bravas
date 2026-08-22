@@ -2,7 +2,7 @@ import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "./app.ts";
 import { MAX_APPLICATION_MESSAGE } from "./applications.ts";
-import { db } from "./db.ts";
+import { ANONYMIZED_MEMBER_LABEL, db, getMember } from "./db.ts";
 import { resetRateLimits } from "./middleware/rateLimit.ts";
 import { createSessionCookieValue, sessionCookie } from "./session.ts";
 import * as steamAuth from "./steamAuth.ts";
@@ -385,6 +385,76 @@ describe("DELETE /api/admin/members/:steamid64", () => {
 
     const { count } = db.prepare("SELECT COUNT(*) AS count FROM quotes").get() as { count: number };
     expect(count).toBe(1);
+  });
+
+  // Truppen och ligatabellen ska inte tappa historik för att någon slutat —
+  // bara namnet kopplas loss, raden i poolen finns kvar.
+  it("anonymizes the departing member's name in the frozen Manager pool, but keeps the row", async () => {
+    addMember(APPLICANT, "[BVS] Slutade");
+    const publicId = getMember(APPLICANT)!.public_id;
+    const season = db
+      .prepare("INSERT INTO seasons (name, starts_at, ends_at, status) VALUES (?, ?, ?, ?)")
+      .run("Säsong 1", 0, 1, "active");
+    const seasonId = Number(season.lastInsertRowid);
+    db.prepare(
+      "INSERT INTO season_players (season_id, player_key, source, steamid64, name, ratings_json, value) VALUES (?, ?, 'member', ?, ?, '{}', 1000)"
+    ).run(seasonId, `member:${publicId}`, publicId, "[BVS] Slutade");
+
+    expect((await del(ADMIN, `/api/admin/members/${APPLICANT}`)).status).toBe(204);
+
+    const row = db
+      .prepare("SELECT name FROM season_players WHERE season_id = ? AND player_key = ?")
+      .get(seasonId, `member:${publicId}`) as { name: string };
+    expect(row.name).toBe(ANONYMIZED_MEMBER_LABEL);
+  });
+
+  // Ett matchreferat bär sin egen kopia av spelarnamnen i report_json, frusen
+  // vid speltillfället — den kopian måste skrivas om separat, annars dyker det
+  // riktiga namnet upp igen så fort någon öppnar ett gammalt referat.
+  it("anonymizes the departing member's name in already-played match reports", async () => {
+    addMember(APPLICANT, "[BVS] Slutade");
+    const publicId = getMember(APPLICANT)!.public_id;
+    const playerKey = `member:${publicId}`;
+
+    const season = db
+      .prepare("INSERT INTO seasons (name, starts_at, ends_at, status) VALUES (?, ?, ?, ?)")
+      .run("Säsong 1", 0, 1, "active");
+    const seasonId = Number(season.lastInsertRowid);
+    const home = db
+      .prepare("INSERT INTO teams (season_id, manager_steamid64, name, created_at) VALUES (?, ?, ?, ?)")
+      .run(seasonId, null, "Hemma", 0);
+    const away = db
+      .prepare("INSERT INTO teams (season_id, manager_steamid64, name, created_at) VALUES (?, ?, ?, ?)")
+      .run(seasonId, null, "Borta", 0);
+    const fixture = db
+      .prepare("INSERT INTO fixtures (season_id, matchday, home_team_id, away_team_id) VALUES (?, ?, ?, ?)")
+      .run(seasonId, 1, Number(home.lastInsertRowid), Number(away.lastInsertRowid));
+    const fixtureId = Number(fixture.lastInsertRowid);
+
+    const report = {
+      homeScore: 13,
+      awayScore: 5,
+      winner: "home",
+      rounds: [],
+      scoreboard: {
+        home: [{ id: playerKey, name: "[BVS] Slutade", kills: 20, deaths: 10 }],
+        away: [],
+      },
+      mvp: { id: playerKey, name: "[BVS] Slutade", kills: 20, deaths: 10 },
+    };
+    db.prepare(
+      "UPDATE fixtures SET played_at = ?, home_score = ?, away_score = ?, report_json = ? WHERE id = ?"
+    ).run(Date.now(), 13, 5, JSON.stringify(report), fixtureId);
+
+    expect((await del(ADMIN, `/api/admin/members/${APPLICANT}`)).status).toBe(204);
+
+    const updated = db.prepare("SELECT report_json FROM fixtures WHERE id = ?").get(fixtureId) as {
+      report_json: string;
+    };
+    const parsed = JSON.parse(updated.report_json);
+    expect(parsed.scoreboard.home[0].name).toBe(ANONYMIZED_MEMBER_LABEL);
+    expect(parsed.mvp.name).toBe(ANONYMIZED_MEMBER_LABEL);
+    expect(JSON.stringify(parsed)).not.toContain("[BVS] Slutade");
   });
 
   // Annars räcker ett felklick för att låsa ut sig själv ur sin egen adminsida.

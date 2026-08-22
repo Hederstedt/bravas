@@ -49,4 +49,9 @@ describe('PrivacyPage', () => {
     renderPage()
     expect(screen.getAllByText(/admin|Discord/i).length).toBeGreaterThan(0)
   })
+
+  it('explains that quotes and Manager history survive leaving, only unlinked from the name', () => {
+    renderPage()
+    expect(screen.getByText(/Manager-historiken finns kvar/)).toBeInTheDocument()
+  })
 })
