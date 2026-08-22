@@ -11,6 +11,7 @@ import {
 } from '../api'
 import { games, gameStatsBlurbs } from '../data/clan'
 import { groupHighlights } from '../statsGrouping'
+import { useSectionStatus } from '../useApiOutage'
 import { useLiveEvent } from '../useLiveEvents'
 import { useMembers } from '../useMembers'
 import { useSession } from '../useSession'
@@ -461,6 +462,11 @@ export function Stats() {
     }
   }, [retryTick])
 
+  const retry = useCallback(() => setRetryTick((t) => t + 1), [])
+  // Felar fler sektioner samtidigt tar bannern på startsidan över beskedet och
+  // knappen — se home.tsx.
+  const covered = useSectionStatus('siffrorna', status === 'error', retry)
+
   // Steam lämnar bara ut statistik för den som har öppen profil, så en tom
   // lista här är ett giltigt svar — inte ett fel och inte en anledning att
   // hitta på siffror.
@@ -481,16 +487,19 @@ export function Stats() {
           </p>
         )}
 
-        {status === 'error' && (
-          <div className="roster-error">
-            <p className="roster-note" role="alert">
-              Kunde inte hämta siffrorna just nu. Kika in igen om en stund.
-            </p>
-            <button type="button" className="btn btn-ghost" onClick={() => setRetryTick((t) => t + 1)}>
-              Försök igen
-            </button>
-          </div>
-        )}
+        {status === 'error' &&
+          (covered ? (
+            <p className="roster-note">Kunde inte hämta siffrorna just nu.</p>
+          ) : (
+            <div className="roster-error">
+              <p className="roster-note" role="alert">
+                Kunde inte hämta siffrorna just nu. Kika in igen om en stund.
+              </p>
+              <button type="button" className="btn btn-ghost" onClick={retry}>
+                Försök igen
+              </button>
+            </div>
+          ))}
 
         {status === 'ready' && live !== null && live.highlights.length === 0 && (
           <p className="roster-note">

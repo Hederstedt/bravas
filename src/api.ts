@@ -168,9 +168,13 @@ export interface Quote {
   mine: boolean
 }
 
-export async function fetchQuotes(): Promise<Quote[]> {
-  const data = await getJson<{ quotes: Quote[] }>('/api/quotes')
-  return data?.quotes ?? []
+// Result-varianten och inte den enkla: en tom lista betyder "ingen har skrivit
+// något än", och det är ett helt annat besked än "vi nådde inte servern". Den
+// gamla fetchQuotes gjorde `?? []` av båda, så väggen bjöd in till att vara
+// först till kvarn medan citaten låg kvar i databasen och API:et var nere.
+export async function fetchQuotesResult(): Promise<ApiFetch<Quote[]>> {
+  const result = await getJsonResult<{ quotes: Quote[] }>('/api/quotes')
+  return result.ok ? { ok: true, data: result.data.quotes } : result
 }
 
 // Skrivningar kräver en CSRF-token som bara inloggade medlemmar kan hämta ut.

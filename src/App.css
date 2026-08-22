@@ -495,6 +495,27 @@ a.steam-login:hover {
   color: var(--text);
 }
 
+/* Beskedet när API:et inte svarar alls. Ligger direkt i <main> som
+   .auth-notice och delar dess mått, men bär knappen bredvid texten: den är
+   startsidans enda "Försök igen" så länge bannern syns. */
+.api-outage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  max-width: 1120px;
+  margin: 24px auto 0;
+  padding: 14px 18px;
+  background: var(--panel);
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+}
+
+.api-outage p {
+  flex: 1 1 320px;
+  margin: 0;
+}
+
 /* Ansökningsformuläret: samma form som citatformuläret, men med plats för
    några rader text i stället för en enrading. */
 .apply-form textarea {
