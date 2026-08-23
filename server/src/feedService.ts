@@ -35,6 +35,12 @@ const SEASONS_SQL = `
   SELECT name, starts_at FROM seasons ORDER BY starts_at DESC LIMIT ?
 `;
 
+// Bara rubriken och tjänsten — loggboken berättar att ett klipp lagts upp,
+// själva spelaren bor i galleriet.
+const CLIPS_SQL = `
+  SELECT title, provider, created_at FROM clips ORDER BY created_at DESC LIMIT ?
+`;
+
 export function getFeed(): FeedItem[] {
   const take = (sql: string) => db.prepare(sql).all(FEED_LIMIT);
 
@@ -44,6 +50,7 @@ export function getFeed(): FeedItem[] {
     quotes: take(QUOTES_SQL) as FeedSources["quotes"],
     matches: take(MATCHES_SQL) as FeedSources["matches"],
     seasons: take(SEASONS_SQL) as FeedSources["seasons"],
+    clips: take(CLIPS_SQL) as FeedSources["clips"],
     memberBySteamid64: new Map(
       listMembers().map((m) => [
         m.steamid64,

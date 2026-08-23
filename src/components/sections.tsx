@@ -74,6 +74,7 @@ const navLinks = [
   { to: '/#spel', label: 'Spel' },
   { to: '/#siffrorna', label: 'Siffrorna' },
   { to: '/#citat', label: 'Citat' },
+  { to: '/#klippen', label: 'Klippen' },
   { to: '/#loggboken', label: 'Loggboken' },
   { to: '/manager', label: 'Manager' },
   { to: '/#om', label: 'Om oss' },
@@ -606,7 +607,7 @@ export function About() {
       <div className="container about-grid">
         <div>
           <div className="section-head">
-            <span className="index">06</span>
+            <span className="index">07</span>
             <h2>Om BVS</h2>
           </div>
           <p>

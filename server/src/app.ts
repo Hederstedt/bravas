@@ -8,6 +8,7 @@ import { membersRouter } from "./routes/members.ts";
 import { presenceRouter } from "./routes/presence.ts";
 import { quotesRouter } from "./routes/quotes.ts";
 import { statsRouter } from "./routes/stats.ts";
+import { clipsRouter } from "./routes/clips.ts";
 import { configRouter } from "./routes/config.ts";
 import { eventsRouter } from "./routes/events.ts";
 import { feedRouter } from "./routes/feed.ts";
@@ -39,6 +40,7 @@ export function createApp(): Express {
   app.use("/api/presence", presenceRouter);
   app.use("/api/quotes", quotesRouter);
   app.use("/api/stats", statsRouter);
+  app.use("/api/clips", clipsRouter);
   app.use("/api/config", configRouter);
   app.use("/api/events", eventsRouter);
   app.use("/api/feed", feedRouter);
