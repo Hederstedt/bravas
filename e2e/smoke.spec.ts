@@ -39,7 +39,7 @@ test('a normal visit makes only one request per shared resource, even with the m
   const requests: string[] = []
   page.on('request', (req) => {
     const url = new URL(req.url())
-    if (url.pathname === '/api/auth/me' || url.pathname === '/api/members') {
+    if (['/api/auth/me', '/api/members', '/api/presence'].includes(url.pathname)) {
       requests.push(url.pathname)
     }
   })
@@ -55,6 +55,8 @@ test('a normal visit makes only one request per shared resource, even with the m
   const count = (path: string) => requests.filter((r) => r === path).length
   expect(count('/api/auth/me')).toBe(1)
   expect(count('/api/members')).toBe(1)
+  // Navbarens live-pill och Gubbarna delar närvaron via usePresence.
+  expect(count('/api/presence')).toBe(1)
 })
 
 test('landing page loads without console errors', async ({ page }) => {

@@ -3,7 +3,6 @@ import type { CSSProperties } from 'react'
 import { Link } from 'react-router'
 import {
   fetchCards,
-  fetchPresence,
   type CardAttribute,
   type CardTier,
   type PlayerCard,
@@ -16,6 +15,7 @@ import { playerShareCard, shareFilename } from '../shareCard'
 import { useSectionStatus } from '../useApiOutage'
 import { useLiveEvent } from '../useLiveEvents'
 import { useMembers } from '../useMembers'
+import { usePresence } from '../usePresence'
 import { BvsMark } from './BvsMark'
 import { ChevronIcon, DiscordIcon, StarIcon } from './icons'
 import { ShareCardButton } from './shareCardButton'
@@ -301,7 +301,10 @@ export function Roster() {
   // laguppställning, så ett driftfel såg ut som en vanlig dag utan medlemmar.
   const { result, reload: reloadMembers } = useMembers()
   const [cards, setCards] = useState<PlayerCard[]>([])
-  const [presence, setPresence] = useState<PresenceMap>({})
+  // Delad med live-pillen i navbaren (se usePresence) — hämtade de var för sig
+  // blev det två anrop till /api/presence vid varje sidladdning, och två
+  // sanningar om vem som är inne.
+  const { presence, reload: reloadPresence } = usePresence()
   // Stängd som standard — ingen fattade "65 ENTRY" förut, men förklaringen
   // ska gå att hitta, inte tvinga sig på alla som bara vill se korten.
   const [legendOpen, setLegendOpen] = useState(false)
@@ -318,9 +321,6 @@ export function Roster() {
     void fetchCards().then((c) => {
       if (!cancelled) setCards(c)
     })
-    void fetchPresence().then((p) => {
-      if (!cancelled) setPresence(p)
-    })
     return () => {
       cancelled = true
     }
@@ -332,20 +332,13 @@ export function Roster() {
 
   function retry() {
     reloadMembers()
+    reloadPresence()
     setRetryTick((t) => t + 1)
   }
 
   // Felar fler sektioner samtidigt tar bannern på startsidan över beskedet och
   // knappen — se home.tsx. Sektionen säger då bara varför den är tom.
   const covered = useSectionStatus('gubbarna', status === 'error', retry)
-
-  // Pollern på servern säger till när någon loggat in i ett spel. Bara
-  // prickarna byts — korten och betygen rörs inte, så raden hoppar inte till.
-  const onPresence = useCallback((data: unknown) => {
-    const next = (data as { presence?: PresenceMap } | null)?.presence
-    if (next) setPresence(next)
-  }, [])
-  useLiveEvent('presence', onPresence)
 
   // Kröningsjobbet sänder den här när en ny månad avgörs. Bara korten hämtas
   // om — betygen rörs inte, precis som presence-uppdateringen ovan.
