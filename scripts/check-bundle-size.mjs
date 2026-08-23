@@ -21,30 +21,53 @@ const BUDGETS_KB = {
   'matchReport-*.js': 5,
 }
 
-function matches(filename, pattern) {
-  const re = new RegExp(`^${pattern.replace('*', '.*')}$`)
-  return re.test(filename)
+const REGEX_SPECIALS = /[.*+?^${}()|[\]\\]/g
+
+// Mönstret är ett filnamn med `*` för Vites innehållshash. Allt utom stjärnan
+// är alltså literal text och måste escapas: `index-*.js` blev förut
+// `^index-.*.js$`, där punkten matchade vilket tecken som helst. Och
+// `replace('*', ...)` bytte bara den *första* stjärnan, så ett mönster med två
+// hade tyst byggt ett uttryck som aldrig matchade något.
+//
+// Att dela på stjärnan och escapa varje bit för sig gör båda sakerna rätt på
+// en gång, oavsett hur många stjärnor mönstret har.
+export function matches(filename, pattern) {
+  const source = pattern
+    .split('*')
+    .map((literal) => literal.replace(REGEX_SPECIALS, '\\$&'))
+    .join('.*')
+
+  return new RegExp(`^${source}$`).test(filename)
 }
 
-const files = readdirSync(assetsDir)
-let failed = false
+function checkBudgets() {
+  const files = readdirSync(assetsDir)
+  let failed = false
 
-for (const [pattern, budgetKb] of Object.entries(BUDGETS_KB)) {
-  const file = files.find((f) => matches(f, pattern))
-  if (!file) {
-    console.error(`Hittade ingen fil som matchar ${pattern} i dist/assets`)
-    failed = true
-    continue
+  for (const [pattern, budgetKb] of Object.entries(BUDGETS_KB)) {
+    const file = files.find((f) => matches(f, pattern))
+    if (!file) {
+      console.error(`Hittade ingen fil som matchar ${pattern} i dist/assets`)
+      failed = true
+      continue
+    }
+    const gzipKb = gzipSync(readFileSync(join(assetsDir, file))).length / 1024
+    const overBudget = gzipKb > budgetKb
+    console.log(
+      `${file}: ${gzipKb.toFixed(1)} KB gzippat (budget ${budgetKb} KB)${overBudget ? ' — ÖVER BUDGET' : ''}`,
+    )
+    if (overBudget) failed = true
   }
-  const gzipKb = gzipSync(readFileSync(join(assetsDir, file))).length / 1024
-  const overBudget = gzipKb > budgetKb
-  console.log(
-    `${file}: ${gzipKb.toFixed(1)} KB gzippat (budget ${budgetKb} KB)${overBudget ? ' — ÖVER BUDGET' : ''}`,
-  )
-  if (overBudget) failed = true
+
+  return failed
 }
 
-if (failed) {
-  console.error('\nBundle-budgeten överskreds — se scripts/check-bundle-size.mjs.')
-  process.exit(1)
+// Bara när skriptet körs, aldrig vid import. Testet läser matches() härifrån,
+// och enhetstesterna kör före bygget i CI — utan den här grinden hade importen
+// gått rakt in i en dist-mapp som ännu inte finns.
+if (resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {
+  if (checkBudgets()) {
+    console.error('\nBundle-budgeten överskreds — se scripts/check-bundle-size.mjs.')
+    process.exit(1)
+  }
 }
