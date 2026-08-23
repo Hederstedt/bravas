@@ -17,8 +17,30 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      # Main kräver ett godkännande, och Dependabot kan inte godkänna sin egen
+      # PR. Bypass gick inte att ge till den som faktiskt utför mergen heller:
+      # det är github-actions[bot], och GitHub avvisar den som bypass-aktör på
+      # ett personligt repo ("must be part of the ruleset source or owner
+      # organization"). Alltså uppfylls kravet i stället för att kringgås.
+      #
+      # Godkännandet syns i PR:ens tidslinje i stället för att vara ett osynligt
+      # undantag, och rulesetets dismiss_stale_reviews_on_push gör att det faller
+      # om någon pushar mer kod efteråt. Samma villkor som mergen nedan: en major
+      # blir varken godkänd eller mergad automatiskt.
+      #
+      # Kräver att "Allow GitHub Actions to create and approve pull requests" är
+      # påslaget i repots Actions-inställningar. Är den av misslyckas steget, och
+      # då ligger PR:en kvar och väntar på en människa — vilket är rätt sätt att
+      # gå sönder på.
+      - name: Approve minor and patch updates
+        if: steps.meta.outputs.update-type != 'version-update:semver-major'
+        run: gh pr review --approve "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # Majors lämnas för manuell granskning; minor + patch auto-mergas
-      # när CI:t är grönt (kräver branch protection med "build" som required check).
+      # när CI:t är grönt (required checks: build och e2e).
       - name: Enable auto-merge for minor and patch updates
         if: steps.meta.outputs.update-type != 'version-update:semver-major'
         run: gh pr merge --auto --squash "$PR_URL"
