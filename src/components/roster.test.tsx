@@ -6,6 +6,7 @@ import * as api from '../api'
 import type { PlayerCard, RosterMember } from '../api'
 import { emitLiveEvent, installLiveEvents, teardownLiveEvents } from '../test/liveEvents'
 import { resetMembersCache } from '../useMembers'
+import { resetPresenceCache } from '../usePresence'
 import { Roster } from './roster'
 
 beforeEach(() => {
@@ -16,6 +17,9 @@ beforeEach(() => {
   // Medlemslistan delas nu via en modulnivå-cache (useMembers) — utan att
   // nollställa den läcker ett tests mockade svar in i nästa.
   resetMembersCache()
+  // Närvaron delas numera med navbarens live-pill (usePresence) och behöver
+  // samma nollställning av samma skäl.
+  resetPresenceCache()
 })
 
 afterEach(() => {

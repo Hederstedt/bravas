@@ -14,6 +14,7 @@ import { groupHighlights } from '../statsGrouping'
 import { useSectionStatus } from '../useApiOutage'
 import { useLiveEvent } from '../useLiveEvents'
 import { useMembers } from '../useMembers'
+import { usePresence } from '../usePresence'
 import { useSession } from '../useSession'
 import { useSiteConfig } from '../useSiteConfig'
 import { SteamLogin } from './auth'
@@ -81,6 +82,35 @@ const navLinks = [
   { to: '/#discord', label: 'Discord' },
   { to: '/kom-igang', label: 'Kom igång' },
 ]
+
+// Sajten vet hela tiden vilka som är inne, men det syntes bara för den som
+// scrollade ner till Gubbarna. Pillen gör pulsen synlig på varje sida.
+//
+// Den ritas inte alls när ingen är inne: "0 inne" i sidhuvudet på varenda sida
+// är ingen puls, det är en dödsattest. Närvaron delas med Gubbarna via
+// usePresence, så den kostar inget extra anrop.
+function LivePill() {
+  const { presence } = usePresence()
+
+  const here = Object.values(presence).filter((p) => p.status !== 'offline')
+  if (here.length === 0) return null
+
+  const games = [...new Set(here.map((p) => p.game).filter((g): g is string => !!g))]
+  const who = here.length === 1 ? '1 gubbe inne just nu' : `${here.length} gubbar inne just nu`
+  const label = games.length > 0 ? `${who} — ${games.join(', ')}` : who
+
+  return (
+    <Link to="/#gubbarna" className="nav-live" aria-label={label} title={label}>
+      <span className="server-dot" aria-hidden="true" />
+      <span className="nav-live-count">{here.length}</span>
+      {/* Ordet får plats på skrivbordet men inte bredvid tio menylänkar på en
+          mobil — där räcker pricken och siffran. */}
+      <span className="nav-live-word" aria-hidden="true">
+        inne
+      </span>
+    </Link>
+  )
+}
 
 export function Nav() {
   const [open, setOpen] = useState(false)
@@ -163,6 +193,7 @@ export function Nav() {
           <Link to="/#top" className="nav-brand" onClick={() => setOpen(false)}>
             <BvsMark className="mark" /> BVS
           </Link>
+          <LivePill />
           <div className="nav-links">
             {links.map((l) => (
               <Link key={l.to} to={l.to} aria-current={isCurrentPage(l.to) ? 'page' : undefined}>
