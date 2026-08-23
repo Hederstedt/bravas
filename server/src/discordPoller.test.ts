@@ -6,12 +6,13 @@ import {
   discordNameMatches,
   discordStatusChanged,
   pollOnce,
+  publicDiscordStatus,
   refreshDiscordStatus,
   resetDiscordSnapshot,
   startDiscordPolling,
   stopDiscordPolling,
 } from "./discordPoller.ts";
-import { DISCORD_UNAVAILABLE, type DiscordStatus } from "./discordWidget.ts";
+import { DISCORD_UNAVAILABLE, MAX_LISTED, type DiscordStatus } from "./discordWidget.ts";
 import { config } from "./config.ts";
 import { db, listDiscordSamples } from "./db.ts";
 
@@ -238,3 +239,57 @@ describe("pollOnce — Discord presence sampling", () => {
     expect(listDiscordSamples(ALLOWED)).toHaveLength(0);
   });
 });
+
+// Buggen som gjorde funktionen orättvis: taket på tolv namn var ett
+// visningsbeslut, men pollern läste samma avkortade lista. Discord sorterar
+// alfabetiskt, så en gubbe sent i alfabetet på en server med fler än tolv
+// online kunde aldrig få en enda månadspoäng — och ingen hade kunnat lista ut
+// varför.
+describe("poängen och widgetens tak", () => {
+  it("ser en gubbe som ligger långt ner i en lång lista", async () => {
+    const MEMBER = "76561198053832683";
+    db.exec("DELETE FROM discord_samples; DELETE FROM members; DELETE FROM allowlist;");
+    db.prepare("INSERT INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(
+      MEMBER,
+      "Kungalv",
+      Date.now()
+    );
+    db.prepare(
+      `INSERT INTO members (steamid64, persona_name, avatar_url, discord_name, first_login, last_login)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ).run(MEMBER, "[BVS] Kungalv", null, "Kungalv", Date.now(), Date.now());
+
+    // Tjugofyra online, precis som i drift, med gubben på plats tjugo.
+    const others = Array.from({ length: 24 }, (_, i) => ({
+      username: `Annan ${i}`,
+      status: "online",
+    }));
+    others[19] = { username: "Kungalv", status: "online" };
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ presence_count: 24, members: others }), { status: 200 })
+    );
+
+    await pollOnce();
+
+    const samples = db
+      .prepare("SELECT COUNT(*) AS n FROM discord_samples WHERE steamid64 = ?")
+      .get(MEMBER) as { n: number };
+    expect(samples.n).toBe(1);
+  });
+});
+
+describe("publicDiscordStatus", () => {
+  it("kapar listan för webbläsaren men rör inte räknaren", async () => {
+    const many = Array.from({ length: 30 }, (_, i) => ({ username: `Gubbe ${i}`, status: "online" }));
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ presence_count: 30, members: many }), { status: 200 })
+    );
+
+    await refreshDiscordStatus();
+
+    expect(currentDiscordStatus().members).toHaveLength(30);
+    expect(publicDiscordStatus().members).toHaveLength(MAX_LISTED);
+    expect(publicDiscordStatus().online).toBe(30);
+  });
+})

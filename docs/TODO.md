@@ -11,32 +11,9 @@ Roadmapen i övrigt: [PLAN.md](PLAN.md). Speldesignen: [manager.md](manager.md).
 
 ---
 
-## 1. Slå på Discord-widgeten
 
-**Läget nu:** `/api/discord` svarar `"available": false` i drift — koden är på
-plats men hittar ingen widget att fråga efter, så sektionen "Häng med i
-Discorden" ser ut precis som förut.
 
-**Blockerad — kräver admin på Discord-servern.** Mikaels konto saknar Manage
-Server-behörighet (vänstermenyn i Server Settings visar bara Server
-Profile/Engagement/Boost Perks/Emoji m.m., ingen Widget-sida). Vem som helst
-med admin behöver:
-
-- [ ] Fråga admin: hämta server-ID:t i Discord: **Server Settings → Widget →
-      Server ID**, och skicka det till oss
-- [ ] Fråga admin: slå på **Enable Server Widget** på samma skärm
-- [ ] Sätt `DISCORD_SERVER_ID` i `/srv/bravas-api/.env`
-- [ ] Starta om API:et
-
-Missar man andra punkten svarar Discord `403` och sajten fortsätter visa bara
-inbjudningsknappen — vilket är ett giltigt läge, inte ett fel.
-
-**Kolla att det tog:** `curl -s https://www.bravas.se/api/discord` ska svara
-`"available": true`.
-
----
-
-## 2. Peka ut vilka som är admin
+## 1. Peka ut vilka som är admin
 
 **Läget nu:** `/admin` finns i koden — godkänna eller avslå ansökningar, ta bort
 medlemmar — men ingen är admin förrän någon står i `ADMIN_STEAMIDS`. Tills dess
@@ -56,7 +33,7 @@ och sidan ska svara. Gör den inte det står fel id i variabeln.
 
 ---
 
-## 3. Säkerhetsheaders i nginx
+## 2. Säkerhetsheaders i nginx
 
 **Läget nu:** `server/deploy/nginx-security-headers.conf` finns i repot
 (CSP, HSTS, X-Content-Type-Options, Referrer-Policy, X-Frame-Options) men är
@@ -78,11 +55,11 @@ vad som specifikt kan gå sönder (avatarer, inline style på spelarkorten).
 
 ---
 
-## 4. Cache-headers i nginx
+## 3. Cache-headers i nginx
 
 **Läget nu:** `server/deploy/nginx-cache-headers.conf` finns i repot (lång
 cache på Vites hashade JS/CSS-filer, kort cache på index.html/manifest/
-sitemap/robots) men är inte applicerad — samma mönster som punkt 3.
+sitemap/robots) men är inte applicerad — samma mönster som punkt 2.
 
 - [ ] Klistra in blocket i `location /`-blocket i
       `/etc/nginx/sites-available/bravas`, efter `try_files`
@@ -100,6 +77,12 @@ Kvitteras här så listan inte blandar ihop det som väntar med det som redan
 rullar:
 
 - [x] nginx `try_files`-blocket för SPA-rutter (`server/deploy/nginx-spa-location.conf`)
+- [x] **Discord-widgeten påslagen** — Magnus slog på Enable Server Widget och
+      `DISCORD_SERVER_ID` är satt. `/api/discord` svarar `"available": true`.
+      Kvar för gubbarna själva: den som inte fyllt i sitt Discord-namn under
+      Mitt konto får inga månadspoäng för tiden i Discorden, för widgeten har
+      ingen koppling till Steam. Saknas i skrivande stund för Papa Blue,
+      Profellorn och ⛟.
 - [x] `DISCORD_INVITE_URL` satt — hero-knappen och Discord-sektionen visas
 - [x] Valheim-uppgifterna kontrollerade — `VALHEIM_SERVER_NAME` och
       `VALHEIM_PASSWORD` satta i `/srv/bravas-api/.env`, kortet går att vända

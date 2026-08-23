@@ -371,21 +371,6 @@ a.steam-login:hover {
    Valheim-kortets live-ram (App.css, .game-card.live): .player-card har
    clip-path, som klipper bort allt som målas utanför kortkanten, så en vanlig
    utåtriktad box-shadow hade försvunnit. inset håller sig innanför. */
-.player-card.member-of-month {
-  border-color: rgba(224, 179, 82, 0.85);
-  animation: month-glow 3.2s ease-in-out infinite;
-}
-
-@keyframes month-glow {
-  0%,
-  100% {
-    box-shadow: inset 0 0 30px -10px rgba(224, 179, 82, 0.55);
-  }
-  50% {
-    box-shadow: inset 0 0 14px -10px rgba(224, 179, 82, 0.15);
-  }
-}
-
 /* Glittret för Månadens BVS:are — samma idiom som hero:ns .embers (guld i
    stället för --accent, ändligt antal varv i stället för infinite), spelat en
    gång per webbläsarsession i stället för vid varje sidladdning. Kortets
@@ -396,6 +381,8 @@ a.steam-login:hover {
   pointer-events: none;
 }
 
+/* Glittret spelar bara för Månadens BVS:are, så det följer diamanten och
+   inte guldet — gula gnistor på en isblå ram hade sett ut som ett misstag. */
 .card-glitter span {
   --i: 0;
   position: absolute;
@@ -404,11 +391,11 @@ a.steam-login:hover {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #fff3d0, #e0b352 60%, rgba(224, 179, 82, 0));
+  background: radial-gradient(circle at 35% 35%, #ffffff, #bfe6ff 60%, rgba(191, 230, 255, 0));
   opacity: 0;
   box-shadow:
-    0 0 6px 1px rgba(224, 179, 82, 0.6),
-    0 0 14px 3px rgba(224, 179, 82, 0.25);
+    0 0 6px 1px rgba(191, 230, 255, 0.6),
+    0 0 14px 3px rgba(191, 230, 255, 0.25);
   animation: card-glitter-rise 2.6s cubic-bezier(0.35, 0, 0.6, 1) 1;
   animation-delay: calc(var(--i) * 0.18s);
   animation-fill-mode: forwards;
@@ -1794,9 +1781,15 @@ a.steam-login:hover {
   .player-card:hover {
     transform: none;
   }
+  /* Diamanten står stilla: ingen puls och ingen glimt som far över kortet.
+     Ramen och skenet finns kvar, så vinnaren syns lika tydligt — den bara
+     rör sig inte. */
   .player-card.member-of-month {
     animation: none;
-    box-shadow: inset 0 0 20px -10px rgba(224, 179, 82, 0.4);
+    box-shadow: inset 0 0 20px -10px rgba(191, 230, 255, 0.45);
+  }
+  .player-card.member-of-month::after {
+    display: none;
   }
   .card-glitter {
     display: none;
@@ -2821,4 +2814,55 @@ a.fixture-score:hover {
 
 .clip-form input {
   min-width: 0;
+}
+
+/* Månadens BVS:are får ett diamantkort. Isblått och inte guld: utmärkelsen och
+   betyget är två olika saker, och en guldram hade kunnat läsas som att vinnaren
+   råkar ligga i guld-tiern. Ramen säger "han vann", staplarna säger fortfarande
+   hur bra han är. */
+.player-card.member-of-month {
+  border-color: rgba(191, 230, 255, 0.9);
+  animation: diamond-glow 3.2s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes diamond-glow {
+  0%,
+  100% {
+    box-shadow: inset 0 0 30px -10px rgba(191, 230, 255, 0.6);
+  }
+  50% {
+    box-shadow: inset 0 0 14px -10px rgba(191, 230, 255, 0.18);
+  }
+}
+
+/* Glimten som far över kortet — det som gör att det läses som slipat och inte
+   bara blått. Ligger över kortet men fångar inga klick. */
+.player-card.member-of-month::after {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 42%,
+    rgba(255, 255, 255, 0.16) 50%,
+    transparent 58%
+  );
+  animation: diamond-sheen 5.5s ease-in-out infinite;
+}
+
+@keyframes diamond-sheen {
+  0%,
+  70% {
+    transform: translateX(-60%);
+  }
+  100% {
+    transform: translateX(60%);
+  }
+}
+
+.player-card.member-of-month .card-of-month {
+  color: #bfe6ff;
 }

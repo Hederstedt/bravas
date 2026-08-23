@@ -52,13 +52,17 @@ describe("parseWidget", () => {
     expect(status.members).toHaveLength(1);
   });
 
-  // Discord kapar själv vid 100. Vi visar färre — poängen är vilka som hänger
-  // här nu, inte en fullständig katalog.
-  it("lists at most MAX_LISTED members but keeps the real count", () => {
+  // Taket satt förut här, i tolkningen. Det var ett visningsbeslut, men
+  // pollern som delar ut månadspoäng läste samma avkortade lista — och Discord
+  // sorterar alfabetiskt, så gubbar sent i alfabetet kunde aldrig få en poäng
+  // hur mycket de än hängde inne. Tolkningen behåller nu allt; kapningen sker
+  // först när svaret ska ut till webbläsaren (publicDiscordStatus).
+  it("keeps every member Discord sent, so scoring sees them all", () => {
     const many = Array.from({ length: 40 }, (_, i) => ({ username: `Gubbe ${i}`, status: "online" }));
     const status = parseWidget(widget(many, 40));
 
-    expect(status.members).toHaveLength(MAX_LISTED);
+    expect(status.members).toHaveLength(40);
+    expect(status.members.length).toBeGreaterThan(MAX_LISTED);
     expect(status.online).toBe(40);
   });
 
