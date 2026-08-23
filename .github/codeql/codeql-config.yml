@@ -1,0 +1,22 @@
+name: BVS CodeQL-konfiguration
+
+# Ingen `queries:`-rad med flit: då körs samma standardsvit som GitHubs
+# default setup körde, varken mer eller mindre. Att passa på att slå på
+# security-and-quality i samma veva hade blandat ihop två beslut.
+
+query-filters:
+  # js/missing-token-validation modellerar den deprecerade `csurf`-modulen.
+  # Den känner igen ett CSRF-skydd bara om den *själv ser* token verifieras i
+  # koden den analyserar, och vår verifiering bor inne i `csrf-csrf` — alltså
+  # kan queryn aldrig bli nöjd, hur rätt koden än är. Den flaggade app.ts på
+  # nytt varje gång en router monterades, och en röd bock som alltid är falsk
+  # lär en bara att klicka bort den utan att läsa.
+  #
+  # Skyddet bevisas i stället av server/src/csrfCoverage.test.ts, som räknar
+  # upp appens egna rutter och kräver 403 utan token för var och en. Den listan
+  # är inte handskriven, så en ny endpoint provas automatiskt — vilket är mer
+  # än queryn gav oss även när den fungerade.
+  #
+  # Tas `csrf-csrf` bort eller byts skyddet ut: ta bort det här undantaget.
+  - exclude:
+      id: js/missing-token-validation

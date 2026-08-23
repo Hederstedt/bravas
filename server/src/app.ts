@@ -16,6 +16,31 @@ import { managerRouter } from "./routes/manager.ts";
 import { valheimRouter } from "./routes/valheim.ts";
 import { discordRouter } from "./routes/discord.ts";
 
+// Monteringstabellen är exporterad med flit. csrfCoverage.test.ts läser den
+// och går igenom varje routers egna rutter, i stället för att upprepa en
+// handskriven lista som glöms bort dagen någon lägger till en endpoint — och
+// det är den genomgången som är beviset för att CSRF-skyddet sitter, sedan
+// CodeQL:s js/missing-token-validation stängts av (den modellerar deprecerade
+// csurf och kan inte känna igen csrf-csrf; se .github/codeql/codeql-config.yml).
+//
+// Express 5 lämnar inte ut monteringsprefixet ur sina lager, så prefixet måste
+// stå någonstans båda kan läsa. Här.
+export const API_ROUTERS = [
+  ["/api/auth", authRouter],
+  ["/api/admin", adminRouter],
+  ["/api/members", membersRouter],
+  ["/api/presence", presenceRouter],
+  ["/api/quotes", quotesRouter],
+  ["/api/stats", statsRouter],
+  ["/api/clips", clipsRouter],
+  ["/api/config", configRouter],
+  ["/api/events", eventsRouter],
+  ["/api/feed", feedRouter],
+  ["/api/manager", managerRouter],
+  ["/api/valheim", valheimRouter],
+  ["/api/discord", discordRouter],
+] as const;
+
 export function createApp(): Express {
   const app = express();
 
@@ -34,19 +59,7 @@ export function createApp(): Express {
     res.json({ ok: true, uptime: Math.round(process.uptime()) });
   });
 
-  app.use("/api/auth", authRouter);
-  app.use("/api/admin", adminRouter);
-  app.use("/api/members", membersRouter);
-  app.use("/api/presence", presenceRouter);
-  app.use("/api/quotes", quotesRouter);
-  app.use("/api/stats", statsRouter);
-  app.use("/api/clips", clipsRouter);
-  app.use("/api/config", configRouter);
-  app.use("/api/events", eventsRouter);
-  app.use("/api/feed", feedRouter);
-  app.use("/api/manager", managerRouter);
-  app.use("/api/valheim", valheimRouter);
-  app.use("/api/discord", discordRouter);
+  for (const [path, router] of API_ROUTERS) app.use(path, router);
 
   // Sist: allt som kastat sig förbi routrarna landar här i stället för i
   // Express standardhanterare, som svarar med en HTML-sida och loggar utan
