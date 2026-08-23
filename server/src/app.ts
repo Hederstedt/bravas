@@ -10,6 +10,7 @@ import { quotesRouter } from "./routes/quotes.ts";
 import { statsRouter } from "./routes/stats.ts";
 import { configRouter } from "./routes/config.ts";
 import { eventsRouter } from "./routes/events.ts";
+import { feedRouter } from "./routes/feed.ts";
 import { managerRouter } from "./routes/manager.ts";
 import { valheimRouter } from "./routes/valheim.ts";
 import { discordRouter } from "./routes/discord.ts";
@@ -40,6 +41,7 @@ export function createApp(): Express {
   app.use("/api/stats", statsRouter);
   app.use("/api/config", configRouter);
   app.use("/api/events", eventsRouter);
+  app.use("/api/feed", feedRouter);
   app.use("/api/manager", managerRouter);
   app.use("/api/valheim", valheimRouter);
   app.use("/api/discord", discordRouter);

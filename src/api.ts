@@ -146,6 +146,29 @@ export async function fetchHighlightsResult(): Promise<ApiFetch<Highlights>> {
   return await getJsonResult<Highlights>('/api/stats/highlights')
 }
 
+// Loggboken. Speglar server/src/feed.ts — raderna räknas fram där ur tabeller
+// som redan finns, så en gubbe som slutat anonymiseras utan att den här vyn
+// behöver veta om det.
+export type FeedItem =
+  | { kind: 'member'; at: number; id: string; name: string; avatarUrl: string | null }
+  | { kind: 'month'; at: number; id: string | null; name: string; month: string }
+  | { kind: 'quote'; at: number; text: string; saidBy: string }
+  | {
+      kind: 'match'
+      at: number
+      fixtureId: number
+      home: string
+      away: string
+      homeScore: number
+      awayScore: number
+    }
+  | { kind: 'season'; at: number; name: string }
+
+export async function fetchFeedResult(): Promise<ApiFetch<FeedItem[]>> {
+  const result = await getJsonResult<{ items: FeedItem[] }>('/api/feed')
+  return result.ok ? { ok: true, data: result.data.items } : result
+}
+
 export async function fetchCards(): Promise<PlayerCard[]> {
   const data = await getJson<{ cards: PlayerCard[] }>('/api/stats/cards')
   return data?.cards ?? []
