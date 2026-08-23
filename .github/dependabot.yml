@@ -15,6 +15,23 @@ updates:
           - minor
           - patch
 
+  # API:et har en egen package.json och en egen package-lock.json, och stod
+  # utanför bevakningen helt: Express, better-sqlite3 och csrf-csrf har aldrig
+  # fått en enda uppdatering föreslagen. Det är den halva av repot som faktiskt
+  # tar emot trafik från internet.
+  - package-ecosystem: npm
+    directory: /server
+    schedule:
+      interval: daily
+    cooldown:
+      default-days: 3
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

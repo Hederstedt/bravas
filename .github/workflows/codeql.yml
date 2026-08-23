@@ -1,0 +1,49 @@
+# Ersätter GitHubs default setup för CodeQL. Bytet gjordes för en enda sak:
+# default setup läser ingen konfigurationsfil, så det gick inte att stänga av
+# en query som aldrig kan bli nöjd med vår kod. Se .github/codeql/codeql-config.yml.
+#
+# Priset är att workflowen är vår: uppdateringar av github/codeql-action kommer
+# från Dependabot i stället för från GitHub. Den bevakas redan
+# (.github/dependabot.yml, ekosystemet github-actions).
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Ett veckoslag fångar nya queries mot kod som inte ändrats på ett tag.
+  schedule:
+    - cron: "27 4 * * 1"
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Samma språk som default setup analyserade. javascript-typescript
+        # täcker både frontend och API.
+        language: [actions, javascript-typescript]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          config-file: ./.github/codeql/codeql-config.yml
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
