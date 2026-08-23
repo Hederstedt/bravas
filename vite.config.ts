@@ -41,7 +41,9 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: 'jsdom',
       setupFiles: './src/test/setup.ts',
-      include: ['src/**/*.test.{ts,tsx}'],
+      // Byggskripten är också kod som kan ha fel i sig — se
+      // scripts/check-bundle-size.test.mjs.
+      include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.mjs'],
       globals: true,
       // forks-poolen kraschar på Windows-sökvägar med mellanslag
       pool: 'threads',
