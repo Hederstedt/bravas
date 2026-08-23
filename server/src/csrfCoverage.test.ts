@@ -20,7 +20,7 @@ const session = () => `${sessionCookie.name}=${createSessionCookieValue(MEMBER)}
 beforeEach(() => {
   resetRateLimits();
   db.exec(
-    "DELETE FROM training_sessions; DELETE FROM transfers; DELETE FROM fixtures; DELETE FROM squads; DELETE FROM teams; DELETE FROM season_players; DELETE FROM seasons; DELETE FROM quote_votes; DELETE FROM quotes; DELETE FROM applications; DELETE FROM members; DELETE FROM allowlist;"
+    "DELETE FROM training_sessions; DELETE FROM transfers; DELETE FROM fixtures; DELETE FROM squads; DELETE FROM teams; DELETE FROM season_players; DELETE FROM seasons; DELETE FROM quote_votes; DELETE FROM quotes; DELETE FROM clip_votes; DELETE FROM clips; DELETE FROM applications; DELETE FROM members; DELETE FROM allowlist;"
   );
   db.prepare("INSERT INTO allowlist (steamid64, note, added_at) VALUES (?, ?, ?)").run(
     MEMBER,
@@ -46,6 +46,13 @@ const WRITES: { method: "post" | "put" | "delete"; path: string; body?: unknown 
   { method: "post", path: "/api/quotes", body: { text: "Rush B", saidBy: "Gubbe #1" } },
   { method: "post", path: "/api/quotes/1/vote" },
   { method: "delete", path: "/api/quotes/1" },
+  {
+    method: "post",
+    path: "/api/clips",
+    body: { url: "https://youtu.be/dQw4w9WgXcQ", title: "Lasse ess" },
+  },
+  { method: "post", path: "/api/clips/1/vote" },
+  { method: "delete", path: "/api/clips/1" },
   { method: "post", path: "/api/manager/season", body: { name: "Säsong 1" } },
   { method: "post", path: "/api/manager/team", body: { name: "Mags Marodörer" } },
   { method: "put", path: "/api/manager/squad", body: { players: [] } },
@@ -77,6 +84,7 @@ describe("the protection does not block reading", () => {
     "/api/members",
     "/api/presence",
     "/api/quotes",
+    "/api/clips",
     "/api/stats/highlights",
     "/api/stats/cards",
     "/api/manager",

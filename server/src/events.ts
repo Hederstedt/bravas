@@ -13,6 +13,7 @@ export const MAX_CONNECTIONS_PER_IP = 4;
 
 export type EventName =
   | "quote"
+  | "clip"
   | "presence"
   | "league"
   | "transfer"

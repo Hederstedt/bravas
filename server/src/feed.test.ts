@@ -10,6 +10,7 @@ const EMPTY: FeedSources = {
   quotes: [],
   matches: [],
   seasons: [],
+  clips: [],
   memberBySteamid64: new Map(),
 };
 
@@ -107,5 +108,22 @@ describe("buildFeed", () => {
 
   it("är tomt när ingenting hänt, i stället för att hitta på", () => {
     expect(buildFeed(EMPTY)).toEqual([]);
+  });
+});
+
+describe("klippen i loggboken", () => {
+  it("tar med ett nytt klipp, med rubrik och tjänst", () => {
+    const feed = buildFeed(
+      sources({
+        clips: [{ title: "Lasse ess", provider: "youtube", created_at: NOW }],
+      })
+    );
+
+    expect(feed[0]).toEqual({
+      kind: "clip",
+      at: NOW,
+      title: "Lasse ess",
+      provider: "youtube",
+    });
   });
 });

@@ -58,6 +58,13 @@ export function PrivacyPage() {
             webbläsare pratar då med Steam, inte bara med oss. Widgeten "Häng med i Discorden"
             hämtas av vår server, aldrig av din webbläsare, så Discord vet inte att du tittar.
           </p>
+          <p className="roster-note">
+            Klippen i galleriet ligger hos YouTube, Twitch eller Medal, och att spela ett är att
+            prata med dem. Därför laddas ingen spelare i förväg: rutan är tom tills du trycker på
+            spela, och först då hämtas något därifrån — inte ens en förhandsbild, för den hade
+            också varit ett anrop dit. Klickar du aldrig får de aldrig veta att du var här.
+            YouTube-klippen bäddas dessutom in via youtube-nocookie.com.
+          </p>
 
           <h2>Ändra eller ta bort</h2>
           <p className="roster-note">

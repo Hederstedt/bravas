@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { fetchFeedResult, type FeedItem } from '../api'
+import { providerLabel } from '../clipEmbed'
 import { monthLabel, relativeTime } from '../feedText'
 import { useSectionStatus } from '../useApiOutage'
 import { useLiveEvent } from '../useLiveEvents'
@@ -63,6 +64,18 @@ function Row({ item }: { item: FeedItem }) {
         </>
       )
 
+    case 'clip':
+      return (
+        <>
+          <span className="feed-icon" aria-hidden="true">
+            <TrophyIcon />
+          </span>
+          <p>
+            Nytt klipp i galleriet: <strong>{item.title}</strong> ({providerLabel(item.provider)})
+          </p>
+        </>
+      )
+
     case 'season':
       return (
         <>
@@ -105,6 +118,7 @@ export function Feed() {
   const reload = useCallback(() => setRetryTick((t) => t + 1), [])
   useLiveEvent('quote', reload)
   useLiveEvent('league', reload)
+  useLiveEvent('clip', reload)
 
   const covered = useSectionStatus('loggboken', status === 'error', reload)
 
@@ -112,7 +126,7 @@ export function Feed() {
     <section id="loggboken">
       <div className="container">
         <div className="section-head">
-          <span className="index">05</span>
+          <span className="index">06</span>
           <h2>Loggboken</h2>
         </div>
 

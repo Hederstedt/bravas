@@ -21,9 +21,11 @@ beforeEach(() => {
   resetSiteConfigCache()
 
   vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
-  // Loggboken hämtar också från API:et. Den mockas som lyckad här så att varje
-  // test styr själv exakt vilka sektioner som felar.
+  // Loggboken och klippen hämtar också från API:et. De mockas som lyckade här
+  // så att varje test styr själv exakt vilka sektioner som felar — annars
+  // avgör en omockad hämtning om bannern slår till eller inte.
   vi.spyOn(api, 'fetchFeedResult').mockResolvedValue({ ok: true, data: [] })
+  vi.spyOn(api, 'fetchClipsResult').mockResolvedValue({ ok: true, data: [] })
   vi.spyOn(api, 'fetchCards').mockResolvedValue([])
   vi.spyOn(api, 'fetchPresence').mockResolvedValue({})
   vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({ discordInviteUrl: '' })

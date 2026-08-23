@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 // nere felar de alla tre samtidigt — men var och en ritade sin egen ruta med
 // sin egen "Försök igen", så ett problem såg ut som tre. Registret här låter
 // dem veta om de är ensamma om att fela eller inte.
-export type SectionKey = 'gubbarna' | 'siffrorna' | 'citaten' | 'loggboken'
+export type SectionKey = 'gubbarna' | 'siffrorna' | 'citaten' | 'klippen' | 'loggboken'
 
 // Två räcker: en ensam trasig sektion är förmodligen just den sektionen (en
 // spelserver som inte svarar, en tom cache), och då är det ärligare att låta

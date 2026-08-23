@@ -54,12 +54,20 @@ export interface FeedSeasonItem {
   name: string;
 }
 
+export interface FeedClipItem {
+  kind: "clip";
+  at: number;
+  title: string;
+  provider: string;
+}
+
 export type FeedItem =
   | FeedMemberItem
   | FeedMonthItem
   | FeedQuoteItem
   | FeedMatchItem
-  | FeedSeasonItem;
+  | FeedSeasonItem
+  | FeedClipItem;
 
 export interface FeedSources {
   members: { public_id: string; persona_name: string; avatar_url: string | null; first_login: number }[];
@@ -74,6 +82,7 @@ export interface FeedSources {
     away_score: number;
   }[];
   seasons: { name: string; starts_at: number }[];
+  clips: { title: string; provider: string; created_at: number }[];
   // Kröningen sparar steamid64. Det får aldrig ut i ett svar (se /api/members),
   // så namn och opakt id slås upp här i stället.
   memberBySteamid64: Map<string, { public_id: string; persona_name: string }>;
@@ -121,6 +130,14 @@ export function buildFeed(sources: FeedSources, limit = FEED_LIMIT): FeedItem[] 
     ),
     ...sources.seasons.map(
       (s): FeedSeasonItem => ({ kind: "season", at: s.starts_at, name: s.name })
+    ),
+    ...sources.clips.map(
+      (c): FeedClipItem => ({
+        kind: "clip",
+        at: c.created_at,
+        title: c.title,
+        provider: c.provider,
+      })
     ),
   ];
 

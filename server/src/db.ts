@@ -141,6 +141,32 @@ db.exec(`
     created_at INTEGER NOT NULL
   );
 
+  -- Klippen. Adressen som klistrades in sparas aldrig: den tolkas till en
+  -- leverantör och ett id (se clipUrl.ts), och vyn bygger sin embed-adress ur
+  -- en fast mall. Det finns alltså ingen väg från något någon skrivit in till
+  -- något som hamnar i ett src-attribut.
+  --
+  -- Unikhetskravet på paret gör att samma klipp inte kan läggas upp två
+  -- gånger — två identiska kort i galleriet ser ut som ett fel.
+  CREATE TABLE IF NOT EXISTS clips (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider TEXT NOT NULL,
+    video_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    submitted_by TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    UNIQUE (provider, video_id)
+  );
+
+  -- Samma form som quote_votes, av samma skäl: en röst per person och klipp,
+  -- upprätthållet av databasen.
+  CREATE TABLE IF NOT EXISTS clip_votes (
+    clip_id INTEGER NOT NULL REFERENCES clips(id) ON DELETE CASCADE,
+    steamid64 TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (clip_id, steamid64)
+  );
+
   -- Primärnyckeln är (citat, medlem): en röst per person och citat, upprätthållet
   -- av databasen i stället för av applikationslogik som kan tappas bort.
   CREATE TABLE IF NOT EXISTS quote_votes (

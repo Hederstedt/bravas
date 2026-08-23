@@ -163,6 +163,7 @@ export type FeedItem =
       awayScore: number
     }
   | { kind: 'season'; at: number; name: string }
+  | { kind: 'clip'; at: number; title: string; provider: string }
 
 export async function fetchFeedResult(): Promise<ApiFetch<FeedItem[]>> {
   const result = await getJsonResult<{ items: FeedItem[] }>('/api/feed')
@@ -254,6 +255,63 @@ export async function toggleQuoteVote(id: number): Promise<{ votes: number; vote
 // och oskiljbart från ett som inte finns. Svaret är 204 utan kropp.
 export async function deleteQuote(id: number): Promise<boolean> {
   return (await send<Record<string, never>>(`/api/quotes/${id}`, 'DELETE')) !== null
+}
+
+// Speglar serverns gräns, så formuläret stoppar för lång rubrik direkt.
+export const MAX_CLIP_TITLE_LENGTH = 120
+
+// Adressen som klistrades in finns inte här. Servern tolkar den till en
+// leverantör och ett id och kastar resten (se server/src/clipUrl.ts); vyn
+// bygger sin embed-adress ur en fast mall i src/clipEmbed.ts.
+export interface Clip {
+  id: number
+  provider: string
+  videoId: string
+  title: string
+  createdAt: number
+  votes: number
+  // Som citatväggen: berättar bara för dig vilka som är dina, så
+  // raderingsknappen hamnar rätt. Vem som lagt upp någon annans framgår inte.
+  mine: boolean
+}
+
+export async function fetchClipsResult(): Promise<ApiFetch<Clip[]>> {
+  const result = await getJsonResult<{ clips: Clip[] }>('/api/clips')
+  return result.ok ? { ok: true, data: result.data.clips } : result
+}
+
+// Felkoden går vidare till vyn: "den tjänsten bäddar vi inte in" och "det där
+// klippet ligger redan uppe" är olika besked, och båda är användbara.
+export type AddClipResult = { ok: true; clip: Clip } | { ok: false; error: string }
+
+export async function addClip(url: string, title: string): Promise<AddClipResult> {
+  const token = await csrfToken()
+  if (!token) return { ok: false, error: 'network' }
+  try {
+    const res = await fetch('/api/clips', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'x-csrf-token': token },
+      body: JSON.stringify({ url, title }),
+    })
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as { error?: string } | null
+      return { ok: false, error: body?.error ?? 'network' }
+    }
+    return { ok: true, clip: (await res.json()) as Clip }
+  } catch {
+    return { ok: false, error: 'network' }
+  }
+}
+
+export async function toggleClipVote(
+  id: number,
+): Promise<{ votes: number; voted: boolean } | null> {
+  return await send<{ votes: number; voted: boolean }>(`/api/clips/${id}/vote`, 'POST')
+}
+
+export async function deleteClip(id: number): Promise<boolean> {
+  return (await send<Record<string, never>>(`/api/clips/${id}`, 'DELETE')) !== null
 }
 
 // Steam vet vad du heter i Steam, inte i Discorden. Kopplingen får därför
