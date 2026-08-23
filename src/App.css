@@ -2713,3 +2713,17 @@ a.fixture-score:hover {
   margin-left: 4px;
   font-size: 11px;
 }
+
+/* "Dela kortet" / "Dela matchen". Diskret tills man behöver den — kortet ska
+   handla om gubben, inte om knappen. */
+.share-card-btn {
+  margin-top: 14px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  letter-spacing: 1px;
+}
+
+.share-card-btn.done {
+  border-color: var(--accent-line);
+  color: var(--accent-soft);
+}

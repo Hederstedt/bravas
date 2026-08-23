@@ -40,6 +40,7 @@ Klansida för BVS — ett gäng goa gubbar från Västra Götaland som lirar CS2
 - [x] **Ansökan och admin:** den som inte står i allowlisten kastades förut ut till `/?auth=not_allowed` — en query-parameter frontenden aldrig läste — och såg ingenting hända. Nu får hen en session men ingen medlemsrad, och landar på `/ansok` där ansökan skrivs. Namn och avatar hämtas från Steam vid ansökan, aldrig från formuläret, så ingen kan ansöka i någon annans namn. På `/admin` godkänns eller avslås ansökningar och medlemmar kan tas bort; ett godkännande skriver bara allowlisten, medlemsraden skapas av inloggningen som vanligt. Behörigheten är `ADMIN_STEAMIDS` i env och inte i databasen, så en felskrivning i en tabell aldrig kan låsa ut gänget från sin egen adminsida — och en admin kan inte ta bort sig själv. Säkerheten vilar på att `requireAuth` fortsatt kräver en medlemsrad: en sökandes kaka räcker till exakt två saker, en CSRF-token och ansökningsformuläret.
 - [x] **Månadens BVS:are:** en viktad poäng, inte rena timmar — speltid per spel i klanens spel med ett tak per spel (`bvsMonth.ts`), så bredd i spelvalet slår att grinda ett enda spel. En egen kröningspoller (`monthlyPoller.ts`) avgör en avslutad månad bara om den saknar en rad i `bvs_month`, vilket gör hela mekaniken omstartssäker — presence_samples är append-only och rensas aldrig, så en förbigången månad går att räkna ut i efterhand. Rör aldrig `activity.ts`; poängen delar bara spann-aritmetiken i `sampleSpans.ts`. Den regerande vinnaren får en guldstjärna på kortet (inte en titel — `position` äger det ordet) och en gyllene ram, plus ett engångsglitter per webbläsarsession, allt med `prefers-reduced-motion` respekterat. `GET /api/stats/month` visar löpande ställning för innevarande månad och förra månadens vinnare, på både kontosidan och admin-sidan. Stängd Steam-profil samplas aldrig och ger noll poäng — det står i förklaringstexten, annars känns tävlingen orättvis utan att någon förstår varför.
 - [x] **Loggboken:** vad som hänt i klanen, i tidsordning — nya gubbar, kröningar, citat, spelade matcher och startade säsonger på en och samma rad. Ingenting lagras för vyn: varje rad räknas fram vid anropet ur tabeller som redan finns (`feed.ts` är ren och tar emot raderna, `feedService.ts` läser dem). Det är hela poängen med konstruktionen — en gubbe som slutar anonymiseras i `members` och `season_players` av `removeMember`, och då försvinner hans namn ur loggboken av sig självt. En egen händelsetabell hade behövt städas för hand vid varje utträde, och den städningen hade förr eller senare missats. Rekord hör av samma skäl inte hemma här: "flest inne samtidigt" är ett tillstånd och inte en händelse, och hade legat kvar överst i flödet i evighet — den bor kvar i Siffrorna. Kröningen sparar `steamid64`, som aldrig får ut i ett svar, så namn och opakt id slås upp mot medlemsregistret vid API-gränsen precis som i `/api/members`. Sektionen lyssnar på `quote`- och `league`-händelserna, så ett nytt citat eller en spelad match dyker upp utan omladdning.
+- [x] **Delbara kort:** en "Dela kortet"-knapp på varje spelarkort och en "Dela matchen" på matchreferatet, som gör en PNG i delningsformat (1200x630) och lägger den i urklippet — klar att klistra in i Discorden. Layouten är SVG och byggs av en ren modul (`shareCard.ts`) som går att testa utan webbläsare; allt webbläsarberoende ligger i `shareImage.ts`. Typsnittet bäddas in i SVG:n som base64 innan den ritas: en bild som ritas på canvas renderas utanför dokumentet och ser varken sidans `@font-face` eller dess laddade typsnitt, så utan inbäddningen sätts kortet med systemtypsnittet. Steam-avataren är medvetet inte med — den ligger på Steams CDN, och en bild från ett annat ursprung gör canvasen "tainted" så att den inte längre går att läsa ut som PNG. Saknar webbläsaren bildurklipp (eller körs sajten utan HTTPS) blir det en nedladdning i stället, och knappen säger "Nedladdat" och inte "Kopierat". Namn och lagnamn XML-escapas — ett `&` i en persona hade annars gett en trasig SVG, som canvas ritar som en tom ruta utan att säga varför.
 
 ## Roadmap
 
@@ -60,7 +61,22 @@ i stället väntar på konfiguration, konton eller att någon frågar gubbarna s
 i [TODO.md](TODO.md) — listorna överlappar inte.
 
 1. **Klipp-galleri:** bästa klippen som embeds. Inget är byggt.
-2. **Låt botlagen utvecklas** — de står still medan managern tränar och
+2. **Riktiga delningskort per matchreferat** — alltså att en länk till
+   `/manager/match/12` klistrad i Discorden *själv* visar resultatet, utan att
+   någon trycker på "Dela matchen". Bilden går redan att göra (`shareCard.ts`),
+   men embedden kräver två saker till, och båda är beslut om driften snarare
+   än kod:
+   - **Meta-taggar per rutt.** Discords crawler kör ingen JavaScript och ser
+     bara `index.html`. Rutten måste alltså serveras av API:et med rätt
+     `og:`-taggar i stället för av SPA-fallbacken — ett nytt location-block i
+     nginx, samma "kopiera för hand"-mönster som resten av `server/deploy/`.
+   - **En PNG som servern kan skapa.** `scripts/og-image.mjs` renderar med
+     Playwright, vilket är ett bygg-steg och inte något garageservern har.
+     Antingen en rasteriserare i backend (`@resvg/resvg-js`, en förbyggd
+     nativemodul på tiotalet MB) eller en huvudlös webbläsare på servern.
+     Inget av dem ska smygas in — det är en storlek på beroende som är värd
+     ett eget beslut.
+3. **Låt botlagen utvecklas** — de står still medan managern tränar och
    handlar, så serien blir lättare för varje omgång. Först aktuellt om den
    känns för lätt i praktiken.
 

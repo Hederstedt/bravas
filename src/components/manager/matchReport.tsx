@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { fetchMatchReport, type MatchReport, type PlayerLine } from '../../api'
+import { matchShareCard } from '../../shareCard'
+import { ShareCardButton } from '../shareCardButton'
 
 function Scoreboard({ title, lines }: { title: string; lines: PlayerLine[] }) {
   return (
@@ -101,6 +103,27 @@ function ReportBody({ report }: { report: MatchReport }) {
         <span className="report-team">{report.away.name}</span>
         {r.winner === 'draw' && <span className="report-draw">Oavgjort</span>}
       </p>
+
+      {/* Att länka matchen i Discorden ger ett generiskt BVS-kort — Discords
+          crawler kör ingen JavaScript och ser bara index.html:s meta-taggar.
+          Bilden går däremot att göra här och klistra in själv. */}
+      <ShareCardButton
+        label="Dela matchen"
+        filename={`bvs-match-${report.id}.png`}
+        build={(fontFace) =>
+          matchShareCard(
+            {
+              matchday: report.matchday,
+              home: report.home.name,
+              away: report.away.name,
+              homeScore: r.homeScore,
+              awayScore: r.awayScore,
+              mvp: r.mvp?.name ?? null,
+            },
+            fontFace,
+          )
+        }
+      />
 
       {r.walkover ? (
         // Matchen spelades aldrig — rapporten säger varför i stället för att
