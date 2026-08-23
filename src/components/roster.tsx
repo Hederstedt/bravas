@@ -12,11 +12,13 @@ import {
   type RosterMember,
 } from '../api'
 import { compareAttribute } from '../cardStats'
+import { playerShareCard, shareFilename } from '../shareCard'
 import { useSectionStatus } from '../useApiOutage'
 import { useLiveEvent } from '../useLiveEvents'
 import { useMembers } from '../useMembers'
 import { BvsMark } from './BvsMark'
 import { ChevronIcon, DiscordIcon, StarIcon } from './icons'
+import { ShareCardButton } from './shareCardButton'
 
 // Glittret ska visas en gång per webbläsarsession, inte vid varenda
 // sidladdning. Nytt precedensfall — sessionStorage finns inte någon
@@ -259,6 +261,30 @@ function PlayerCardView({
           {c}
         </p>
       ))}
+
+      {/* Ett kort utan statistik visar streck i stället för betyg, och det är
+          inget att klistra in i Discorden — knappen dyker upp först när det
+          finns något att skryta med. */}
+      {!entry.pending && (
+        <ShareCardButton
+          label="Dela kortet"
+          filename={shareFilename(entry.name)}
+          build={(fontFace) =>
+            playerShareCard(
+              {
+                name: entry.name,
+                overall: entry.overall,
+                tier: entry.tier,
+                position: entry.position,
+                memberOfMonth: entry.memberOfMonth,
+                pending: entry.pending,
+                attributes: [...entry.attributes, ...entry.wotAttributes],
+              },
+              fontFace,
+            )
+          }
+        />
+      )}
     </article>
   )
 }
