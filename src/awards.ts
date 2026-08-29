@@ -8,6 +8,12 @@ import type { AwardKey } from './api'
 // och styrs bara av betyget; det här hör till månaden och säger inget om hur
 // bra någon är.
 
+// Speglar CAP_HOURS_PER_GAME i server/src/bvsMonth.ts. Taket räknas bara på
+// servern — det här är enbart till för att kunna skriva ut det i förklaringen,
+// och ändras det där ska det ändras här. Samma mönster som MAX_QUOTE_LENGTH i
+// api.ts, som speglar serverns gräns av samma skäl.
+export const CAP_HOURS_PER_GAME = 10
+
 export interface AwardCopy {
   label: string
   // Vad som ger den, i förklaringen. Ingen ska behöva undra om den är godtycklig.
