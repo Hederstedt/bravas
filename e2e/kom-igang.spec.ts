@@ -77,7 +77,16 @@ test('a signed-in member sees their own checklist status', async ({ page }) => {
 
   await page.goto('/kom-igang')
 
-  await expect(page.getByRole('heading', { name: '2. Öppen spelinformation i Steam' })).toBeVisible()
+  // Steget heter numera "Öppna din Steam-profil" och inte "Öppen
+  // spelinformation": det krävs två inställningar, och den som bara slår på
+  // spelinformationen får fortfarande noll månadspoäng.
+  await expect(page.getByRole('heading', { name: '2. Öppna din Steam-profil' })).toBeVisible()
+  const steamStep = page.locator('li', {
+    has: page.getByRole('heading', { name: '2. Öppna din Steam-profil' }),
+  })
+  await expect(steamStep.getByRole('term').filter({ hasText: 'Min profil' })).toBeVisible()
+  await expect(steamStep.getByRole('term').filter({ hasText: 'Spelinformation' })).toBeVisible()
+
   const discordStep = page.locator('li', {
     has: page.getByRole('heading', { name: '3. Discord-namn' }),
   })

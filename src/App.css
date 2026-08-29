@@ -795,6 +795,114 @@ a.steam-login:hover {
   color: var(--muted);
 }
 
+/* Definitionslistorna på Kom igång: de två talen, Steams två inställningar och
+   månadens utmärkelser. Samma form på alla tre — en fetstilt term och en
+   förklaring under — så sidan läses som en sida och inte tre. */
+.number-legend,
+.steam-settings,
+.award-legend {
+  margin: 16px 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.number-legend dt,
+.steam-settings dt,
+.award-legend dt {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.number-legend dd,
+.steam-settings dd,
+.award-legend dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  border-left: 2px solid var(--panel-edge);
+  padding-left: 12px;
+}
+
+/* Steams etiketter finns på svenska och engelska beroende på klientspråk, och
+   folk kör båda. Den engelska står med men trängs inte med den svenska. */
+.steam-settings-en {
+  font-family: var(--font-body, inherit);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+
+/* Utmärkelsernas namn i sin egen färg, samma som banden på korten — så det
+   går att koppla ihop förklaringen med det man sett i raden. */
+.award-legend-winner {
+  color: #bfe6ff !important;
+}
+
+.award-legend-jumbo {
+  color: #ff5fa2 !important;
+}
+
+.award-legend-sofflocket {
+  color: #9d8cff !important;
+}
+
+.award-legend-enkelsparet {
+  color: #7fd6c4 !important;
+}
+
+.award-legend-vindflojeln {
+  color: #f0c674 !important;
+}
+
+/* Räkneexemplet. En tabell och inte prosa: ett tak är svårt att förstå i löpande
+   text men självklart när man ser raden där timmarna kapas. */
+.points-example {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0 24px;
+  font-size: 14px;
+}
+
+.points-example caption {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  padding-bottom: 8px;
+}
+
+.points-example th,
+.points-example td {
+  text-align: left;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--panel-edge);
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.points-example th {
+  color: var(--text);
+}
+
+.points-example .points-sum th,
+.points-example .points-sum td {
+  border-bottom: none;
+  color: var(--text);
+  font-weight: 700;
+  font-family: var(--font-display);
+}
+
 /* Bara på egna citat. Dämpad tills man nuddar den — att ta bort sitt eget
    citat är sällsynt och ska inte konkurrera med rösta-knappen. */
 .quote-delete {

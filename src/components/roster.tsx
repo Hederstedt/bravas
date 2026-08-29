@@ -541,6 +541,14 @@ export function Roster() {
                       <strong> Tier</strong> (ikon/guld/silver/brons) är bara betyget i hinkar: 87+,
                       75+, 60+, annars brons.
                     </p>
+                    {/* Betyget och månadspoängen är två olika tal, och det är
+                        det folk går bet på. Hela jämförelsen bor på Kom igång
+                        i stället för i en kopia här som kan glida isär. */}
+                    <p>
+                      Betyget är <strong>inte</strong> samma sak som månadspoängen, som avgör
+                      Månadens BVS:are — den mäter närvaro den här månaden, inte skicklighet.{' '}
+                      <Link to="/kom-igang">Skillnaden, uträknad</Link>.
+                    </p>
                     {legend.length > 0 && (
                       <dl className="attr-legend">
                         {legend.map((a) => (

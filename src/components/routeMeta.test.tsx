@@ -36,7 +36,7 @@ describe('RouteMeta on a public page', () => {
 
     expect(document.title).toBe('Kom igång med Bravas | BVS')
     expect(description()).toBe(
-      'Så blir du synlig på BVS: Steam-inloggning, öppen spelinformation, Discord-namn för hand och länken till World of Tanks utan att dela lösenord.',
+      'Så blir du synlig på BVS: Steam-inloggning, båda sekretessinställningarna som krävs, ditt Discord-namn och World of Tanks — plus hur poängen räknas.',
     )
     expect(canonical()).toBe('https://www.bravas.se/kom-igang')
     expect(robots()).toBe('index, follow')
