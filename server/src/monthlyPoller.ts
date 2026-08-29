@@ -1,6 +1,14 @@
-import { crownBvsMonth, getBvsMonthWinner, listDiscordSamples, listMembers, listPresenceSamples } from "./db.ts";
+import {
+  crownBvsMonth,
+  getBvsMonthWinner,
+  getMonthAwards,
+  listDiscordSamples,
+  listMembers,
+  listPresenceSamples,
+  saveMonthAwards,
+} from "./db.ts";
 import { broadcast } from "./events.ts";
-import { hoursPerGameWithDiscord, scoreFor } from "./bvsMonth.ts";
+import { decideAwards, monthMetrics, type MemberMonth } from "./bvsAwards.ts";
 
 // En gång i timmen räcker — svaret för en given månad ändras bara i det
 // ögonblick den avslutas, resten av tiden är kollen bara en billig no-op mot
@@ -30,24 +38,32 @@ export function previousMonth(now: Date): { month: string; from: number; to: num
 }
 
 // presence_samples är append-only och rensas aldrig, så en avslutad månad går
-// att räkna ut i efterhand — även långt efter att den passerat.
-function decideWinner(from: number, to: number): { steamid64: string; score: number } | null {
-  let best: { steamid64: string; score: number } | null = null;
-
-  for (const m of listMembers()) {
-    const hours = hoursPerGameWithDiscord(
+// att räkna ut i efterhand — även långt efter att den passerat. Siffrorna
+// hämtas en gång per medlem och används till både kröningen och
+// utmärkelserna; poängen är samma tal i båda fallen.
+function metricsForAll(from: number, to: number): MemberMonth[] {
+  return listMembers().map((m) => ({
+    steamid64: m.steamid64,
+    metrics: monthMetrics(
       listPresenceSamples(m.steamid64, from),
       listDiscordSamples(m.steamid64, from),
       from,
       to
-    );
-    const score = scoreFor(hours);
+    ),
+  }));
+}
+
+function decideWinner(members: readonly MemberMonth[]): { steamid64: string; score: number } | null {
+  let best: { steamid64: string; score: number } | null = null;
+
+  for (const { steamid64, metrics } of members) {
+    const score = metrics.score;
     if (score <= 0) continue; // ingen aktivitet räknas inte som en kandidat
 
     // Extremt osannolikt i praktiken (poängen är en kontinuerlig timsumma),
     // men deterministiskt om det ändå händer: lägst steamid64 vinner.
-    if (!best || score > best.score || (score === best.score && m.steamid64 < best.steamid64)) {
-      best = { steamid64: m.steamid64, score };
+    if (!best || score > best.score || (score === best.score && steamid64 < best.steamid64)) {
+      best = { steamid64, score };
     }
   }
 
@@ -56,17 +72,40 @@ function decideWinner(from: number, to: number): { steamid64: string; score: num
 
 // Tabellen är sin egen markör: saknar den avslutade månaden en rad, räkna ut
 // och lås fast — annars rör vi den inte. Omstartssäkert utan extra state.
+//
+// Utmärkelserna har en *egen* vakt mot sin egen tabell. Delade de vinnarens
+// hade en månad som kröntes innan utmärkelserna fanns aldrig kunnat få några:
+// den tidiga returen ovan hade tagit den varje tick, för alltid.
 export function crownPreviousMonthIfMissing(now = new Date()): void {
   const { month, from, to } = previousMonth(now);
-  if (getBvsMonthWinner(month)) return;
+  const crowned = getBvsMonthWinner(month);
+  const hasAwards = getMonthAwards(month).length > 0;
+  if (crowned && hasAwards) return;
 
-  const winner = decideWinner(from, to);
+  const members = metricsForAll(from, to);
+  const winner = crowned ?? decideWinner(members);
   // Ingen spelade något den månaden — hellre ingen vinnare än en påhittad.
   // Nästa tick försöker igen; billigt nog att inte spela någon roll.
   if (!winner) return;
 
-  crownBvsMonth({ month, ...winner });
-  broadcast("bvs-month", { month, steamid64: winner.steamid64, score: winner.score });
+  let changed = false;
+  if (!crowned) {
+    crownBvsMonth({ month, steamid64: winner.steamid64, score: winner.score });
+    changed = true;
+  }
+  if (!hasAwards) {
+    const awards = decideAwards(members, winner.steamid64);
+    if (awards.length > 0) {
+      saveMonthAwards(month, awards);
+      changed = true;
+    }
+  }
+
+  // Bara vid faktisk förändring. En månad där ingen kvalade in till någon
+  // utmärkelse (för få aktiva gubbar) får aldrig några rader, och då är
+  // vakten ovan falsk varje timme för alltid — utan det här villkoret hade
+  // varje öppen flik fått en utsändning i timmen om ingenting.
+  if (changed) broadcast("bvs-month", { month, steamid64: winner.steamid64, score: winner.score });
 }
 
 export function pollOnce(): void {

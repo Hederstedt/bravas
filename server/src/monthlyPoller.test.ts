@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { crownBvsMonth, db, getBvsMonthWinner } from "./db.ts";
+import { crownBvsMonth, db, getBvsMonthWinner, getMonthAwards } from "./db.ts";
 import { closeAllSubscribers, subscribe } from "./events.ts";
 import { crownPreviousMonthIfMissing, POLL_MS, previousMonth } from "./monthlyPoller.ts";
 
@@ -37,7 +37,9 @@ function listener() {
 }
 
 beforeEach(() => {
-  db.exec("DELETE FROM members; DELETE FROM allowlist; DELETE FROM presence_samples; DELETE FROM bvs_month;");
+  db.exec(
+    "DELETE FROM members; DELETE FROM allowlist; DELETE FROM presence_samples; DELETE FROM discord_samples; DELETE FROM bvs_month; DELETE FROM bvs_month_awards;"
+  );
 });
 
 describe("previousMonth", () => {
@@ -133,6 +135,87 @@ describe("crownPreviousMonthIfMissing", () => {
     crownBvsMonth({ month: "2026-07", steamid64: KUNGALV, score: 1 });
     const frames = listener();
 
+    crownPreviousMonthIfMissing(now);
+
+    expect(frames).toEqual([]);
+    closeAllSubscribers();
+  });
+});
+
+describe("månadens utmärkelser", () => {
+  const now = new Date(2026, 7, 16); // ser tillbaka på juli 2026
+  const julyStart = new Date(2026, 6, 1, 19, 0, 0).getTime();
+
+  it("hands out the wooden spoon alongside the crown", () => {
+    addMember(MAG, "[BVS] #Mag");
+    addMember(KUNGALV, "[BVS] Kungalv");
+    play(MAG, "Counter-Strike 2", julyStart, 6 * 60);
+    play(KUNGALV, "Counter-Strike 2", julyStart, 30);
+
+    crownPreviousMonthIfMissing(now);
+
+    expect(getBvsMonthWinner("2026-07")?.steamid64).toBe(MAG);
+    const jumbo = getMonthAwards("2026-07").find((a) => a.award === "jumbo");
+    expect(jumbo?.steamid64).toBe(KUNGALV);
+  });
+
+  // Hela poängen med score > 0. Kungalv har en stängd Steam-profil, alltså
+  // inga samples och noll poäng — han ska inte kunna få träskeden för att
+  // Steam inte släpper ifrån sig hans siffror.
+  it("never gives the spoon to someone who was never sampled at all", () => {
+    addMember(MAG, "[BVS] #Mag");
+    addMember(KUNGALV, "[BVS] Kungalv");
+    play(MAG, "Counter-Strike 2", julyStart, 6 * 60);
+
+    crownPreviousMonthIfMissing(now);
+
+    expect(getMonthAwards("2026-07").find((a) => a.award === "jumbo")).toBeUndefined();
+  });
+
+  // Utmärkelserna har en egen vakt. Delade de vinnarens hade juli — som
+  // kröntes innan den här funktionen fanns — aldrig kunnat få några.
+  it("backfills awards for a month that was crowned before they existed", () => {
+    crownBvsMonth({ month: "2026-07", steamid64: MAG, score: 12 });
+    addMember(MAG, "[BVS] #Mag");
+    addMember(KUNGALV, "[BVS] Kungalv");
+    play(MAG, "Counter-Strike 2", julyStart, 6 * 60);
+    play(KUNGALV, "Counter-Strike 2", julyStart, 30);
+
+    crownPreviousMonthIfMissing(now);
+
+    expect(getMonthAwards("2026-07").find((a) => a.award === "jumbo")?.steamid64).toBe(KUNGALV);
+    // Vinnaren rörs inte av backfillen.
+    expect(getBvsMonthWinner("2026-07")?.score).toBe(12);
+  });
+
+  it("does not decide the same month's awards twice", () => {
+    addMember(MAG, "[BVS] #Mag");
+    addMember(KUNGALV, "[BVS] Kungalv");
+    play(MAG, "Counter-Strike 2", julyStart, 6 * 60);
+    play(KUNGALV, "Counter-Strike 2", julyStart, 30);
+
+    crownPreviousMonthIfMissing(now);
+    const first = getMonthAwards("2026-07");
+    const frames = listener();
+    crownPreviousMonthIfMissing(now);
+
+    expect(getMonthAwards("2026-07")).toEqual(first);
+    expect(frames).toEqual([]);
+    closeAllSubscribers();
+  });
+
+  // En månad med för få aktiva ger en vinnare men inga utmärkelser. Vakten är
+  // då falsk varje timme för alltid — utan att utsändningen hänger på faktisk
+  // förändring hade varje öppen flik fått ett event i timmen om ingenting.
+  it("stays quiet on later ticks even when the month earned no awards at all", () => {
+    addMember(MAG, "[BVS] #Mag");
+    play(MAG, "Counter-Strike 2", julyStart, 6 * 60);
+
+    crownPreviousMonthIfMissing(now);
+    expect(getMonthAwards("2026-07")).toEqual([]);
+
+    const frames = listener();
+    crownPreviousMonthIfMissing(now);
     crownPreviousMonthIfMissing(now);
 
     expect(frames).toEqual([]);
