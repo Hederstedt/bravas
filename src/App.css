@@ -2865,4 +2865,49 @@ a.fixture-score:hover {
 
 .player-card.member-of-month .card-of-month {
   color: #bfe6ff;
+/* Live-pillen i navbaren: pricken och siffran alltid, ordet när det får plats.
+   Ligger i nav-inner och inte på en egen rad — en remsa till under navbaren
+   hade gjort den sticky headern högre, och sektionernas scroll-margin-top är
+   räknad mot dess höjd (se index.css). */
+.nav-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: 14px;
+  padding: 4px 10px;
+  border: 1px solid var(--panel-edge);
+  background: var(--panel);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.nav-live:hover,
+.nav-live:focus-visible {
+  border-color: var(--accent-line);
+  color: var(--text);
+}
+
+.nav-live-count {
+  color: var(--text);
+  font-size: 15px;
+}
+
+/* Tio menylänkar och en hamburgare tar redan bredden på en mobil — där räcker
+   pricken och siffran för att säga "det är folk inne". */
+@media (max-width: 900px) {
+  .nav-live-word {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-live {
+    transition: none;
+  }
 }

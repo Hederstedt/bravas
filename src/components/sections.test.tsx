@@ -1,5 +1,5 @@
 ﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { About, DiscordCta, Nav, Games, Stats } from './sections'
@@ -8,6 +8,7 @@ import * as api from '../api'
 import type { Highlights, ValheimStatus } from '../api'
 import { emitLiveEvent, installLiveEvents, teardownLiveEvents } from '../test/liveEvents'
 import { resetMembersCache } from '../useMembers'
+import { resetPresenceCache } from '../usePresence'
 import { resetSessionCache } from '../useSession'
 
 // Medlemslistan och sessionen delas nu via en modulnivå-cache (useMembers/
@@ -15,6 +16,7 @@ import { resetSessionCache } from '../useSession'
 // mockade svar in i nästa.
 beforeEach(() => {
   resetMembersCache()
+  resetPresenceCache()
   resetSessionCache()
 })
 
@@ -512,5 +514,77 @@ describe('Nav aria-current', () => {
     for (const link of screen.getAllByRole('link')) {
       expect(link).not.toHaveAttribute('aria-current')
     }
+  })
+})
+
+// Sajten vet vilka som är inne, men det syns bara för den som scrollar ner
+// till Gubbarna. Pillen i navbaren gör pulsen synlig på varje sida.
+describe('Nav live-pill', () => {
+  beforeEach(() => {
+    installLiveEvents()
+  })
+
+  afterEach(() => {
+    teardownLiveEvents()
+    vi.restoreAllMocks()
+  })
+
+  function renderNavWithPresence(presence: api.PresenceMap) {
+    vi.spyOn(api, 'fetchPresence').mockResolvedValue(presence)
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+    vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({ ok: true, data: [] })
+    renderNav()
+  }
+
+  it('räknar de som är inne och länkar till gubbarna', async () => {
+    renderNavWithPresence({
+      a: { status: 'in-game', game: 'Counter-Strike 2' },
+      b: { status: 'online', game: null },
+      c: { status: 'offline', game: null },
+    })
+
+    const pill = await screen.findByRole('link', { name: /inne just nu/ })
+    expect(pill).toHaveAttribute('href', '/#gubbarna')
+    expect(pill).toHaveTextContent('2')
+  })
+
+  it('berättar vad som spelas', async () => {
+    renderNavWithPresence({
+      a: { status: 'in-game', game: 'Counter-Strike 2' },
+      b: { status: 'in-game', game: 'Valheim' },
+    })
+
+    const pill = await screen.findByRole('link', { name: /inne just nu/ })
+    expect(pill.getAttribute('aria-label')).toContain('Counter-Strike 2')
+    expect(pill.getAttribute('aria-label')).toContain('Valheim')
+  })
+
+  // "0 inne" i sidhuvudet på varje sida är ingen puls, det är en dödsattest.
+  it('syns inte alls när ingen är inne', async () => {
+    renderNavWithPresence({ a: { status: 'offline', game: null } })
+
+    await waitFor(() => {
+      expect(screen.queryByRole('link', { name: /inne just nu/ })).not.toBeInTheDocument()
+    })
+  })
+
+  // Pillen ska följa med när någon loggar in, utan att sidan laddas om — annars
+  // är den bara en ögonblicksbild från när fliken öppnades.
+  it('följer med när någon kommer eller går', async () => {
+    renderNavWithPresence({ a: { status: 'online', game: null } })
+    await screen.findByRole('link', { name: /inne just nu/ })
+
+    act(() =>
+      emitLiveEvent('presence', {
+        presence: {
+          a: { status: 'online', game: null },
+          b: { status: 'in-game', game: 'Valheim' },
+        },
+      }),
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: /inne just nu/ })).toHaveTextContent('2')
+    })
   })
 })

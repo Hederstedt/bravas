@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router'
 import { SteamLogin } from './auth'
 import * as api from '../api'
 import { resetMembersCache } from '../useMembers'
+import { resetPresenceCache } from '../usePresence'
 import { resetSessionCache } from '../useSession'
 import { resetSiteConfigCache } from '../useSiteConfig'
 
@@ -20,6 +21,7 @@ function renderLogin() {
 beforeEach(() => {
   resetSiteConfigCache()
   resetMembersCache()
+  resetPresenceCache()
   resetSessionCache()
 })
 
