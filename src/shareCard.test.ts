@@ -158,3 +158,27 @@ describe('shareFilename', () => {
     expect(shareFilename('../../etc/passwd')).toBe('bvs-etc-passwd.png')
   })
 })
+
+// Månadens BVS:are får ett diamantkort på sajten. Delar man kortet vidare ska
+// bilden säga samma sak — annars motsäger den sajten den kommer ifrån.
+describe('diamantkortet', () => {
+  const DIAMOND = '#bfe6ff'
+
+  it('ger vinnarens kort diamantkanten', () => {
+    const svg = playerShareCard({ ...MAG, memberOfMonth: true })
+
+    expect(svg).toContain(DIAMOND)
+  })
+
+  it('lämnar alla andra kort orörda', () => {
+    expect(playerShareCard(MAG)).not.toContain(DIAMOND)
+  })
+
+  // Betyget är fortfarande ett betyg. Vinnaren får en ram, inte bättre
+  // attribut — staplarna behåller sin tier-färg så kortet inte ljuger om
+  // hur bra han är.
+  it('rör inte attributstaplarnas tier-färg', () => {
+    const guld = '#e0b352'
+    expect(playerShareCard({ ...MAG, memberOfMonth: true })).toContain(guld)
+  })
+})

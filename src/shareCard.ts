@@ -16,7 +16,11 @@ const PANEL_EDGE = '#1c222c'
 const TEXT = '#e8eaed'
 const MUTED = '#98a2ad'
 const ACCENT = '#ff7a1a'
-const ACCENT_SOFT = '#ffb454'
+
+// Månadens BVS:are får ett diamantkort. Isblått och inte guld, så det inte går
+// att blanda ihop med guld-tiern — utmärkelsen och betyget är två olika saker,
+// och kortet ska inte påstå att vinnaren råkar vara en guldspelare.
+const DIAMOND = '#bfe6ff'
 
 // Samma nyanser som .player-card[data-tier] i App.css.
 const TIER: Record<CardTier, string> = {
@@ -102,12 +106,17 @@ export function playerShareCard(entry: PlayerShareInput, fontFace = ''): string 
     .join('\n')
 
   const crown = entry.memberOfMonth
-    ? `  <text x="72" y="470" font-size="28" font-weight="600" fill="${ACCENT_SOFT}" letter-spacing="2">★ MÅNADENS BVS:ARE</text>`
+    ? `  <text x="72" y="470" font-size="28" font-weight="600" fill="${DIAMOND}" letter-spacing="2">◆ MÅNADENS BVS:ARE</text>`
     : ''
+
+  // Kantlisten bär utmärkelsen när det finns en; attributstaplarna behåller
+  // alltid sin tier-färg, så kortet inte börjar ljuga om hur bra gubben är
+  // bara för att han vann en månad.
+  const edge = entry.memberOfMonth ? DIAMOND : tier
 
   return shell(
     fontFace,
-    `  <rect x="0" y="0" width="12" height="${SHARE_CARD_HEIGHT}" fill="${tier}" />
+    `  <rect x="0" y="0" width="12" height="${SHARE_CARD_HEIGHT}" fill="${edge}" />
   <text x="72" y="120" font-size="28" font-weight="600" fill="${MUTED}" letter-spacing="6">BVS-BETYG</text>
   <text x="72" y="290" font-size="180" font-weight="700" fill="${TEXT}">${xml(overall)}</text>
   <text x="72" y="360" font-size="40" font-weight="700" fill="${tier}" letter-spacing="4">${xml(clip(entry.position, 18).toUpperCase())}</text>

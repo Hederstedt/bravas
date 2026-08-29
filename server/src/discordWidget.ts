@@ -10,8 +10,14 @@
 const WIDGET_TIMEOUT_MS = 5_000;
 
 // Widgeten listar bara de som är online, och Discord kapar själv listan vid
-// 100. Vi visar färre än så — poängen är "vilka hänger här nu", inte en
+// 100. Vi *visar* färre än så — poängen är "vilka hänger här nu", inte en
 // fullständig katalog.
+//
+// Taket satt förut här, i tolkningen, och det var fel plats: pollern som delar
+// ut månadspoäng läste samma avkortade lista. Discord sorterar alfabetiskt, så
+// på en server med fler än tolv online kunde en gubbe sent i alfabetet aldrig
+// få en enda poäng, hur mycket han än hängde inne. Kapningen hör hemma vid
+// utgången (publicDiscordStatus), inte i det pollern räknar på.
 export const MAX_LISTED = 12;
 
 export type DiscordPresence = "online" | "idle" | "dnd";
@@ -62,7 +68,6 @@ export function parseWidget(payload: unknown): DiscordStatus {
       status: toPresence(m.status),
       game: typeof game === "string" && game ? game : null,
     });
-    if (members.length === MAX_LISTED) break;
   }
 
   // presence_count räknar alla online, även de som inte ryms i listan — så

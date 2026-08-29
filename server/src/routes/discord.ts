@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { readLimiter } from "../middleware/rateLimit.ts";
-import { currentDiscordStatus } from "../discordPoller.ts";
+import { publicDiscordStatus } from "../discordPoller.ts";
 
 export const discordRouter = Router();
 
@@ -8,5 +8,5 @@ export const discordRouter = Router();
 // sorts sak en besökare ska kunna se innan han bestämt sig för att joina.
 // Widgeten är dessutom något serverägaren själv slagit på.
 discordRouter.get("/", readLimiter, (_req, res) => {
-  res.json(currentDiscordStatus());
+  res.json(publicDiscordStatus());
 });

@@ -4,6 +4,7 @@ import { broadcast } from "./events.ts";
 import {
   DISCORD_UNAVAILABLE,
   fetchDiscordWidget,
+  MAX_LISTED,
   type DiscordStatus,
 } from "./discordWidget.ts";
 import { HEARTBEAT_MS } from "./sampleSpans.ts";
@@ -16,8 +17,17 @@ export const POLL_MS = 60_000;
 let snapshot: DiscordStatus = DISCORD_UNAVAILABLE;
 let timer: NodeJS.Timeout | null = null;
 
+// Hela listan, som pollern räknar poäng på.
 export function currentDiscordStatus(): DiscordStatus {
   return snapshot;
+}
+
+// Det besökaren får se: samma siffra, men bara de första namnen. Sajten ska
+// visa vilka som hänger här nu, inte publicera hela serverns medlemslista —
+// och poängräkningen ska ändå se alla, vilket är varför kapningen ligger här
+// och inte i parseWidget.
+export function publicDiscordStatus(): DiscordStatus {
+  return { ...snapshot, members: snapshot.members.slice(0, MAX_LISTED) };
 }
 
 // Namnlistan jämförs som helhet: en gubbe som byter från online till idle,
@@ -33,7 +43,13 @@ export function discordStatusChanged(before: DiscordStatus, after: DiscordStatus
 
 export async function refreshDiscordStatus(): Promise<boolean> {
   const next = await fetchDiscordWidget(config.discordServerId);
-  const changed = discordStatusChanged(snapshot, next);
+
+  // Jämförelsen görs på det besökaren faktiskt ser. Rör sig någon långt ner i
+  // listan, utanför de tolv som visas, blir svaret identiskt — och en
+  // utsändning hade bara fått varje öppen flik att rita om samma sak.
+  const visible = (s: DiscordStatus) => ({ ...s, members: s.members.slice(0, MAX_LISTED) });
+  const changed = discordStatusChanged(visible(snapshot), visible(next));
+
   snapshot = next;
   return changed;
 }
@@ -76,7 +92,7 @@ export async function pollOnce(): Promise<void> {
   const at = Date.now();
   const changed = await refreshDiscordStatus();
   rememberDiscordPresence(snapshot, at);
-  if (changed) broadcast("discord", snapshot);
+  if (changed) broadcast("discord", publicDiscordStatus());
 }
 
 // Startas från index.ts, inte från createApp — annars hade varje testfil som
