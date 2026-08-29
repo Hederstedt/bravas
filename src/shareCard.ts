@@ -22,6 +22,22 @@ const ACCENT = '#ff7a1a'
 // och kortet ska inte påstå att vinnaren råkar vara en guldspelare.
 const DIAMOND = '#bfe6ff'
 
+// Månadens övriga utmärkelser. Samma nyanser som --award-color i App.css, så
+// det delade kortet säger samma sak som sajten det kommer ifrån.
+const AWARD_COLOR: Record<string, string> = {
+  jumbo: '#ff5fa2',
+  sofflocket: '#9d8cff',
+  enkelsparet: '#7fd6c4',
+  vindflojeln: '#f0c674',
+}
+
+const AWARD_LABEL: Record<string, string> = {
+  jumbo: '◆ TRÄSKEDEN',
+  sofflocket: '◆ SOFFLOCKET',
+  enkelsparet: '◆ ENKELSPÅRET',
+  vindflojeln: '◆ VINDFLÖJELN',
+}
+
 // Samma nyanser som .player-card[data-tier] i App.css.
 const TIER: Record<CardTier, string> = {
   ikon: '#ff7a1a',
@@ -39,6 +55,10 @@ export interface PlayerShareInput {
   memberOfMonth: boolean
   pending: boolean
   attributes: { key: string; label: string; rating: number }[]
+  // Träskeden eller en skämtutmärkelse. Bara satt för en inloggad medlem —
+  // ett utloggat kort känner inte till dem, så en delad bild från startsidan
+  // kan inte råka bära någons bottenplacering.
+  award?: string | null
 }
 
 export interface MatchShareInput {
@@ -105,14 +125,20 @@ export function playerShareCard(entry: PlayerShareInput, fontFace = ''): string 
     })
     .join('\n')
 
+  // Vinnaren äger sitt kort helt — han får aldrig också en av de andra.
+  const award = entry.memberOfMonth ? null : (entry.award ?? null)
+  const awardColor = award ? AWARD_COLOR[award] : undefined
+
   const crown = entry.memberOfMonth
     ? `  <text x="72" y="470" font-size="28" font-weight="600" fill="${DIAMOND}" letter-spacing="2">◆ MÅNADENS BVS:ARE</text>`
-    : ''
+    : award && awardColor
+      ? `  <text x="72" y="470" font-size="28" font-weight="600" fill="${awardColor}" letter-spacing="2">${xml(AWARD_LABEL[award] ?? '')}</text>`
+      : ''
 
   // Kantlisten bär utmärkelsen när det finns en; attributstaplarna behåller
   // alltid sin tier-färg, så kortet inte börjar ljuga om hur bra gubben är
-  // bara för att han vann en månad.
-  const edge = entry.memberOfMonth ? DIAMOND : tier
+  // bara för att han vann — eller förlorade — en månad.
+  const edge = entry.memberOfMonth ? DIAMOND : (awardColor ?? tier)
 
   return shell(
     fontFace,

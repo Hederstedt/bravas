@@ -67,10 +67,15 @@ function stubApi(overrides: {
   members?: RosterMember[]
   cards?: PlayerCard[]
   presence?: api.PresenceMap
+  awards?: api.MonthAward[]
 } = {}) {
   vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({ ok: true, data: overrides.members ?? [] })
   vi.spyOn(api, 'fetchCards').mockResolvedValue(overrides.cards ?? [])
   vi.spyOn(api, 'fetchPresence').mockResolvedValue(overrides.presence ?? {})
+  vi.spyOn(api, 'fetchAwards').mockResolvedValue({
+    month: overrides.awards ? '2026-07' : null,
+    awards: overrides.awards ?? [],
+  })
 }
 
 // Hänvisningen till kontosidan är en Link, och en Link utan router kraschar —
@@ -515,6 +520,10 @@ describe('the member of the month', () => {
     expect(within(card).queryByText(/titel/i)).not.toBeInTheDocument()
   })
 
+  // Kortet frågas om inuti väntan i stället för att hållas fast i en variabel:
+  // vinnaren flyttas från rutnätet upp till pyramidens topp, så React river
+  // den gamla noden och bygger en ny. En referens tagen före kröningen pekar
+  // på en förälderlös nod som aldrig uppdateras.
   it('refetches the cards when the crowning job announces a new month', async () => {
     stubApi({ members: [MAG], cards: [MAG_CARD] })
     renderRoster()
@@ -523,8 +532,121 @@ describe('the member of the month', () => {
     vi.spyOn(api, 'fetchCards').mockResolvedValue([{ ...MAG_CARD, memberOfMonth: true }])
     act(() => emitLiveEvent('bvs-month', { month: '2026-08', id: MAG.id, score: 12 }))
 
-    const card = await waitFor(() => cardFor(MAG.personaName))
-    await waitFor(() => expect(within(card).getByText('Månadens BVS:are')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(
+        within(cardFor(MAG.personaName)).getByText('Månadens BVS:are'),
+      ).toBeInTheDocument(),
+    )
+  })
+})
+
+// Träskeden och skämtutmärkelserna, till skillnad från stjärnan, bara för
+// inloggade medlemmar. Servern gatear ändå med 401 — det här är att sajten
+// inte ens frågar, och inte ritar något, för den som inte ska se det.
+describe('månadens utmärkelser', () => {
+  const MINE: RosterMember = { ...MAG, mine: true }
+  const SPOON: api.MonthAward = {
+    award: 'jumbo',
+    id: HIDDEN.id,
+    personaName: HIDDEN.personaName,
+    value: 1.5,
+  }
+
+  it('never asks for them as a logged-out visitor', async () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    renderRoster()
+
+    await waitFor(() => cardFor(MAG.personaName))
+    expect(api.fetchAwards).not.toHaveBeenCalled()
+  })
+
+  it('shows the wooden spoon on the card it belongs to, for a signed-in member', async () => {
+    stubApi({ members: [MINE, HIDDEN], cards: [MAG_CARD], awards: [SPOON] })
+    renderRoster()
+
+    // Bandet kommer i en senare runda än kortet — utmärkelserna hämtas för
+    // sig, efter att rostern vet att besökaren är medlem. Att hålla fast en
+    // kortreferens från första waitFor gör testet till en kapplöpning, och
+    // den förlorades i CI men inte lokalt.
+    await waitFor(() =>
+      expect(within(cardFor(HIDDEN.personaName)).getByText('Träskeden')).toBeInTheDocument(),
+    )
+    expect(within(cardFor(HIDDEN.personaName)).getByText(/1,5 p/)).toBeInTheDocument()
+  })
+
+  it('leaves every other card alone', async () => {
+    stubApi({ members: [MINE, HIDDEN], cards: [MAG_CARD], awards: [SPOON] })
+    renderRoster()
+
+    const card = await waitFor(() => cardFor(MINE.personaName))
+    expect(within(card).queryByText('Träskeden')).not.toBeInTheDocument()
+  })
+
+  // Samma regel som stjärnan lyder under: titeln är rangen, det här är en
+  // utmärkelse. Ordet får inte smyga sig in via den nya texten.
+  it('never calls an award a title', async () => {
+    stubApi({ members: [MINE, HIDDEN], cards: [MAG_CARD], awards: [SPOON] })
+    renderRoster()
+
+    const card = await waitFor(() => cardFor(HIDDEN.personaName))
+    expect(within(card).queryByText(/titel/i)).not.toBeInTheDocument()
+  })
+
+  // Servern delar aldrig ut två till samma gubbe, men kortet ska inte kunna
+  // bära två band ens om den regeln någon gång luckras upp.
+  it('gives the reigning winner the star and nothing else', async () => {
+    stubApi({
+      members: [MINE],
+      cards: [{ ...MAG_CARD, memberOfMonth: true }],
+      awards: [{ award: 'sofflocket', id: MINE.id, personaName: MINE.personaName, value: 6 }],
+    })
+    renderRoster()
+
+    const card = await waitFor(() => cardFor(MINE.personaName))
+    expect(within(card).getByText('Månadens BVS:are')).toBeInTheDocument()
+    expect(within(card).queryByText('Sofflocket')).not.toBeInTheDocument()
+  })
+})
+
+describe('the pyramid', () => {
+  const MINE: RosterMember = { ...MAG, mine: true }
+
+  it('lifts the reigning winner onto a row of their own above the grid', async () => {
+    stubApi({
+      members: [HIDDEN, MINE],
+      cards: [
+        { ...MAG_CARD, id: HIDDEN.id, personaName: HIDDEN.personaName },
+        { ...MAG_CARD, memberOfMonth: true },
+      ],
+    })
+    const { container } = renderRoster()
+
+    await waitFor(() => cardFor(MINE.personaName))
+    const crowned = container.querySelector('.lineup-crown .player-card')
+    expect(crowned).toBeTruthy()
+    expect(within(crowned as HTMLElement).getByRole('heading')).toHaveTextContent(MINE.personaName)
+    // Och han står inte kvar i rutnätet också.
+    expect(container.querySelectorAll('.lineup .player-card')).toHaveLength(1)
+  })
+
+  it('keeps everyone in the grid when no month has been decided', async () => {
+    stubApi({ members: [MAG], cards: [MAG_CARD] })
+    const { container } = renderRoster()
+
+    await waitFor(() => cardFor(MAG.personaName))
+    expect(container.querySelector('.lineup-crown')).toBeNull()
+    expect(container.querySelectorAll('.lineup .player-card')).toHaveLength(1)
+  })
+
+  // Gruppen och dess etikett ligger runt båda raderna — annars hamnar
+  // vinnaren utanför den för den som navigerar med skärmläsare.
+  it('keeps the winner inside the labelled group', async () => {
+    stubApi({ members: [MINE], cards: [{ ...MAG_CARD, memberOfMonth: true }] })
+    renderRoster()
+
+    await waitFor(() => cardFor(MINE.personaName))
+    const group = screen.getByRole('group', { name: 'Gubbarna i BVS' })
+    expect(within(group).getByRole('heading', { name: MINE.personaName })).toBeInTheDocument()
   })
 })
 

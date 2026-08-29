@@ -1568,11 +1568,22 @@ a.steam-login:hover {
   outline-offset: -6px;
 }
 
+/* Hörnfasen är en variabel för att vinnarens större kort ska kunna skala upp
+   den. Fast 24px på ett kort som är halvannan gång så stort läser sig som ett
+   misstag, inte som samma form. */
 .player-card {
+  --corner: 24px;
   position: relative;
   isolation: isolate;
   padding: 20px 22px 24px;
-  clip-path: polygon(24px 0, 100% 0, 100% calc(100% - 24px), calc(100% - 24px) 100%, 0 100%, 0 24px);
+  clip-path: polygon(
+    var(--corner) 0,
+    100% 0,
+    100% calc(100% - var(--corner)),
+    calc(100% - var(--corner)) 100%,
+    0 100%,
+    0 var(--corner)
+  );
   background: linear-gradient(168deg, var(--tier-a) -10%, var(--tier-b) 42%, #0f1319 100%);
   border: 1px solid var(--panel-edge);
   transition: transform 0.18s, filter 0.18s;
@@ -1781,19 +1792,13 @@ a.steam-login:hover {
   .player-card:hover {
     transform: none;
   }
-  /* Diamanten står stilla: ingen puls och ingen glimt som far över kortet.
-     Ramen och skenet finns kvar, så vinnaren syns lika tydligt — den bara
-     rör sig inte. */
-  .player-card.member-of-month {
-    animation: none;
-    box-shadow: inset 0 0 20px -10px rgba(191, 230, 255, 0.45);
-  }
-  .player-card.member-of-month::after {
-    display: none;
-  }
   .card-glitter {
     display: none;
   }
+  /* Kortens utmärkelseanimationer stoppas inte här utan längst ner i filen,
+     efter att de definierats — se blocket vid .player-card.member-of-month.
+     Media queries ger ingen extra specificitet, så en regel här hade förlorat
+     mot en likadan senare i filen. */
 }
 
 /* Läses upp av skärmläsare men tar ingen plats. Förkortningarna på kortet
@@ -2865,6 +2870,8 @@ a.fixture-score:hover {
 
 .player-card.member-of-month .card-of-month {
   color: #bfe6ff;
+}
+
 /* Live-pillen i navbaren: pricken och siffran alltid, ordet när det får plats.
    Ligger i nav-inner och inte på en egen rad — en remsa till under navbaren
    hade gjort den sticky headern högre, och sektionernas scroll-margin-top är
@@ -2909,5 +2916,141 @@ a.fixture-score:hover {
 @media (prefers-reduced-motion: reduce) {
   .nav-live {
     transition: none;
+  }
+}
+
+/* ---------- Pyramiden ---------- */
+
+/* Vinnaren ensam på egen rad ovanför rutnätet. Han lyfts ut ur .lineup i
+   roster.tsx i stället för att spänna över det: serverns ordning är på betyg,
+   så vinnaren ligger sällan först och kan inte hamna överst med grid-column
+   allena. */
+.lineup-crown {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 0;
+}
+
+.lineup-crown .player-card {
+  --corner: 34px;
+  width: min(100%, 560px);
+  padding: 26px 30px 30px;
+}
+
+/* Medvetet en spalt, bara bredare. Ett försök med porträtt till vänster och
+   attribut till höger gav ett stort tomrum: elementen är syskon utan
+   omslutande div, så automatplaceringen la dem i var sin implicit rad och
+   porträttspalten blev nästan tom under avataren. Ett brett kort med samma
+   flöde som de andra läser sig som "samma kort, större" — vilket är vad det
+   ska vara. */
+.lineup-crown .card-top .overall {
+  font-size: 56px;
+}
+
+/* Diamantramen är 1px, vilket räcker på ett kort i rutnätet men försvinner
+   helt mot guldgradienten när kortet är dubbelt så brett. Utmärkelsen ska
+   synas i den storlek kortet faktiskt har — annars ser vinnarkortet bara ut
+   som ett stort guldkort. */
+.lineup-crown .player-card.member-of-month {
+  border-width: 2px;
+}
+
+/* Samma skäl: raden som säger *varför* kortet står här uppe ska inte vara den
+   minsta texten på det. */
+.lineup-crown .card-of-month {
+  font-size: 14px;
+  letter-spacing: 1.5px;
+}
+
+.lineup-crown .avatar {
+  width: 140px;
+  height: 140px;
+}
+
+.lineup-crown .card-name {
+  font-size: 24px;
+}
+
+/* ---------- Månadens övriga utmärkelser ---------- */
+
+/* Bandet, gemensamt för alla fyra. Utmärkelse och inte titel: titeln är
+   rangen uppe i .card-top och styrs av betyget. */
+.card-award {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 6px 0 0;
+}
+
+.card-award-label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--award-color, var(--muted));
+}
+
+.card-award-value {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* Träskeden får ett eget kort, skämtutmärkelserna bara ett band. En diamant,
+   ett rosa kort och tre små band håller raden läsbar — fem ramar hade gjort
+   den till en färgkarta. */
+.player-card.award-jumbo {
+  --award-color: #ff5fa2;
+  border-color: rgba(255, 95, 162, 0.85);
+  animation: spoon-sway 6s ease-in-out infinite;
+}
+
+/* Bara box-shadow, precis som diamond-glow. Att animera transform här hade
+   slagit ut hover-lyftet på .player-card — en animation vinner över en
+   vanlig deklaration, så kortet hade legat dött under muspekaren.
+   Rosa och inte brunt: brons är redan en tier, och färgen ska omöjligt kunna
+   läsas som ett betyg. Trögare takt än diamanten, som något utan fart. */
+@keyframes spoon-sway {
+  0%,
+  100% {
+    box-shadow: inset 0 0 26px -12px rgba(255, 95, 162, 0.55);
+  }
+  50% {
+    box-shadow: inset 0 0 16px -12px rgba(255, 95, 162, 0.18);
+  }
+}
+
+.player-card.award-sofflocket {
+  --award-color: #9d8cff;
+}
+
+.player-card.award-enkelsparet {
+  --award-color: #7fd6c4;
+}
+
+.player-card.award-vindflojeln {
+  --award-color: #f0c674;
+}
+
+/* Utmärkelsekorten står stilla. Ramen och skenet finns kvar, så vinnaren och
+   jumbon syns lika tydligt — de bara rör sig inte.
+   Blocket ligger här och inte uppe hos de andra reduced-motion-reglerna av en
+   nödvändig anledning: en media query ger ingen extra specificitet, och
+   .player-card.member-of-month definieras längre ner i filen än det blocket.
+   Regeln däruppe förlorade därför på källordning, och pulsen har kört vidare
+   för den som bett om mindre rörelse ända sedan diamantkortet flyttades hit. */
+@media (prefers-reduced-motion: reduce) {
+  .player-card.member-of-month {
+    animation: none;
+    box-shadow: inset 0 0 20px -10px rgba(191, 230, 255, 0.45);
+  }
+
+  .player-card.member-of-month::after {
+    display: none;
+  }
+
+  .player-card.award-jumbo {
+    animation: none;
+    box-shadow: inset 0 0 20px -10px rgba(255, 95, 162, 0.45);
   }
 }
