@@ -182,3 +182,35 @@ describe('diamantkortet', () => {
     expect(playerShareCard({ ...MAG, memberOfMonth: true })).toContain(guld)
   })
 })
+
+// Träskeden och skämtutmärkelserna delas vidare på samma sätt som diamanten.
+// Bara en inloggad medlem har dem i sitt kort över huvud taget, så en bild
+// delad från startsidan kan inte råka bära någons bottenplacering.
+describe('månadens övriga utmärkelser', () => {
+  const SPOON = '#ff5fa2'
+
+  it('ger träskeden sin egen kantlist och sitt namn', () => {
+    const svg = playerShareCard({ ...MAG, award: 'jumbo' })
+
+    expect(svg).toContain(SPOON)
+    expect(svg).toContain('TRÄSKEDEN')
+  })
+
+  it('lämnar ett kort utan utmärkelse orört', () => {
+    expect(playerShareCard(MAG)).not.toContain(SPOON)
+  })
+
+  // Samma invariant som diamanten: kortet får inte börja ljuga om hur bra
+  // gubben är bara för att han kom sist en månad.
+  it('rör inte attributstaplarnas tier-färg', () => {
+    expect(playerShareCard({ ...MAG, award: 'jumbo' })).toContain('#e0b352')
+  })
+
+  // Vinnaren äger sitt kort helt. Får han båda blir bilden obegriplig.
+  it('låter diamanten vinna över en utmärkelse på samma kort', () => {
+    const svg = playerShareCard({ ...MAG, memberOfMonth: true, award: 'sofflocket' })
+
+    expect(svg).toContain('MÅNADENS BVS:ARE')
+    expect(svg).not.toContain('SOFFLOCKET')
+  })
+})

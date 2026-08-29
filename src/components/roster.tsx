@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router'
 import {
+  fetchAwards,
   fetchCards,
+  type AwardKey,
   type CardAttribute,
   type CardTier,
   type PlayerCard,
@@ -10,6 +12,7 @@ import {
   type PresenceMap,
   type RosterMember,
 } from '../api'
+import { AWARDS } from '../awards'
 import { compareAttribute } from '../cardStats'
 import { playerShareCard, shareFilename } from '../shareCard'
 import { useSectionStatus } from '../useApiOutage'
@@ -24,6 +27,10 @@ import { ShareCardButton } from './shareCardButton'
 // sidladdning. Nytt precedensfall — sessionStorage finns inte någon
 // annanstans i src/ i dag — men motiverat och litet: en enda flagga.
 const MONTH_GLITTER_KEY = 'bvs-month-glitter-played'
+
+// Stabil referens: en ny tom Map per render hade gjort lineup till ett nytt
+// objekt varje gång och slagit ut memoiseringen längre ner.
+const NO_AWARDS: ReadonlyMap<string, { award: AwardKey; value: number }> = new Map()
 
 function shouldPlayMonthGlitter(): boolean {
   try {
@@ -53,6 +60,11 @@ interface LineupEntry {
   pending: boolean
   // Inte betygshärlett — se PlayerCard i api.ts.
   memberOfMonth: boolean
+  // Träskeden eller en skämtutmärkelse. Alltid null för en utloggad besökare:
+  // de hämtas bara när rostern vet att det finns en egen rad i den, och
+  // servern svarar 401 på vägen dit ändå.
+  award: AwardKey | null
+  awardValue: number
 }
 
 function presenceLabel(p: Presence): string {
@@ -70,6 +82,7 @@ function buildLineup(
   live: RosterMember[],
   cards: PlayerCard[],
   presence: PresenceMap,
+  awards: ReadonlyMap<string, { award: AwardKey; value: number }>,
 ): LineupEntry[] {
   const byId = new Map(live.map((m) => [m.id, m]))
   const rated: LineupEntry[] = []
@@ -97,6 +110,8 @@ function buildLineup(
       // inte ett missvisande "0".
       pending: !card.hasStats,
       memberOfMonth: card.memberOfMonth,
+      award: awards.get(card.id)?.award ?? null,
+      awardValue: awards.get(card.id)?.value ?? 0,
     })
   }
 
@@ -116,6 +131,8 @@ function buildLineup(
       presence: presence[m.id] ?? null,
       pending: true,
       memberOfMonth: false,
+      award: awards.get(m.id)?.award ?? null,
+      awardValue: awards.get(m.id)?.value ?? 0,
     }))
 
   return [...rated, ...pending]
@@ -125,10 +142,12 @@ function PlayerCardView({
   entry,
   crew,
   glitter,
+  featured = false,
 }: {
   entry: LineupEntry
   crew: PlayerCard[]
   glitter: boolean
+  featured?: boolean
 }) {
   const [open, setOpen] = useState<string | null>(null)
   const p = entry.presence
@@ -136,11 +155,18 @@ function PlayerCardView({
   const openAttr = entry.attributes.find((a) => a.key === open) ?? null
   const comparison = openAttr ? compareAttribute(crew, entry.id, openAttr.key) : null
 
+  // Vinnaren äger sitt kort helt: träskeden och skämten delas aldrig ut till
+  // honom av servern, men ordningen står här också så kortet inte kan hamna
+  // med två band om reglerna någon gång ändras.
+  const award = entry.memberOfMonth ? null : entry.award
+
+  const classes = ['player-card']
+  if (entry.memberOfMonth) classes.push('member-of-month')
+  if (featured) classes.push('is-featured')
+  if (award) classes.push(`award-${award}`)
+
   return (
-    <article
-      className={`player-card${entry.memberOfMonth ? ' member-of-month' : ''}`}
-      data-tier={entry.tier}
-    >
+    <article className={classes.join(' ')} data-tier={entry.tier}>
       {glitter && (
         <div className="card-glitter" aria-hidden="true">
           {Array.from({ length: 10 }, (_, i) => (
@@ -183,6 +209,14 @@ function PlayerCardView({
         <p className="card-of-month">
           <StarIcon />
           Månadens BVS:are
+        </p>
+      )}
+      {/* Utmärkelse, inte titel: titeln är rangen ovanför och styrs av
+          betyget. Bandet säger vad han gjorde den här månaden. */}
+      {award && (
+        <p className={`card-award card-award-${award}`}>
+          <span className="card-award-label">{AWARDS[award].label}</span>
+          <span className="card-award-value">{AWARDS[award].format(entry.awardValue)}</span>
         </p>
       )}
       {entry.discordName && (
@@ -277,6 +311,7 @@ function PlayerCardView({
                 tier: entry.tier,
                 position: entry.position,
                 memberOfMonth: entry.memberOfMonth,
+                award: entry.award,
                 pending: entry.pending,
                 attributes: [...entry.attributes, ...entry.wotAttributes],
               },
@@ -305,6 +340,9 @@ export function Roster() {
   // blev det två anrop till /api/presence vid varje sidladdning, och två
   // sanningar om vem som är inne.
   const { presence, reload: reloadPresence } = usePresence()
+  // Träskeden och skämtutmärkelserna. Tom för alla utom inloggade medlemmar —
+  // se effekten nedan.
+  const [awards, setAwards] = useState<Map<string, { award: AwardKey; value: number }>>(new Map())
   // Stängd som standard — ingen fattade "65 ENTRY" förut, men förklaringen
   // ska gå att hitta, inte tvinga sig på alla som bara vill se korten.
   const [legendOpen, setLegendOpen] = useState(false)
@@ -315,6 +353,9 @@ export function Roster() {
   // egen refetch-funktion att hålla synkad med effektens cancelled-flagga.
   // Medlemslistan har sin egen omladdning via useMembers().reload().
   const [retryTick, setRetryTick] = useState(0)
+  // Egen tick för utmärkelserna. Delade de retryTick hade kröningens
+  // utsändning hämtat om korten två gånger — onBvsMonth gör det redan själv.
+  const [awardsTick, setAwardsTick] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -341,14 +382,30 @@ export function Roster() {
   const covered = useSectionStatus('gubbarna', status === 'error', retry)
 
   // Kröningsjobbet sänder den här när en ny månad avgörs. Bara korten hämtas
-  // om — betygen rörs inte, precis som presence-uppdateringen ovan.
+  // om — betygen rörs inte, precis som presence-uppdateringen ovan. Samma
+  // tick avgör utmärkelserna, så de hämtas om i samma veva för den som får
+  // se dem.
   const onBvsMonth = useCallback(() => {
     void fetchCards().then(setCards)
+    setAwardsTick((t) => t + 1)
   }, [])
   useLiveEvent('bvs-month', onBvsMonth)
 
+  // Den inloggade besökarens egen rad i rostern, om hen finns med — avgör om
+  // hänvisningen till kontosidan är värd att visa. Servern sätter mine mot
+  // sessionen, klienten slipper jämföra id mot ett eget steamid64.
+  const mine = live.find((m) => m.mine) ?? null
+
+  // Utmärkelserna hämtas bara när besökaren har en egen rad i rostern, alltså
+  // är en inloggad medlem. mine kommer redan från servern mot sessionen, så
+  // det behövs ingen egen sessionshämtning — och en utloggad besökare slipper
+  // ett anrop som ändå bara hade svarat 401.
+  const isMember = mine !== null
+
   const ready = status === 'ready' && live.length > 0
-  const lineup = ready ? buildLineup(live, cards, presence) : []
+  // Utmärkelserna ritas bara för en inloggad medlem. Härlett i stället för
+  // rensat i effekten nedan, så en utloggning inte kan lämna kvar ett band.
+  const lineup = ready ? buildLineup(live, cards, presence, isMember ? awards : NO_AWARDS) : []
 
   // Förklaringarna kommer från API:et tillsammans med betygen, så koden här
   // slipper hålla en egen kopia som kan glida isär från uträkningen. WoT-
@@ -357,16 +414,34 @@ export function Roster() {
   const legend = lineup.find((e) => e.attributes.length > 0)?.attributes ?? []
   const wotLegend = lineup.find((e) => e.wotAttributes.length > 0)?.wotAttributes ?? []
 
-  // Den inloggade besökarens egen rad i rostern, om hen finns med — avgör om
-  // hänvisningen till kontosidan är värd att visa. Servern sätter mine mot
-  // sessionen, klienten slipper jämföra id mot ett eget steamid64.
-  const mine = live.find((m) => m.mine) ?? null
+  useEffect(() => {
+    // Bara hämta, aldrig tömma: det tomma läget härleds nedan i stället.
+    // Ett setAwards här hade varit en synkron state-sättning i en effekt,
+    // vilket kostar en extra render för varje utloggad besökare.
+    if (!isMember) return
+    let cancelled = false
+    void fetchAwards().then(({ awards: rows }) => {
+      if (cancelled) return
+      setAwards(
+        new Map(
+          rows.flatMap((r) => (r.id ? [[r.id, { award: r.award, value: r.value }] as const] : [])),
+        ),
+      )
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [isMember, awardsTick])
 
   // Avgörs högst en gång per montering: så fort en regerande vinnare synts
   // till (eller konstaterats saknas) rör vi inte sessionStorage igen. Ett
   // booleskt beroende i stället för hela lineup-arrayen — den är en ny
   // referens varje render och hade triggat effekten i onödan.
-  const hasWinner = lineup.some((e) => e.memberOfMonth)
+  // Vinnaren står ensam på pyramidens topp; resten behåller serverns ordning.
+  const champion = lineup.find((e) => e.memberOfMonth) ?? null
+  const rest = lineup.filter((e) => !e.memberOfMonth)
+
+  const hasWinner = champion !== null
   const checkedGlitter = useRef(false)
   useEffect(() => {
     if (checkedGlitter.current) return
@@ -420,15 +495,22 @@ export function Roster() {
               </p>
             )}
 
-            <div className="lineup" role="group" aria-label="Gubbarna i BVS">
-              {lineup.map((entry) => (
-                <PlayerCardView
-                  key={entry.id}
-                  entry={entry}
-                  crew={cards}
-                  glitter={glitter && entry.memberOfMonth}
-                />
-              ))}
+            {/* Pyramiden: vinnaren ensam överst, resten under. Han lyfts ut
+                ur rutnätet i stället för att spänna över det — servern
+                sorterar på betyg, så vinnaren ligger sällan först och kan
+                inte hamna högst upp med enbart grid-column. Gruppen och dess
+                etikett ligger runt båda, annars hamnar han utanför. */}
+            <div className="lineup-wrap" role="group" aria-label="Gubbarna i BVS">
+              {champion && (
+                <div className="lineup-crown">
+                  <PlayerCardView entry={champion} crew={cards} glitter={glitter} featured />
+                </div>
+              )}
+              <div className="lineup">
+                {rest.map((entry) => (
+                  <PlayerCardView key={entry.id} entry={entry} crew={cards} glitter={false} />
+                ))}
+              </div>
             </div>
 
             {(legend.length > 0 || wotLegend.length > 0) && (

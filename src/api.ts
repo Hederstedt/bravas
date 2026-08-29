@@ -462,6 +462,35 @@ export async function fetchMonthlyStatus(): Promise<MonthlyStatus> {
   return (await getJson<MonthlyStatus>('/api/stats/month')) ?? empty
 }
 
+// ---------- Månadens övriga utmärkelser ----------
+
+// Träskeden och de tre skämtutmärkelserna. Till skillnad från Månadens
+// BVS:are ligger de bakom inloggning — sajten är publik och indexerad, och
+// någons namn kopplat till en bottenplacering på öppna nätet är en annan sak
+// än samma skämt i Discorden. En utloggad besökare får 401 och en tom lista,
+// vilket är ett giltigt läge och inte ett fel.
+export type AwardKey = 'jumbo' | 'sofflocket' | 'enkelsparet' | 'vindflojeln'
+
+export interface MonthAward {
+  award: AwardKey
+  // Null om gubben lämnat BVS sedan utmärkelsen delades ut.
+  id: string | null
+  personaName: string
+  // Talet som vann den: poäng för jumbo, timmar för soffan och enkelspåret,
+  // antal byten för vindflöjeln.
+  value: number
+}
+
+export interface AwardsStatus {
+  month: string | null
+  awards: MonthAward[]
+}
+
+export async function fetchAwards(): Promise<AwardsStatus> {
+  const empty: AwardsStatus = { month: null, awards: [] }
+  return (await getJson<AwardsStatus>('/api/stats/awards')) ?? empty
+}
+
 export async function fetchPresence(): Promise<PresenceMap> {
   const data = await getJson<{ presence: PresenceMap }>('/api/presence')
   return data?.presence ?? {}
