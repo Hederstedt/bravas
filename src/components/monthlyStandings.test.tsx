@@ -1,11 +1,22 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import * as api from '../api'
 import { MonthlyStandings } from './monthlyStandings'
 
 afterEach(() => {
   vi.restoreAllMocks()
 })
+
+// Komponenten länkar till Kom igång-sidan, och en Link utan router kastar —
+// routern bor i main.tsx, så testet får bära med sig en egen.
+function renderStandings() {
+  return render(
+    <MemoryRouter>
+      <MonthlyStandings />
+    </MemoryRouter>,
+  )
+}
 
 describe('MonthlyStandings', () => {
   it('has a heading', async () => {
@@ -14,7 +25,7 @@ describe('MonthlyStandings', () => {
       standings: [],
       lastMonth: null,
     })
-    render(<MonthlyStandings />)
+    renderStandings()
 
     expect(await screen.findByRole('heading', { name: 'Månadens BVS:are' })).toBeInTheDocument()
   })
@@ -28,7 +39,7 @@ describe('MonthlyStandings', () => {
       ],
       lastMonth: null,
     })
-    render(<MonthlyStandings />)
+    renderStandings()
 
     const items = await screen.findAllByRole('listitem')
     expect(items[0]).toHaveTextContent('[BVS] #Mag')
@@ -42,7 +53,7 @@ describe('MonthlyStandings', () => {
       standings: [],
       lastMonth: { month: '2026-07', id: '1', personaName: '[BVS] #Mag', score: 21.7 },
     })
-    render(<MonthlyStandings />)
+    renderStandings()
 
     expect(await screen.findByText(/Förra månadens vinnare/)).toBeInTheDocument()
     expect(screen.getByText('[BVS] #Mag', { exact: false })).toBeInTheDocument()
@@ -54,7 +65,7 @@ describe('MonthlyStandings', () => {
       standings: [],
       lastMonth: null,
     })
-    render(<MonthlyStandings />)
+    renderStandings()
 
     await screen.findByRole('heading', { name: 'Månadens BVS:are' })
     expect(screen.queryByText(/Förra månadens vinnare/)).not.toBeInTheDocument()
@@ -66,7 +77,7 @@ describe('MonthlyStandings', () => {
       standings: [],
       lastMonth: null,
     })
-    render(<MonthlyStandings />)
+    renderStandings()
 
     expect(await screen.findByText(/Stängd Steam-profil/)).toBeInTheDocument()
   })
@@ -77,7 +88,7 @@ describe('MonthlyStandings', () => {
       standings: [],
       lastMonth: null,
     })
-    render(<MonthlyStandings />)
+    renderStandings()
 
     expect(await screen.findByText(/Ingen ställning att visa än/)).toBeInTheDocument()
   })

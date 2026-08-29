@@ -9,6 +9,7 @@ import {
   type ApplicationStatus,
   type RosterMember,
 } from '../api'
+import { AWARDS, AWARD_ORDER, CAP_HOURS_PER_GAME } from '../awards'
 import { SteamIcon } from './icons'
 
 // Steams webbklient har ingen offentlig djuplänk till en enskild
@@ -82,7 +83,13 @@ export function InfoPage() {
             <MemberChecklist mine={state.mine} hasStats={state.hasStats} onRecheck={reload} />
           )}
 
+          <TwoNumbers />
           <RatingExplanation />
+          <MonthlyPoints />
+          {/* Träskeden och skämtutmärkelserna bara för den som är med. En
+              utloggad besökare får inte ens veta att de finns — servern
+              lämnar inte ut dem, och sidan ska inte beskriva dem heller. */}
+          {state.status === 'member' && <AwardsExplanation />}
 
           <p className="roster-note">
             Fundera på vad som lagras och visas om dig? Läs{' '}
@@ -174,6 +181,63 @@ function ApplicantStatus({ applicationStatus }: { applicationStatus: Application
   )
 }
 
+// Den gamla texten nämnde bara "Spelinformation". Det räcker inte: presence.ts
+// kräver att hela profilen är offentlig (communityvisibilitystate === 3) för
+// att du ska samplas alls, och utan det får du noll månadspoäng hur öppen din
+// spelinformation än är. Två inställningar, två olika konsekvenser — och den
+// ena stod ingenstans på sajten.
+function SteamPrivacyGuide({ hasStats, onRecheck }: { hasStats: boolean; onRecheck: () => void }) {
+  return (
+    <>
+      <p className="roster-note">
+        {hasStats
+          ? 'Klart — vi når dina siffror. Två inställningar styr det här, och båda måste stå på Offentlig:'
+          : 'Steam släpper inte ifrån sig något om dig än. Två inställningar styr det, och båda måste stå på Offentlig:'}
+      </p>
+
+      <dl className="steam-settings">
+        <div>
+          <dt>
+            Min profil <span className="steam-settings-en">(My profile)</span>
+          </dt>
+          <dd>
+            Utan den ser vi dig aldrig alls — ingen prick när du är inne, och{' '}
+            <strong>noll månadspoäng</strong>, för det finns inga timmar att räkna.
+          </dd>
+        </div>
+        <div>
+          <dt>
+            Spelinformation <span className="steam-settings-en">(Game details)</span>
+          </dt>
+          <dd>
+            Utan den blir kortet ditt men <strong>utan betyg</strong> — Steam vägrar lämna ut din
+            CS2-statistik.
+          </dd>
+        </div>
+      </dl>
+
+      <p className="roster-note">
+        Båda ligger under Redigera profil →{' '}
+        <a href={STEAM_PRIVACY_URL}>Sekretessinställningar i Steam</a>.{' '}
+        <strong>"Vänner endast" räcker inte</strong> — sajten frågar Steam utan att vara inloggad
+        som någon, så vi räknas som en främling oavsett vilka du är vän med.
+      </p>
+      <p className="roster-note">
+        Under Spelinformation finns dessutom kryssrutan{' '}
+        <em>"Håll alltid min totala speltid dold"</em>{' '}
+        <span className="steam-settings-en">(Always keep my total playtime private)</span>. Den är
+        separat, och är den ikryssad försvinner Valheim-timmarna även om allt annat är öppet.
+      </p>
+
+      {!hasStats && (
+        <button type="button" className="btn btn-ghost" onClick={onRecheck}>
+          Kontrollera igen
+        </button>
+      )}
+    </>
+  )
+}
+
 function StepStatus({ done, optional }: { done: boolean; optional?: boolean }) {
   if (done) return <span className="step-status step-done">Klar</span>
   if (optional) return <span className="step-status step-optional">Valfritt — inte gjort</span>
@@ -206,21 +270,9 @@ function MemberChecklist({
         </li>
 
         <li>
-          <h2>2. Öppen spelinformation i Steam</h2>
+          <h2>2. Öppna din Steam-profil</h2>
           <StepStatus done={hasStats} />
-          {!hasStats && (
-            <>
-              <p className="roster-note">
-                Steam nekar oss dina siffror så länge din spelinformation är stängd — kortet är
-                ditt, men utan betyg. Slå på "Spelinformation" under Redigera profil →{' '}
-                <a href={STEAM_PRIVACY_URL}>Sekretessinställningar i Steam</a>, så hämtar vi
-                resten automatiskt.
-              </p>
-              <button type="button" className="btn btn-ghost" onClick={onRecheck}>
-                Kontrollera igen
-              </button>
-            </>
-          )}
+          <SteamPrivacyGuide hasStats={hasStats} onRecheck={onRecheck} />
         </li>
 
         <li>
@@ -259,15 +311,146 @@ function MemberChecklist({
   )
 }
 
+// Sajten har två helt olika tal som båda kallas "poäng", och de förklarades
+// aldrig bredvid varandra: betyget bodde i Gubbarna-legenden, månadspoängen i
+// en ruta på Mitt konto som de flesta aldrig öppnar. Det är nästan säkert
+// därför ingen tyckte att det var glasklart hur poängen räknas.
+function TwoNumbers() {
+  return (
+    <>
+      <h2>Två olika siffror — och det är där folk går bet</h2>
+      <p className="roster-note">
+        Det finns två tal på sajten, de mäter olika saker, och de har ingenting med varandra att
+        göra. Blandar man ihop dem blir båda obegripliga.
+      </p>
+
+      <dl className="number-legend">
+        <div>
+          <dt>BVS-betyget</dt>
+          <dd>
+            Hur bra du är, räknat på hela din speltid någonsin. Det är talet på kortet, och det
+            är det som ger dig din <strong>titel</strong> (KAPTEN, GENERAL) och din färg på kortet.
+            Det rör sig långsamt.
+          </dd>
+        </div>
+        <div>
+          <dt>Månadspoängen</dt>
+          <dd>
+            Hur mycket du hängt med gänget den <strong>här</strong> månaden. Den nollställs varje
+            månadsskifte och avgör <strong>utmärkelserna</strong> — Månadens BVS:are och de andra.
+            Den säger ingenting om hur bra du är.
+          </dd>
+        </div>
+      </dl>
+
+      <p className="roster-note">
+        Kort sagt: betyget är skicklighet, månadspoängen är närvaro. Man kan vara klanens bästa
+        skytt och ändå få noll månadspoäng för att man var bortrest.
+      </p>
+    </>
+  )
+}
+
+function MonthlyPoints() {
+  return (
+    <>
+      <h2>Så räknas månadspoängen</h2>
+      <p className="roster-note">
+        Du får en poäng per timme du är inne i något av klanens spel — men{' '}
+        <strong>varje spel har ett tak på {CAP_HOURS_PER_GAME} timmar</strong>. Timme elva i samma
+        spel ger ingenting. Att synas i Discorden räknas som ett eget "spel", med samma tak.
+      </p>
+      <p className="roster-note">
+        Taket är hela poängen med systemet: <strong>bredd slår grind</strong>. Den som är med på
+        allt möjligt slår den som maler ett enda spel, annars hade samma gubbe vunnit varje månad.
+      </p>
+
+      <table className="points-example">
+        <caption>En månad, uträknad</caption>
+        <tbody>
+          <tr>
+            <th scope="row">8 h Counter-Strike 2</th>
+            <td>8 p</td>
+          </tr>
+          <tr>
+            <th scope="row">14 h Valheim</th>
+            <td>
+              <strong>{CAP_HOURS_PER_GAME} p</strong> — taket, de sista {14 - CAP_HOURS_PER_GAME}{' '}
+              timmarna räknas inte
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">3 h i Discorden</th>
+            <td>3 p</td>
+          </tr>
+          <tr className="points-sum">
+            <th scope="row">Totalt</th>
+            <td>{8 + CAP_HOURS_PER_GAME + 3} p</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p className="roster-note">
+        <strong>Stängd Steam-profil ger noll.</strong> Vi ser dig helt enkelt aldrig, så det finns
+        inga timmar att räkna — se steget om Steam ovan. Det är inget personligt, ingen mäts den
+        vägen.
+      </p>
+    </>
+  )
+}
+
 function RatingExplanation() {
   return (
     <>
-      <h2>Hur betyget och titeln räknas fram</h2>
+      <h2>Så räknas betyget och titeln</h2>
       <p className="roster-note">
-        BVS-betyget är en viktad summa av dina CS2-attribut. Länkar du fler spel läggs varje spel
-        på som ett rejält tillägg ovanpå, aldrig ett avdrag — ju fler spelkonton du länkar, desto
-        högre kan betyget bli. Titeln (t.ex. KAPTEN eller GENERAL) är BVS egen rangordning och
-        styrs bara av betyget, oavsett vilket spel poängen kom ifrån.
+        BVS-betyget är en viktad summa av dina CS2-attribut — den som väger tyngst (Frag) räknas
+        mer än den som väger minst (Tid). Länkar du fler spel läggs varje spel på som ett rejält
+        tillägg ovanpå, <strong>aldrig ett avdrag</strong> — ju fler spelkonton du länkar, desto
+        högre kan betyget bli, och ett svagt konto kan bara höja det.
+      </p>
+      <p className="roster-note">
+        Titeln (t.ex. KAPTEN eller GENERAL) är BVS egen rangordning och styrs bara av betyget,
+        oavsett vilket spel poängen kom ifrån. Tier — ikon, guld, silver, brons — är samma betyg i
+        hinkar: 87 och uppåt, 75 och uppåt, 60 och uppåt, annars brons.
+      </p>
+    </>
+  )
+}
+
+// Bara för inloggade medlemmar. Sajten är publik och indexerad, och någons
+// namn kopplat till en bottenplacering på öppna nätet är en annan sak än
+// samma skämt i Discorden — servern lämnar inte ens ut dem utan session.
+function AwardsExplanation() {
+  return (
+    <>
+      <h2>Månadens utmärkelser</h2>
+      <p className="roster-note">
+        När månaden är slut delas fem utmärkelser ut, alla uträknade ur samma data — ingen delar
+        ut dem för hand, och ingen kan skylla på favorisering. De syns bara för inloggade
+        medlemmar; utomstående ser bara Månadens BVS:are.
+      </p>
+
+      <dl className="award-legend">
+        <div>
+          <dt className="award-legend-winner">Månadens BVS:are</dt>
+          <dd>
+            Flest månadspoäng. Får diamantkortet, en egen rad högst upp bland Gubbarna och ett
+            kort som är större än alla andras.
+          </dd>
+        </div>
+        {AWARD_ORDER.map((key) => (
+          <div key={key}>
+            <dt className={`award-legend-${key}`}>{AWARDS[key].label}</dt>
+            <dd>{AWARDS[key].earnedBy}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <p className="roster-note">
+        Utmärkelserna är just utmärkelser, inte titlar — titeln är din rang och den hänger på
+        betyget. Och ingen bär två: vinnaren och träskeden står utanför de tre skämtsamma, så de
+        hamnar på fem olika gubbar.
       </p>
     </>
   )

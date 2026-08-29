@@ -217,3 +217,100 @@ describe('InfoPage for a confirmed member', () => {
     expect(explanation).toBeNull()
   })
 })
+
+// Kärnan i den här sidan: sajten har två tal som båda kallas poäng, och det
+// är förväxlingen mellan dem som gjorde att ingen tyckte det var glasklart.
+describe('de två talen', () => {
+  it('sätter betyget mot månadspoängen så de går att hålla isär', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+    renderPage()
+
+    await screen.findByRole('heading', { name: /två olika siffror/i })
+    expect(screen.getByText(/betyget är skicklighet, månadspoängen är närvaro/i)).toBeInTheDocument()
+  })
+
+  // Taket är svårt att förstå i löpande text men självklart när man ser raden
+  // där timmarna kapas.
+  it('räknar ut en månad med taket synligt', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+    renderPage()
+
+    const table = await screen.findByRole('table', { name: /en månad, uträknad/i })
+    expect(within(table).getByText(/14 h Valheim/)).toBeInTheDocument()
+    expect(within(table).getByText(/taket/)).toBeInTheDocument()
+    expect(within(table).getByText('21 p')).toBeInTheDocument()
+  })
+
+  it('säger rakt ut att stängd profil ger noll', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+    renderPage()
+
+    await screen.findByRole('heading', { name: /så räknas månadspoängen/i })
+    expect(screen.getByText(/Stängd Steam-profil ger noll/i)).toBeInTheDocument()
+  })
+})
+
+// Den gamla texten nämnde bara Spelinformation. Utan att hela profilen är
+// offentlig samplas man aldrig, och då blir månadspoängen noll hur öppen
+// spelinformationen än är — det stod ingenstans.
+describe('Steam-sekretessen', () => {
+  it('namnger båda inställningarna, inte bara spelinformationen', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+    renderPage()
+
+    await screen.findByRole('heading', { name: /kom igång/i })
+    expect(screen.getByText(/Öppen spelinformation i Steam/)).toBeInTheDocument()
+  })
+
+  it('förklarar för en medlem att båda krävs, och vad var och en styr', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue({
+      steamid64: MAG_STEAMID64,
+      isMember: true,
+      isAdmin: false,
+    })
+    vi.spyOn(api, 'fetchMembers').mockResolvedValue([MAG])
+    vi.spyOn(api, 'fetchCards').mockResolvedValue([{ ...MAG_CARD, hasStats: false }])
+    renderPage()
+
+    await screen.findByRole('heading', { name: /2\. Öppna din Steam-profil/i })
+    // Termerna, i definitionslistan — "Spelinformation" står även i löptexten
+    // om kryssrutan, så sökningen måste hålla sig till <dt>:na.
+    const terms = screen.getAllByRole('term').map((t) => t.textContent)
+    expect(terms.some((t) => t?.includes('Min profil'))).toBe(true)
+    expect(terms.some((t) => t?.includes('Spelinformation'))).toBe(true)
+    // Den halvöppna fällan: vänner räcker inte, för vi frågar som en främling.
+    expect(screen.getByText(/"Vänner endast" räcker inte/)).toBeInTheDocument()
+    // Och kryssrutan som tar bort speltiden för sig.
+    expect(screen.getByText(/totala speltid dold/i)).toBeInTheDocument()
+  })
+})
+
+describe('utmärkelserna på Kom igång', () => {
+  it('förklaras för en inloggad medlem, med vad som ger var och en', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue({
+      steamid64: MAG_STEAMID64,
+      isMember: true,
+      isAdmin: false,
+    })
+    vi.spyOn(api, 'fetchMembers').mockResolvedValue([MAG])
+    vi.spyOn(api, 'fetchCards').mockResolvedValue([MAG_CARD])
+    renderPage()
+
+    await screen.findByRole('heading', { name: /månadens utmärkelser/i })
+    expect(screen.getByText('Träskeden')).toBeInTheDocument()
+    expect(screen.getByText('Sofflocket')).toBeInTheDocument()
+    // Det som gör skämtet snällt, och som måste stå där.
+    expect(screen.getByText(/måste ha varit där för att kunna komma sist/i)).toBeInTheDocument()
+  })
+
+  // Sajten är publik och indexerad. En utloggad ska inte ens få veta att
+  // träskeden finns — servern lämnar inte ut den, och sidan beskriver den inte.
+  it('nämns inte med ett ord för en utloggad besökare', async () => {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue(null)
+    renderPage()
+
+    await screen.findByRole('heading', { name: /två olika siffror/i })
+    expect(screen.queryByText('Träskeden')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /månadens utmärkelser/i })).not.toBeInTheDocument()
+  })
+})

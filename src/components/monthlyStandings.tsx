@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
 import { fetchMonthlyStatus, type MonthlyStatus } from '../api'
 
 // Löpande ställning för Månadens BVS:are, visad på både kontosidan (så var
@@ -22,10 +23,13 @@ export function MonthlyStandings() {
   return (
     <div className="monthly-standings">
       <h3>Månadens BVS:are</h3>
+      {/* Kort besked här, hela uträkningen på Kom igång. Två utförliga
+          förklaringar på var sitt ställe glider isär från varandra och från
+          koden — den här sidan säger vad talet är, den andra hur det räknas. */}
       <p className="roster-note">
         Viktad speltid i klanens spel den här månaden, med ett tak per spel — bredd slår att grinda
         ett enda spel. Stängd Steam-profil samplas aldrig och ger noll poäng; det är inget personligt,
-        ingen mäts den vägen.
+        ingen mäts den vägen. <Link to="/kom-igang">Så räknas poängen</Link>.
       </p>
 
       {status.lastMonth && (
