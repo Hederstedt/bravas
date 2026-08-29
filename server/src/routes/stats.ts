@@ -2,7 +2,9 @@ import { Router } from "express";
 import { config } from "../config.ts";
 import { isAllowlisted, listMembers } from "../db.ts";
 import { readLimiter } from "../middleware/rateLimit.ts";
+import { requireAuth } from "../middleware/requireAuth.ts";
 import { getMonthlyStatus } from "../bvsMonthService.ts";
+import { getAwardsStatus } from "../bvsAwardsService.ts";
 import { getCards, getHighlights } from "../statsService.ts";
 
 export const statsRouter = Router();
@@ -37,6 +39,17 @@ statsRouter.get("/cards", readLimiter, async (_req, res) => {
 // kontosidan behöver kunna visa den även innan medlemmen hunnit logga in.
 statsRouter.get("/month", readLimiter, (_req, res) => {
   res.json(getMonthlyStatus());
+});
+
+// Träskeden och skämtutmärkelserna, till skillnad från Månadens BVS:are,
+// bara för inloggade medlemmar: sajten är publik och indexerad, och någons
+// namn kopplat till en bottenplacering på öppna nätet är en annan sak än
+// samma skämt i Discorden. Egen route i stället för ett fält på /cards —
+// det svaret är publikt och cachat, och får aldrig byta form efter session.
+//
+// Måste stå före "/:steamId" av samma skäl som de andra.
+statsRouter.get("/awards", readLimiter, requireAuth, (_req, res) => {
+  res.json(getAwardsStatus());
 });
 
 statsRouter.get("/:steamId", readLimiter, async (req, res) => {

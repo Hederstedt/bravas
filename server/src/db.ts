@@ -133,6 +133,20 @@ db.exec(`
     decided_at INTEGER NOT NULL
   );
 
+  -- Månadens övriga utmärkelser: träskeden och de tre skämtutmärkelserna.
+  -- En rad per utmärkelse i stället för kolumner på bvs_month — nästa
+  -- utmärkelse blir då en rad, inte en migrering. Egen tabell och inte en
+  -- kolumn också för att de här, till skillnad från vinnaren, bara visas för
+  -- inloggade medlemmar.
+  CREATE TABLE IF NOT EXISTS bvs_month_awards (
+    month TEXT NOT NULL,             -- 'YYYY-MM'
+    award TEXT NOT NULL,             -- 'jumbo' | 'sofflocket' | 'enkelsparet' | 'vindflojeln'
+    steamid64 TEXT NOT NULL,
+    value REAL NOT NULL,             -- talet som vann den, till förklaringstexten
+    decided_at INTEGER NOT NULL,
+    PRIMARY KEY (month, award)
+  );
+
   CREATE TABLE IF NOT EXISTS quotes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,
@@ -718,6 +732,46 @@ export function crownBvsMonth(input: { month: string; steamid64: string; score: 
   db.prepare(
     "INSERT INTO bvs_month (month, steamid64, score, decided_at) VALUES (?, ?, ?, ?)"
   ).run(input.month, input.steamid64, input.score, Date.now());
+}
+
+// ---------- Månadens övriga utmärkelser ----------
+
+export interface MonthAward {
+  month: string;
+  award: string;
+  steamid64: string;
+  value: number;
+  decided_at: number;
+}
+
+export function getMonthAwards(month: string): MonthAward[] {
+  return db
+    .prepare("SELECT * FROM bvs_month_awards WHERE month = ? ORDER BY award")
+    .all(month) as MonthAward[];
+}
+
+// Utmärkelserna för den senast avgjorda månaden, alltså samma månad som
+// getReigningBvsMonth pekar ut. Två frågor i stället för en join: bvs_month är
+// sanningen om vilken månad som gäller, och utmärkelserna hänger på den.
+export function getReigningAwards(): MonthAward[] {
+  const reigning = getReigningBvsMonth();
+  return reigning ? getMonthAwards(reigning.month) : [];
+}
+
+// Alla utmärkelser för en månad skrivs i ett svep. En delvis skriven månad
+// hade sett ut som en färdig för idempotensvakten i monthlyPoller.ts, som
+// nöjer sig med att det finns någon rad alls.
+export function saveMonthAwards(
+  month: string,
+  rows: readonly { award: string; steamid64: string; value: number }[]
+): void {
+  const at = Date.now();
+  const insert = db.prepare(
+    "INSERT OR REPLACE INTO bvs_month_awards (month, award, steamid64, value, decided_at) VALUES (?, ?, ?, ?, ?)"
+  );
+  db.transaction(() => {
+    for (const row of rows) insert.run(month, row.award, row.steamid64, row.value, at);
+  })();
 }
 
 // När den senast spelade omgången avgjordes. Fönstret för tvärspelspoängen
