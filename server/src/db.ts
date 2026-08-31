@@ -78,6 +78,15 @@ db.exec(`
     fetched_at INTEGER NOT NULL
   );
 
+  -- Blizzards karaktärsdata. Nyckeln är realm + namn i gemener och inte
+  -- karaktärens id: det är den kombinationen vi kan slå upp med, och den vi
+  -- har sparad på medlemmen. Samma cache-mönster som cs2_stats och wot_stats.
+  CREATE TABLE IF NOT EXISTS wow_stats (
+    character_key TEXT PRIMARY KEY,
+    stats_json TEXT NOT NULL,
+    fetched_at INTEGER NOT NULL
+  );
+
   -- Spelservern frågas var 45:e sekund och svaret kastades förr bort. Sparat
   -- blir det statistik ingen annan klan har: när är det fullast, hur länge
   -- håller servern, hur många gubbtimmar har det blivit.
@@ -300,6 +309,17 @@ if (!memberColumns.some((c) => c.name === "wot_account_id")) {
   db.exec("ALTER TABLE members ADD COLUMN wot_nickname TEXT");
 }
 
+// WoW-länkningen kom efter WoT-länkningen, av samma skäl guardat. Vi sparar
+// bara karaktären — realm, namn och id — och medvetet inget battletag: det är
+// karaktärsnamnet som visas, och kontonamnet hade varit persondata vi lagrar
+// utan att använda.
+const memberColumnsAfterWot = db.pragma("table_info(members)") as { name: string }[];
+if (!memberColumnsAfterWot.some((c) => c.name === "wow_realm_slug")) {
+  db.exec("ALTER TABLE members ADD COLUMN wow_realm_slug TEXT");
+  db.exec("ALTER TABLE members ADD COLUMN wow_character_name TEXT");
+  db.exec("ALTER TABLE members ADD COLUMN wow_character_id INTEGER");
+}
+
 // public_id kom efter members-tabellen och produktionen har redan medlemmar.
 // Kolumnen går inte att lägga till med ALTER: förvalet är slumpat, och SQLite
 // vägrar "ADD COLUMN ... DEFAULT (lower(hex(randomblob(16))))" så fort tabellen
@@ -395,6 +415,9 @@ export interface Member {
   discord_name: string | null;
   wot_account_id: string | null;
   wot_nickname: string | null;
+  wow_realm_slug: string | null;
+  wow_character_name: string | null;
+  wow_character_id: number | null;
   first_login: number;
   last_login: number;
 }
@@ -584,6 +607,42 @@ export function setWotAccount(steamid64: string, wotAccountId: string, wotNickna
     wotNickname,
     steamid64
   );
+}
+
+// Nyckeln som wow_stats slås upp på. Gemener genomgående: Blizzard svarar
+// 404 på "Bravasdruid" men 200 på "bravasdruid", och två rader för samma
+// karaktär hade blivit två cacheposter som aldrig hittar varandra.
+export function wowCharacterKey(realmSlug: string, name: string): string {
+  return `${realmSlug.toLowerCase()}/${name.toLowerCase()}`;
+}
+
+export function setWowCharacter(
+  steamid64: string,
+  input: { realmSlug: string; name: string; characterId: number }
+): void {
+  db.prepare(
+    `UPDATE members SET wow_realm_slug = ?, wow_character_name = ?, wow_character_id = ?
+     WHERE steamid64 = ?`
+  ).run(input.realmSlug, input.name, input.characterId, steamid64);
+}
+
+// Samma städning som clearWotAccount: en cachepost ingen medlem längre pekar
+// på är bara skräp som blir liggande.
+export function clearWowCharacter(steamid64: string): void {
+  const member = getMember(steamid64);
+  db.prepare(
+    `UPDATE members SET wow_realm_slug = NULL, wow_character_name = NULL,
+     wow_character_id = NULL WHERE steamid64 = ?`
+  ).run(steamid64);
+
+  if (!member?.wow_realm_slug || !member.wow_character_name) return;
+  const key = wowCharacterKey(member.wow_realm_slug, member.wow_character_name);
+  const stillLinked = db
+    .prepare("SELECT 1 FROM members WHERE lower(wow_realm_slug) || '/' || lower(wow_character_name) = ?")
+    .get(key);
+  if (!stillLinked) {
+    db.prepare("DELETE FROM wow_stats WHERE character_key = ?").run(key);
+  }
 }
 
 export function setDiscordName(steamid64: string, discordName: string): void {
@@ -846,6 +905,34 @@ export function readWotStats(): CachedWotStats[] {
   return rows.map((r) => ({
     wotAccountId: r.wot_account_id,
     stats: JSON.parse(r.stats_json) as Record<string, number>,
+    fetchedAt: r.fetched_at,
+  }));
+}
+
+export interface CachedWowStats {
+  characterKey: string;
+  stats: import("./wowStats.ts").WowCharacterStats;
+  fetchedAt: number;
+}
+
+export function saveWowStats(
+  characterKey: string,
+  stats: import("./wowStats.ts").WowCharacterStats
+): void {
+  db.prepare(
+    "INSERT OR REPLACE INTO wow_stats (character_key, stats_json, fetched_at) VALUES (?, ?, ?)"
+  ).run(characterKey, JSON.stringify(stats), Date.now());
+}
+
+export function readWowStats(): CachedWowStats[] {
+  const rows = db.prepare("SELECT * FROM wow_stats").all() as {
+    character_key: string;
+    stats_json: string;
+    fetched_at: number;
+  }[];
+  return rows.map((r) => ({
+    characterKey: r.character_key,
+    stats: JSON.parse(r.stats_json),
     fetchedAt: r.fetched_at,
   }));
 }

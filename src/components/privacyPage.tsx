@@ -29,6 +29,14 @@ export function PrivacyPage() {
             respektive Wargaming på vem du är.
           </p>
           <p className="roster-note">
+            Länkar du World of Warcraft loggar du in hos Blizzard. Vi ber bara om rättigheten att
+            se <em>vilka karaktärer kontot äger</em> — det är det som bevisar att karaktären är
+            din — väljer den du spelat senast, och sparar bara realm och karaktärsnamn. Vi sparar
+            varken ditt battletag eller din inloggning hos Blizzard: engångsnyckeln används en enda
+            gång vid länkningen och kastas, och karaktärens publika siffror hämtas därefter med
+            sajtens egen nyckel.
+          </p>
+          <p className="roster-note">
             Ditt Discord-namn känner varken Steam eller Wargaming till, så det skriver du in för
             hand under <Link to="/mitt-konto">Mitt konto</Link> — vi läser aldrig av Discorden
             själva för att koppla dig till en rad.
@@ -36,7 +44,7 @@ export function PrivacyPage() {
 
           <h2>Vad som visas offentligt</h2>
           <p className="roster-note">
-            Namn, avatar, CS2/WoT-betyg och det Discord-namn du själv skrivit in är publikt synligt
+            Namn, avatar, CS2/WoT/WoW-betyg och det Discord-namn du själv skrivit in är publikt synligt
             på sajten för alla besökare, inloggade eller inte — det är hela poängen med Gubbarna.
             Ditt Steam-id (steamid64) och Wargaming-konto-id skickas aldrig ut, varken i sidans
             innehåll eller i API-svaren tekniska verktyg kan läsa — bara ett slumpat id som inte

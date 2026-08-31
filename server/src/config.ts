@@ -24,6 +24,17 @@ export const config = {
   valheimServerName: process.env.VALHEIM_SERVER_NAME ?? "",
   valheimPassword: process.env.VALHEIM_PASSWORD ?? "",
 
+  // Blizzard/Battle.net för World of Warcraft. Två delar, till skillnad från
+  // Wargamings enda application_id: OAuth 2.0 kräver en klienthemlighet, och
+  // den lämnar aldrig servern. Saknas de ligger WoW-länkningen vilande —
+  // samma valfria mönster som discordServerId.
+  blizzardClientId: process.env.BLIZZARD_CLIENT_ID ?? "",
+  blizzardClientSecret: process.env.BLIZZARD_CLIENT_SECRET ?? "",
+
+  // Regionen styr både API-värden och namnrymden. Gänget är svenskt, så eu är
+  // rätt förval — men en klan som flyttar ska inte behöva en kodändring.
+  blizzardRegion: process.env.BLIZZARD_REGION ?? "eu",
+
   // Utan den här är WoT-länkningen bara osynlig — precis som med
   // discordServerId, inget krav vid uppstart.
   wargamingApplicationId: process.env.WARGAMING_APPLICATION_ID ?? "",

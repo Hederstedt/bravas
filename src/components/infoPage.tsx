@@ -112,7 +112,7 @@ function AnonymousGuide() {
       <h2>Redan medlem i BVS?</h2>
       <p className="roster-note">
         Logga in med Steam så dyker du upp bland Gubbarna direkt. Efter det visar den här sidan
-        exakt vilka av de fyra stegen nedan som återstår för dig.
+        exakt vilka av stegen nedan som återstår för dig.
       </p>
       <p>
         <a className="btn btn-primary" href={STEAM_LOGIN_URL}>
@@ -127,12 +127,13 @@ function AnonymousGuide() {
         några rader om vem du är, sedan är det upp till gubbarna att godkänna.
       </p>
 
-      <h2>De fyra stegen, i korthet</h2>
+      <h2>Stegen, i korthet</h2>
       <ol className="info-steps">
         <li>Steam-inloggning (och godkänd ansökan, se ovan)</li>
         <li>Öppen spelinformation i Steam, annars blir kortet ditt men utan betyg</li>
         <li>Ditt Discord-namn, skrivet in för hand</li>
         <li>World of Tanks, valfritt — höjer bara betyget, sänker det aldrig</li>
+        <li>World of Warcraft, också valfritt och på samma villkor</li>
       </ol>
     </>
   )
@@ -303,6 +304,23 @@ function MemberChecklist({
               betyget, aldrig sänka det. Länka under <Link to="/mitt-konto">Mitt konto</Link> med
               ditt Wargaming.net-konto — inget nick eller lösenord skickas till oss, bara en
               bekräftelse på vem du är.
+            </p>
+          )}
+        </li>
+
+        <li>
+          <h2>5. World of Warcraft</h2>
+          <StepStatus done={mine.wowCharacter !== null} optional />
+          {mine.wowCharacter ? (
+            <p className="roster-note">
+              Länkad som <strong>{mine.wowCharacter.name}</strong> på {mine.wowCharacter.realmSlug}.
+            </p>
+          ) : (
+            <p className="roster-note">
+              Valfritt — kör du WoW räknas det också in, och kan bara höja betyget. Länka under{' '}
+              <Link to="/mitt-konto">Mitt konto</Link> med ditt Battle.net-konto. Vi hämtar bara
+              vilka karaktärer kontot äger, väljer den du spelat senast, och sparar realm och namn
+              — inget lösenord och inget battletag.
             </p>
           )}
         </li>

@@ -373,7 +373,7 @@ describe('About', () => {
       id: `test-public-id-${i}`,
       personaName: `Gubbe ${i}`,
       avatarUrl: null,
-      discordName: null, wotNickname: null, mine: false,
+      discordName: null, wotNickname: null, wowCharacter: null, mine: false,
     }))
     vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({ ok: true, data: eight })
 

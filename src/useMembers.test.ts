@@ -14,6 +14,7 @@ const MAG: api.RosterMember = {
   avatarUrl: null,
   discordName: null,
   wotNickname: null,
+  wowCharacter: null,
   mine: false,
 }
 

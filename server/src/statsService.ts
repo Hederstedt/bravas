@@ -8,12 +8,16 @@ import {
   readValheimPlaytime,
   saveValheimPlaytime,
   readWotStats,
+  readWowStats,
+  saveWowStats,
+  wowCharacterKey,
   saveWotStats,
 } from "./db.ts";
 import { valheimHighlights } from "./valheimHistory.ts";
 import { computeValheimPlaytimeHighlight, type MemberPlaytime } from "./valheimPlaytime.ts";
 import { computeHighlights, type MemberStats, type StatHighlight } from "./cs2Stats.ts";
 import { computeWotHighlights, type WotMemberStats } from "./wotStats.ts";
+import { fetchCharacter, type WowMemberStats } from "./wowStats.ts";
 import type { PlayerCard } from "./cs2Cards.ts";
 import { buildCombinedCards } from "./playerCards.ts";
 
@@ -199,6 +203,52 @@ async function getCrewWotStats(
     }));
 }
 
+let refreshingWowStats: Promise<void> | null = null;
+
+async function refreshStaleWowStats(keys: { key: string; realmSlug: string; name: string }[]): Promise<void> {
+  const cached = new Map(readWowStats().map((c) => [c.characterKey, c.fetchedAt]));
+  const cutoff = Date.now() - TTL_MS;
+  const stale = keys.filter((k) => (cached.get(k.key) ?? 0) < cutoff);
+  if (stale.length === 0) return;
+
+  for (const k of stale) {
+    try {
+      const stats = await fetchCharacter(k.realmSlug, k.name);
+      if (stats) saveWowStats(k.key, stats);
+    } catch {
+      // Blizzard är oåtkomligt — behåll det som redan är cachat.
+    }
+  }
+}
+
+// Bara den som faktiskt länkat en karaktär. En omdöpt eller raderad karaktär
+// ger 404 hos Blizzard, vilket fetchCharacter behandlar som "inget att visa"
+// och inte som ett fel — kortet tappar då sina WoW-attribut tills gubben
+// länkar om, precis som en stängd Steam-profil tappar sina CS2-siffror.
+async function getCrewWowStats(
+  members: { steamid64: string; wow_realm_slug: string | null; wow_character_name: string | null }[]
+): Promise<WowMemberStats[]> {
+  const linked = members.filter((m) => m.wow_realm_slug !== null && m.wow_character_name !== null);
+  if (linked.length === 0) return [];
+
+  const keys = linked.map((m) => ({
+    key: wowCharacterKey(m.wow_realm_slug!, m.wow_character_name!),
+    realmSlug: m.wow_realm_slug!,
+    name: m.wow_character_name!,
+  }));
+
+  refreshingWowStats ??= refreshStaleWowStats(keys).finally(() => {
+    refreshingWowStats = null;
+  });
+  await refreshingWowStats;
+
+  const byKey = new Map(readWowStats().map((c) => [c.characterKey, c.stats]));
+  return linked.flatMap((m) => {
+    const stats = byKey.get(wowCharacterKey(m.wow_realm_slug!, m.wow_character_name!));
+    return stats ? [{ steamid64: m.steamid64, stats }] : [];
+  });
+}
+
 interface CrewStats {
   memberCount: number;
   withStats: MemberStats[];
@@ -255,12 +305,14 @@ export async function getCards(): Promise<CardsResult> {
   const { withStats: cs2WithStats } = await getCrewStats();
   const wotStats = await getCrewWotStats(members);
   const valheimPlaytime = await getCrewPlaytime(members);
+  const wowStats = await getCrewWowStats(members);
 
   const cs2ById = new Map(cs2WithStats.map((m) => [m.steamid64, m]));
   const wotById = new Map(wotStats.map((m) => [m.steamid64, m]));
   const valheimById = new Map(valheimPlaytime.map((m) => [m.steamid64, m]));
+  const wowById = new Map(wowStats.map((m) => [m.steamid64, m]));
   const crew = members.map((m) => ({ steamid64: m.steamid64, personaName: m.persona_name }));
-  const cards = buildCombinedCards(crew, cs2ById, wotById, valheimById);
+  const cards = buildCombinedCards(crew, cs2ById, wotById, valheimById, wowById);
   const reigning = getReigningBvsMonth();
   const decorated = cards.map((c) => ({ ...c, memberOfMonth: c.steamid64 === reigning?.steamid64 }));
 

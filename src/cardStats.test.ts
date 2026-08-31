@@ -17,6 +17,7 @@ function card(id: string, sik: number, hasStats = true): PlayerCard {
         ]
       : [],
     wotAttributes: [],
+    wowAttributes: [],
     comments: ['nåt'],
     memberOfMonth: false,
   }

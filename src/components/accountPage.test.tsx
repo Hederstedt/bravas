@@ -14,6 +14,7 @@ const MAG: RosterMember = {
   avatarUrl: 'https://avatars.example/mag.jpg',
   discordName: 'mag',
   wotNickname: null,
+  wowCharacter: null,
   mine: true,
 }
 

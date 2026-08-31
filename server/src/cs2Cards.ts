@@ -27,6 +27,8 @@ export interface PlayerCard {
   // den här funktionen (CS2 för sig) inte vet något om WoT, inte att spelaren
   // saknar det.
   wotAttributes: CardAttribute[];
+  // Bara ifyllt för den som länkat sin Battle.net-karaktär.
+  wowAttributes: CardAttribute[];
   comments: string[];
 }
 
@@ -245,6 +247,7 @@ export function rateCard(m: MemberStats): { card: RatedCard; derived: DerivedCor
         position: "OKÄND",
         attributes: [],
         wotAttributes: [],
+        wowAttributes: [],
       },
     };
   }
@@ -279,6 +282,7 @@ export function rateCard(m: MemberStats): { card: RatedCard; derived: DerivedCor
       position: POSITIONS[top],
       attributes,
       wotAttributes: [],
+      wowAttributes: [],
     },
   };
 }
