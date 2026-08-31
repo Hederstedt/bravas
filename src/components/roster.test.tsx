@@ -574,6 +574,21 @@ describe('månadens utmärkelser', () => {
     expect(within(cardFor(HIDDEN.personaName)).getByText(/1,5 p/)).toBeInTheDocument()
   })
 
+
+  it('shows the night owl band with the hours that won it', async () => {
+    stubApi({
+      members: [MINE, HIDDEN],
+      cards: [MAG_CARD],
+      awards: [{ award: 'nattvakten', id: HIDDEN.id, personaName: HIDDEN.personaName, value: 12.5 }],
+    })
+    renderRoster()
+
+    await waitFor(() =>
+      expect(within(cardFor(HIDDEN.personaName)).getByText('Nattvakten')).toBeInTheDocument(),
+    )
+    expect(within(cardFor(HIDDEN.personaName)).getByText(/12,5 h efter midnatt/)).toBeInTheDocument()
+  })
+
   it('leaves every other card alone', async () => {
     stubApi({ members: [MINE, HIDDEN], cards: [MAG_CARD], awards: [SPOON] })
     renderRoster()

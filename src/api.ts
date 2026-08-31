@@ -469,7 +469,7 @@ export async function fetchMonthlyStatus(): Promise<MonthlyStatus> {
 // någons namn kopplat till en bottenplacering på öppna nätet är en annan sak
 // än samma skämt i Discorden. En utloggad besökare får 401 och en tom lista,
 // vilket är ett giltigt läge och inte ett fel.
-export type AwardKey = 'jumbo' | 'sofflocket' | 'enkelsparet' | 'vindflojeln'
+export type AwardKey = 'jumbo' | 'sofflocket' | 'enkelsparet' | 'vindflojeln' | 'nattvakten'
 
 export interface MonthAward {
   award: AwardKey

@@ -54,6 +54,7 @@ Klansida för BVS — ett gäng goa gubbar från Västra Götaland som lirar CS2
 
 - [x] **Steam-sekretessen: två inställningar, inte en.** Den gamla texten nämnde bara "Spelinformation". Det räcker inte — `presence.ts` kräver att hela profilen är offentlig (`communityvisibilitystate === 3`) för att man ska samplas alls, och utan det blir månadspoängen noll hur öppen spelinformationen än är. Den kopplingen stod ingenstans på sajten, vilket gjorde tävlingen obegriplig för den som trodde sig ha gjort rätt. Nu står båda med, med Steams etiketter på svenska och engelska (folk kör klienten i båda), det uttryckliga att "Vänner endast" inte räcker eftersom vi frågar Steam som en främling, och kryssrutan "Håll alltid min totala speltid dold" som tar bort Valheim-timmarna för sig.
 
+- [x] **NATTVAKTEN:** femte månadsutmärkelsen — flest timmar loggade mellan midnatt och sex, lokal tid. Kvällsspel räknas inte; då är halva klanen igång, och utmärkelsen ska peka ut den som sitter uppe när alla andra sover. Spann som korsar gränsen **delas** i stället för att räknas helt eller inte alls, så den som loggar ut 00:30 får en halvtimme och inte noll. Dygnsgränserna byggs av lokala datumkomponenter i stället för genom att lägga på 24 h, så ett sommartidsskifte inte förskjuter natten med en timme. Golv på 3 h: en enda sen kväll är inte ett mönster. Ligger **sist** i utdelningskedjan, så de fyra som redan var i drift behåller sin ordning och ingen som fick en utmärkelse förra månaden plötsligt får en annan.
 ## Roadmap
 
 ### Fas 3 — CS Manager (klar)

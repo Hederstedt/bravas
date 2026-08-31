@@ -862,6 +862,10 @@ a.steam-login:hover {
   color: #f0c674 !important;
 }
 
+.award-legend-nattvakten {
+  color: #4fc3e8 !important;
+}
+
 /* Räkneexemplet. En tabell och inte prosa: ett tak är svårt att förstå i löpande
    text men självklart när man ser raden där timmarna kapas. */
 .points-example {
@@ -3138,6 +3142,12 @@ a.fixture-score:hover {
 
 .player-card.award-vindflojeln {
   --award-color: #f0c674;
+}
+
+/* Nattvakten: kall, mättad blå — natthimmel. Skiljer sig från diamantens
+   mycket ljusare isblå och från enkelspårets grönare turkos. */
+.player-card.award-nattvakten {
+  --award-color: #4fc3e8;
 }
 
 /* Utmärkelsekorten står stilla. Ramen och skenet finns kvar, så vinnaren och

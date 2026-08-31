@@ -29,6 +29,7 @@ const AWARD_COLOR: Record<string, string> = {
   sofflocket: '#9d8cff',
   enkelsparet: '#7fd6c4',
   vindflojeln: '#f0c674',
+  nattvakten: '#4fc3e8',
 }
 
 const AWARD_LABEL: Record<string, string> = {
@@ -36,6 +37,7 @@ const AWARD_LABEL: Record<string, string> = {
   sofflocket: '◆ SOFFLOCKET',
   enkelsparet: '◆ ENKELSPÅRET',
   vindflojeln: '◆ VINDFLÖJELN',
+  nattvakten: '◆ NATTVAKTEN',
 }
 
 // Samma nyanser som .player-card[data-tier] i App.css.

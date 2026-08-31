@@ -299,6 +299,7 @@ describe('utmärkelserna på Kom igång', () => {
     await screen.findByRole('heading', { name: /månadens utmärkelser/i })
     expect(screen.getByText('Träskeden')).toBeInTheDocument()
     expect(screen.getByText('Sofflocket')).toBeInTheDocument()
+    expect(screen.getByText('Nattvakten')).toBeInTheDocument()
     // Det som gör skämtet snällt, och som måste stå där.
     expect(screen.getByText(/måste ha varit där för att kunna komma sist/i)).toBeInTheDocument()
   })

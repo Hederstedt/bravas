@@ -10,11 +10,20 @@ import { clampToWindow, spans } from "./sampleSpans.ts";
 // (bvsRank.ts, KAPTEN/GENERAL) och styrs bara av betyget; det här är
 // utmärkelser och hör till månaden, inte till hur bra någon är.
 
-export type AwardKey = "jumbo" | "sofflocket" | "enkelsparet" | "vindflojeln";
+export type AwardKey = "jumbo" | "sofflocket" | "enkelsparet" | "vindflojeln" | "nattvakten";
 
 // Golvet för VINDFLÖJELN. Ett eller två byten är en vanlig kväll — det ska
 // vara ett mönster, inte en slump, innan någon får bära det.
 export const MIN_SWITCHES = 3;
+
+// Natten, lokal tid. Kvällsspel räknas inte — då är halva klanen igång, och
+// utmärkelsen ska peka ut den som sitter uppe när alla andra sover.
+export const NIGHT_FROM_HOUR = 0;
+export const NIGHT_TO_HOUR = 6;
+
+// Golvet för NATTVAKTEN. En enda sen kväll är inte ett mönster; det ska vara
+// en vana innan någon får bära den.
+export const MIN_NIGHT_HOURS = 3;
 
 export interface MonthMetrics {
   score: number;
@@ -23,6 +32,7 @@ export interface MonthMetrics {
   gameCount: number; // antal olika spel, Discord oräknat
   topGameHours: number;
   switches: number;
+  nightHours: number;
 }
 
 export interface AwardRow {
@@ -55,6 +65,39 @@ function countSwitches(samples: readonly PresenceSample[], from: number, to: num
   return switches;
 }
 
+// Hur mycket av ett spann som ligger i natten. Ett spann är som mest
+// MAX_GAP_MS (15 min) långt, så det kan bara nudda en dygnsgräns — därför
+// räcker det att pröva mot natten som börjar samma dag och den som börjar
+// dagen efter. Datumen byggs av lokala komponenter och inte genom att lägga
+// på 24 h, så ett sommartidsskifte inte förskjuter gränsen med en timme.
+function nightOverlapMs(from: number, to: number): number {
+  const start = new Date(from);
+  let total = 0;
+
+  for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
+    const y = start.getFullYear();
+    const m = start.getMonth();
+    const d = start.getDate() + dayOffset;
+    const nightStart = new Date(y, m, d, NIGHT_FROM_HOUR, 0, 0, 0).getTime();
+    const nightEnd = new Date(y, m, d, NIGHT_TO_HOUR, 0, 0, 0).getTime();
+    total += Math.max(0, Math.min(to, nightEnd) - Math.max(from, nightStart));
+  }
+
+  return total;
+}
+
+// Timmar spelade mitt i natten. Delar spann som korsar gränsen i stället för
+// att räkna dem helt eller inte alls — den som loggar ut 00:30 har varit uppe
+// en halvtimme, inte noll och inte hela kvällen.
+function nightHoursIn(samples: readonly PresenceSample[], from: number, to: number): number {
+  let ms = 0;
+  for (const span of spans(samples)) {
+    if (clampToWindow(span, from, to) === 0) continue;
+    ms += nightOverlapMs(Math.max(span.from, from), Math.min(span.to, to));
+  }
+  return ms / 3_600_000;
+}
+
 export function monthMetrics(
   presenceSamples: readonly PresenceSample[],
   discordSamples: readonly DiscordSample[],
@@ -81,6 +124,7 @@ export function monthMetrics(
     gameCount,
     topGameHours,
     switches: countSwitches(presenceSamples, from, to),
+    nightHours: nightHoursIn(presenceSamples, from, to),
   };
 }
 
@@ -166,6 +210,17 @@ export function decideAwards(
       free().filter((m) => m.metrics.switches >= MIN_SWITCHES),
       (a, b) => a.switches > b.switches,
       (m) => m.switches
+    )
+  );
+
+  // Sist i kedjan: de fyra som redan var i drift behåller sin ordning, så
+  // ingen som fick en utmärkelse förra månaden plötsligt får en annan.
+  award(
+    "nattvakten",
+    pick(
+      free().filter((m) => m.metrics.nightHours >= MIN_NIGHT_HOURS),
+      (a, b) => a.nightHours > b.nightHours,
+      (m) => m.nightHours
     )
   );
 
