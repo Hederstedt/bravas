@@ -5,6 +5,8 @@ import type { MemberStats } from "./cs2Stats.ts";
 import { rateValheimCard } from "./valheimCards.ts";
 import type { MemberPlaytime } from "./valheimPlaytime.ts";
 import { rateWotCard } from "./wotCards.ts";
+import { rateWowCard } from "./wowCards.ts";
+import type { WowMemberStats } from "./wowStats.ts";
 import type { WotMemberStats } from "./wotStats.ts";
 
 // Ett spel är basen och varje ytterligare rankat spel — CS2, WoT eller
@@ -62,26 +64,31 @@ export function buildCombinedCards(
   members: CrewMember[],
   cs2ById: Map<string, MemberStats>,
   wotById: Map<string, WotMemberStats>,
-  valheimById: Map<string, MemberPlaytime> = new Map()
+  valheimById: Map<string, MemberPlaytime> = new Map(),
+  wowById: Map<string, WowMemberStats> = new Map()
 ): PlayerCard[] {
   const rated = members.map((m) => {
     const cs2Stats = cs2ById.get(m.steamid64);
     const wotStats = wotById.get(m.steamid64);
     const valheimStats = valheimById.get(m.steamid64);
+    const wowStats = wowById.get(m.steamid64);
 
     const cs2Result = cs2Stats ? rateCard(cs2Stats) : null;
     const wotResult = wotStats ? rateWotCard(wotStats) : null;
     const valheimResult = valheimStats ? rateValheimCard(valheimStats) : null;
+    const wowResult = wowStats ? rateWowCard(wowStats.stats) : null;
 
     const cs2Derived = cs2Result?.derived ?? emptyCs2Derived();
     const cs2HasStats = cs2Derived.hasStats;
     const wotHasStats = wotResult?.derived.hasStats ?? false;
     const valheimHasStats = valheimResult?.card.hasStats ?? false;
-    const hasStats = cs2HasStats || wotHasStats || valheimHasStats;
+    const wowHasStats = wowResult?.card.hasStats ?? false;
+    const hasStats = cs2HasStats || wotHasStats || valheimHasStats || wowHasStats;
 
     const cs2Overall = cs2Result?.card.overall ?? 0;
     const wotRating = wotResult?.card.rating ?? 0;
     const valheimRating = valheimResult?.card.rating ?? 0;
+    const wowRating = wowResult?.card.rating ?? 0;
 
     // Basen är det första rankade spelet i CS2 > WoT > Valheim-ordning,
     // resten lägger på var sin kapad bonus. Samma "aldrig ett avdrag"-regel
@@ -90,9 +97,14 @@ export function buildCombinedCards(
     if (cs2HasStats) {
       overall = cs2Overall;
       if (wotHasStats) overall += bonusFrom(wotRating);
+      if (wowHasStats) overall += bonusFrom(wowRating);
       if (valheimHasStats) overall += bonusFrom(valheimRating);
     } else if (wotHasStats) {
       overall = wotRating;
+      if (wowHasStats) overall += bonusFrom(wowRating);
+      if (valheimHasStats) overall += bonusFrom(valheimRating);
+    } else if (wowHasStats) {
+      overall = wowRating;
       if (valheimHasStats) overall += bonusFrom(valheimRating);
     } else if (valheimHasStats) {
       overall = valheimRating;
@@ -121,6 +133,7 @@ export function buildCombinedCards(
       position,
       attributes: cs2Result?.card.attributes ?? [],
       wotAttributes: wotResult?.card.attributes ?? [],
+      wowAttributes: wowResult?.card.attributes ?? [],
     };
 
     return { card, derived };

@@ -170,7 +170,7 @@ describe('fetchSiteConfig', () => {
 
   it('falls back to empty config when the API is unreachable', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'))
-    await expect(fetchSiteConfig()).resolves.toEqual({ discordInviteUrl: '' })
+    await expect(fetchSiteConfig()).resolves.toEqual({ discordInviteUrl: '', wowLinkEnabled: false })
   })
 })
 

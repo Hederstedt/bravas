@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { fetchSiteConfig, type SiteConfig } from './api'
 
-const EMPTY: SiteConfig = { discordInviteUrl: '' }
+const EMPTY: SiteConfig = { discordInviteUrl: '', wowLinkEnabled: false }
 
 // Configen ändras inte under ett besök, och flera komponenter behöver den —
 // dela på ett anrop i stället för ett per komponent.

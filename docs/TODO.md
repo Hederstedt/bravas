@@ -13,7 +13,28 @@ Roadmapen i övrigt: [PLAN.md](PLAN.md). Speldesignen: [manager.md](manager.md).
 
 
 
-## 1. Peka ut vilka som är admin
+## 1. Slå på World of Warcraft-kopplingen
+
+**Läget nu:** koden är på plats men `BLIZZARD_CLIENT_ID` saknas, så "Länka World
+of Warcraft" på Mitt konto svarar bara att det inte är påslaget.
+
+**Kräver ett Blizzard-konto — går inte att göra från koden.**
+
+- [ ] Logga in på <https://develop.battle.net> → **API Access** → **Create Client**
+- [ ] Sätt **Redirect URI** till exakt
+      `https://www.bravas.se/api/members/wow/callback` (Blizzard nekar flödet om
+      den inte stämmer på tecknet)
+- [ ] Kopiera Client ID och Client Secret till `/srv/bravas-api/.env`:
+      `BLIZZARD_CLIENT_ID`, `BLIZZARD_CLIENT_SECRET`, `BLIZZARD_REGION=eu`
+- [ ] Starta om API:et
+
+**Kolla att det tog:** logga in på sajten, gå till Mitt konto och tryck "Länka
+World of Warcraft". Du ska hamna hos Blizzard och sedan tillbaka med din senast
+spelade karaktär på kortet.
+
+---
+
+## 2. Peka ut vilka som är admin
 
 **Läget nu:** `/admin` finns i koden — godkänna eller avslå ansökningar, ta bort
 medlemmar — men ingen är admin förrän någon står i `ADMIN_STEAMIDS`. Tills dess
@@ -33,7 +54,7 @@ och sidan ska svara. Gör den inte det står fel id i variabeln.
 
 ---
 
-## 2. Säkerhetsheaders i nginx
+## 3. Säkerhetsheaders i nginx
 
 **Läget nu:** `server/deploy/nginx-security-headers.conf` finns i repot
 (CSP, HSTS, X-Content-Type-Options, Referrer-Policy, X-Frame-Options) men är
@@ -55,11 +76,11 @@ vad som specifikt kan gå sönder (avatarer, inline style på spelarkorten).
 
 ---
 
-## 3. Cache-headers i nginx
+## 4. Cache-headers i nginx
 
 **Läget nu:** `server/deploy/nginx-cache-headers.conf` finns i repot (lång
 cache på Vites hashade JS/CSS-filer, kort cache på index.html/manifest/
-sitemap/robots) men är inte applicerad — samma mönster som punkt 2.
+sitemap/robots) men är inte applicerad — samma mönster som punkt 3.
 
 - [ ] Klistra in blocket i `location /`-blocket i
       `/etc/nginx/sites-available/bravas`, efter `try_files`

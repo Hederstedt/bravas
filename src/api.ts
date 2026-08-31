@@ -6,12 +6,16 @@ export interface RosterMember {
   avatarUrl: string | null
   discordName: string | null
   wotNickname: string | null
+  // Karaktären vi valt som main vid länkningen — realm och namn, inget
+  // battletag. Null tills gubben länkat sitt Battle.net-konto.
+  wowCharacter: { realmSlug: string; name: string } | null
   // Sätts av servern mot den inloggade besökarens egen session — klienten
   // slipper någonsin jämföra id mot sitt eget steamid64.
   mine: boolean
 }
 
 export const WOT_LOGIN_URL = '/api/members/wot/login'
+export const WOW_LOGIN_URL = '/api/members/wow/login'
 
 // Sessionen är en signerad kaka och säger bara vem du är. Att du är *med* är
 // en separat fråga — en sökande har en giltig kaka men ingen rad i rostern —
@@ -35,6 +39,9 @@ export type PresenceMap = Record<string, Presence>
 
 export interface SiteConfig {
   discordInviteUrl: string
+  // Falskt tills Blizzard-nycklarna är satta på servern — då göms
+  // länkningsknappen helt i stället för att vara ett tyst klick.
+  wowLinkEnabled: boolean
 }
 
 export type CardTier = 'ikon' | 'guld' | 'silver' | 'brons' | 'okänd'
@@ -58,6 +65,8 @@ export interface PlayerCard {
   attributes: CardAttribute[]
   // Bara ifyllt för den som länkat World of Tanks — se server/src/playerCards.ts.
   wotAttributes: CardAttribute[]
+  // Bara ifyllt för den som länkat sin Battle.net-karaktär.
+  wowAttributes: CardAttribute[]
   comments: string[]
   // Inte betygshärlett — dekoreras på i server/src/statsService.ts mot den
   // regerande Månadens BVS:are. Kalla det inte en titel: "position" äger det
@@ -324,6 +333,10 @@ export async function unlinkDiscord(): Promise<boolean> {
 
 export async function unlinkWot(): Promise<boolean> {
   return (await send<Record<string, never>>('/api/members/wot/unlink', 'POST')) !== null
+}
+
+export async function unlinkWow(): Promise<boolean> {
+  return (await send<Record<string, never>>('/api/members/wow/unlink', 'POST')) !== null
 }
 
 export async function linkDiscord(discordName: string): Promise<boolean> {
@@ -759,7 +772,7 @@ export async function trainPlayer(player: string, attr: string): Promise<ApiResu
 
 export async function fetchSiteConfig(): Promise<SiteConfig> {
   const data = await getJson<SiteConfig>('/api/config')
-  return data ?? { discordInviteUrl: '' }
+  return data ?? { discordInviteUrl: '', wowLinkEnabled: false }
 }
 
 // Speglar server/src/discordWidget.ts. Widgeten hämtas av BFF:en, inte av

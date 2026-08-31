@@ -55,6 +55,7 @@ interface LineupEntry {
   position: string
   attributes: CardAttribute[]
   wotAttributes: CardAttribute[]
+  wowAttributes: CardAttribute[]
   comments: string[]
   presence: Presence | null
   pending: boolean
@@ -102,6 +103,7 @@ function buildLineup(
       position: card.position,
       attributes: card.attributes,
       wotAttributes: card.wotAttributes,
+      wowAttributes: card.wowAttributes,
       comments: card.comments,
       presence: presence[card.id] ?? null,
       // "Kika in igen om en stund" var förr bara för den som saknades helt ur
@@ -127,6 +129,7 @@ function buildLineup(
       position: '',
       attributes: [],
       wotAttributes: [],
+      wowAttributes: [],
       comments: ['Statistiken hämtas från Steam. Kika in igen om en stund.'],
       presence: presence[m.id] ?? null,
       pending: true,
@@ -274,6 +277,24 @@ function PlayerCardView({
         </>
       )}
 
+      {entry.wowAttributes.length > 0 && (
+        <>
+          <p className="card-attrs-label">World of Warcraft</p>
+          <ul className="card-attrs card-attrs-wow">
+            {entry.wowAttributes.map((a) => (
+              <li key={a.key} className="attr attr-static">
+                <span className="attr-head">
+                  <span className="attr-key">{a.key}</span>
+                  <span className="attr-rating">{a.rating}</span>
+                </span>
+                <span className="sr-only">{a.label}</span>
+                <span className="attr-bar" style={{ '--pct': `${a.rating}%` } as CSSProperties} />
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
       {openAttr && (
         <div className="attr-detail" id={`attr-detail-${entry.id}`}>
           <p className="attr-detail-name">
@@ -313,7 +334,7 @@ function PlayerCardView({
                 memberOfMonth: entry.memberOfMonth,
                 award: entry.award,
                 pending: entry.pending,
-                attributes: [...entry.attributes, ...entry.wotAttributes],
+                attributes: [...entry.attributes, ...entry.wotAttributes, ...entry.wowAttributes],
               },
               fontFace,
             )
@@ -413,6 +434,7 @@ export function Roster() {
   // finns bara hos den som länkat.
   const legend = lineup.find((e) => e.attributes.length > 0)?.attributes ?? []
   const wotLegend = lineup.find((e) => e.wotAttributes.length > 0)?.wotAttributes ?? []
+  const wowLegend = lineup.find((e) => e.wowAttributes.length > 0)?.wowAttributes ?? []
 
   useEffect(() => {
     // Bara hämta, aldrig tömma: det tomma läget härleds nedan i stället.
@@ -513,7 +535,7 @@ export function Roster() {
               </div>
             </div>
 
-            {(legend.length > 0 || wotLegend.length > 0) && (
+            {(legend.length > 0 || wotLegend.length > 0 || wowLegend.length > 0) && (
               <div className="legend-toggle-wrap">
                 <button
                   type="button"
@@ -566,6 +588,21 @@ export function Roster() {
                         <p className="legend-subhead">World of Tanks</p>
                         <dl className="attr-legend">
                           {wotLegend.map((a) => (
+                            <div key={a.key}>
+                              <dt>
+                                <span className="attr-legend-key">{a.key}</span> {a.label}
+                              </dt>
+                              <dd>{a.description}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </>
+                    )}
+                    {wowLegend.length > 0 && (
+                      <>
+                        <p className="legend-subhead">World of Warcraft</p>
+                        <dl className="attr-legend">
+                          {wowLegend.map((a) => (
                             <div key={a.key}>
                               <dt>
                                 <span className="attr-legend-key">{a.key}</span> {a.label}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
+import { useSiteConfig } from '../useSiteConfig'
 import {
   fetchMembers,
   fetchSession,
@@ -9,7 +10,9 @@ import {
   STEAM_LOGIN_URL,
   unlinkDiscord,
   unlinkWot,
+  unlinkWow,
   WOT_LOGIN_URL,
+  WOW_LOGIN_URL,
   type RosterMember,
 } from '../api'
 import { SteamIcon } from './icons'
@@ -27,6 +30,7 @@ type State =
 // Gubbarna förut, mitt i kortraden, där de inte hörde hemma.
 export function AccountPage() {
   const [state, setState] = useState<State>({ status: 'loading' })
+  const config = useSiteConfig()
   const [params] = useSearchParams()
   // Steam-callbacken skickar hit den som precis loggat in för första gången.
   const isNew = params.get('ny') === '1'
@@ -112,6 +116,13 @@ export function AccountPage() {
                   <h3>Koppla dina konton</h3>
                   <DiscordLink mine={state.mine} onLinked={reload} />
                   <WotLink mine={state.mine} onUnlinked={reload} />
+                  {/* Utan Blizzard-nycklar på servern hade knappen bara gett
+                      ett tyst klick — då är ingen knapp alls ärligare. En redan
+                      länkad karaktär visas ändå, så ingen tappar sin koppling
+                      om nycklarna plockas bort. */}
+                  {(config.wowLinkEnabled || state.mine.wowCharacter) && (
+                    <WowLink mine={state.mine} onUnlinked={reload} />
+                  )}
                 </div>
               )}
 
@@ -262,6 +273,37 @@ function DiscordLink({ mine, onLinked }: { mine: RosterMember; onLinked: () => v
 // idé som Discord-namnet men med en kontokoll i stället för fritext. En hel
 // sidnavigering, inte ett fetch-anrop: det är en OAuth-liknande redirect ut
 // till Wargaming och tillbaka.
+// Samma idé som WoT, men Blizzard kör riktig OAuth 2.0. Vi visar karaktären
+// och inte battletagget: det är karaktären kortet handlar om, och kontonamnet
+// hade varit persondata vi lagrar utan att använda.
+function WowLink({ mine, onUnlinked }: { mine: RosterMember; onUnlinked: () => void }) {
+  return (
+    <div className="roster-note wow-link">
+      {mine.wowCharacter ? (
+        <>
+          <p>
+            Länkad mot World of Warcraft som <strong>{mine.wowCharacter.name}</strong>{' '}
+            <span className="wow-realm">({mine.wowCharacter.realmSlug})</span>.{' '}
+            <a href={WOW_LOGIN_URL}>Byt karaktär</a>
+          </p>
+          <UnlinkButton
+            label="World of Warcraft"
+            onUnlink={async () => {
+              const ok = await unlinkWow()
+              if (ok) onUnlinked()
+              return ok
+            }}
+          />
+        </>
+      ) : (
+        <a className="btn btn-ghost" href={WOW_LOGIN_URL}>
+          Länka World of Warcraft
+        </a>
+      )}
+    </div>
+  )
+}
+
 function WotLink({ mine, onUnlinked }: { mine: RosterMember; onUnlinked: () => void }) {
   return (
     <div className="roster-note wot-link">

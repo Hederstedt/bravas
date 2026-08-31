@@ -47,9 +47,16 @@ describe("GET /api/health", () => {
 });
 
 describe("GET /api/config", () => {
-  it("hands out the invite and nothing else", async () => {
+  // "Och inget mer" är hela poängen med det här testet: configen går till alla
+  // besökare, så varje nytt fält ska vara ett medvetet beslut. wowLinkEnabled
+  // är en ren på/av-flagga — den säger att kopplingen finns att använda, aldrig
+  // vilka nycklar den använder.
+  it("hands out the invite and the feature flag, and nothing else", async () => {
     const res = await request(app).get("/api/config").expect(200);
-    expect(res.body).toEqual({ discordInviteUrl: "https://discord.gg/testinvite" });
+    expect(res.body).toEqual({
+      discordInviteUrl: "https://discord.gg/testinvite",
+      wowLinkEnabled: expect.any(Boolean),
+    });
   });
 
   // Server-ID:t skickades hit förr men lästes aldrig av någon komponent, och

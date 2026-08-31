@@ -31,14 +31,14 @@ const MAG: RosterMember = {
   id: 'test-public-id-mag',
   personaName: '[BVS] #Mag',
   avatarUrl: 'https://avatars.example/mag.jpg',
-  discordName: 'mag', wotNickname: null, mine: false,
+  discordName: 'mag', wotNickname: null, wowCharacter: null, mine: false,
 }
 
 const HIDDEN: RosterMember = {
   id: 'test-public-id-hidden',
   personaName: '[BVS] Hemlig',
   avatarUrl: null,
-  discordName: null, wotNickname: null, mine: false,
+  discordName: null, wotNickname: null, wowCharacter: null, mine: false,
 }
 
 const MAG_CARD: PlayerCard = {
@@ -57,6 +57,7 @@ const MAG_CARD: PlayerCard = {
     { key: 'TID', label: 'Tid', description: 'Total speltid i CS2', rating: 88 },
   ],
   wotAttributes: [],
+  wowAttributes: [],
   comments: ['Smyger runt mest. Dyker upp när röken lagt sig.'],
   memberOfMonth: false,
 }
@@ -166,6 +167,7 @@ describe('Roster degrading gracefully', () => {
       position: 'OKÄND',
       attributes: [],
       wotAttributes: [],
+      wowAttributes: [],
       comments: ['Steam-profilen är låst.'],
       memberOfMonth: false,
     }
@@ -251,7 +253,7 @@ describe('comparing an attribute', () => {
     id: 'test-public-id-rival',
     personaName: '[BVS] Rival',
     avatarUrl: null,
-    discordName: null, wotNickname: null, mine: false,
+    discordName: null, wotNickname: null, wowCharacter: null, mine: false,
   }
 
   const RIVAL_CARD: PlayerCard = {
@@ -368,6 +370,7 @@ describe('the attribute legend', () => {
     const withWot: PlayerCard = {
       ...MAG_CARD,
       wotAttributes: [{ key: 'SEG', label: 'Segerprocent', description: 'Andel vunna strider', rating: 70 }],
+      wowAttributes: [],
     }
     stubApi({ members: [MAG], cards: [withWot] })
     renderRoster()
@@ -384,6 +387,7 @@ describe('World of Tanks attributes on the card', () => {
     const withWot: PlayerCard = {
       ...MAG_CARD,
       wotAttributes: [{ key: 'SEG', label: 'Segerprocent', description: 'Andel vunna strider', rating: 70 }],
+      wowAttributes: [],
     }
     stubApi({ members: [MAG], cards: [withWot] })
     renderRoster()

@@ -1,10 +1,17 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import * as api from '../api'
 import type { RosterMember } from '../api'
 import { AccountPage } from './accountPage'
+import { resetSiteConfigCache } from '../useSiteConfig'
+
+// Sajtkonfigen delas via en modulcache — utan nollställning ser nästa test
+// föregåendes mockade svar, och wowLinkEnabled hade fastnat på true.
+beforeEach(() => {
+  resetSiteConfigCache()
+})
 
 const MAG_STEAMID64 = '76561198053832683'
 
@@ -14,6 +21,7 @@ const MAG: RosterMember = {
   avatarUrl: 'https://avatars.example/mag.jpg',
   discordName: 'mag',
   wotNickname: null,
+  wowCharacter: null,
   mine: true,
 }
 
@@ -34,9 +42,15 @@ afterEach(() => {
 
 // Sidan hämtar sitt eget "mine": bara en session räcker inte, steamid:t måste
 // också finnas som rad i rostern.
-function stubApi(overrides: { members?: RosterMember[]; session?: api.Session | null } = {}) {
+function stubApi(
+  overrides: { members?: RosterMember[]; session?: api.Session | null; wowLinkEnabled?: boolean } = {}
+) {
   vi.spyOn(api, 'fetchMembers').mockResolvedValue(overrides.members ?? [])
   vi.spyOn(api, 'fetchSession').mockResolvedValue(overrides.session ?? null)
+  vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({
+    discordInviteUrl: '',
+    wowLinkEnabled: overrides.wowLinkEnabled ?? true,
+  })
 }
 
 function renderPage(path = '/mitt-konto') {
@@ -372,5 +386,42 @@ describe('unlinking a World of Tanks account', () => {
     await user.click(button)
 
     expect(await screen.findByText(/kunde inte koppla bort/i)).toBeInTheDocument()
+  })
+})
+
+// Utan Blizzard-nycklar på servern hade knappen bara gett ett tyst klick:
+// login-rutten skickar tillbaka besökaren utan att något händer. Ingen knapp
+// alls är ärligare.
+describe('World of Warcraft-kopplingen', () => {
+  it('offers the link when the server has Blizzard keys', async () => {
+    stubApi({ ...signedIn, wowLinkEnabled: true })
+    renderPage()
+
+    expect(
+      await screen.findByRole('link', { name: 'Länka World of Warcraft' }),
+    ).toBeInTheDocument()
+  })
+
+  it('says nothing at all when the server has none', async () => {
+    stubApi({ ...signedIn, wowLinkEnabled: false })
+    renderPage()
+
+    await screen.findByRole('link', { name: 'Länka World of Tanks' })
+    expect(
+      screen.queryByRole('link', { name: 'Länka World of Warcraft' }),
+    ).not.toBeInTheDocument()
+  })
+
+  // Plockas nycklarna bort ska ingen tappa sin redan länkade karaktär ur vyn —
+  // den finns kvar i databasen, och kortet visar den fortfarande.
+  it('still shows an already linked character with the keys gone', async () => {
+    stubApi({
+      members: [{ ...MAG, wowCharacter: { realmSlug: 'stormscale', name: 'Bravasdruid' } }],
+      session: { steamid64: MAG_STEAMID64, isMember: true, isAdmin: false },
+      wowLinkEnabled: false,
+    })
+    renderPage()
+
+    expect(await screen.findByText('Bravasdruid')).toBeInTheDocument()
   })
 })

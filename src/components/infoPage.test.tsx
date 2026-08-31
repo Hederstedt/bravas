@@ -25,6 +25,7 @@ const MAG = {
   avatarUrl: null,
   discordName: null as string | null,
   wotNickname: null as string | null,
+  wowCharacter: null,
   mine: true,
 }
 
@@ -37,6 +38,7 @@ const MAG_CARD = {
   position: 'AWP',
   attributes: [],
   wotAttributes: [],
+  wowAttributes: [],
   comments: [],
   memberOfMonth: false,
 }
@@ -132,6 +134,7 @@ describe('InfoPage for a confirmed member', () => {
         // ?? hade tolkat det som "inte satt" och fallit tillbaka till förvalet.
         discordName: 'discordName' in overrides ? overrides.discordName! : 'mag',
         wotNickname: overrides.wotNickname ?? null,
+        wowCharacter: null,
       },
     ])
     vi.spyOn(api, 'fetchCards').mockResolvedValue([
@@ -313,5 +316,49 @@ describe('utmärkelserna på Kom igång', () => {
     await screen.findByRole('heading', { name: /två olika siffror/i })
     expect(screen.queryByText('Träskeden')).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: /månadens utmärkelser/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('World of Warcraft-steget', () => {
+  function stubWowMember(wowCharacter: { realmSlug: string; name: string } | null) {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue({
+      steamid64: MAG_STEAMID64,
+      isMember: true,
+      isAdmin: false,
+    })
+    vi.spyOn(api, 'fetchMembers').mockResolvedValue([{ ...MAG, wowCharacter }])
+    vi.spyOn(api, 'fetchCards').mockResolvedValue([MAG_CARD])
+  }
+
+  // Samma regel som World of Tanks: en valfri koppling får aldrig se ut som
+  // ett krav.
+  it('is optional, never "behöver åtgärdas", when not linked', async () => {
+    stubWowMember(null)
+    renderPage()
+
+    const heading = await screen.findByRole('heading', { name: /world of warcraft/i })
+    const step = heading.closest('li')!
+    expect(within(step).getByText('Valfritt — inte gjort')).toBeInTheDocument()
+    expect(within(step).queryByText(/behöver åtgärdas/i)).not.toBeInTheDocument()
+  })
+
+  it('shows the linked character and realm once connected', async () => {
+    stubWowMember({ realmSlug: 'stormscale', name: 'Bravasdruid' })
+    renderPage()
+
+    const heading = await screen.findByRole('heading', { name: /world of warcraft/i })
+    const step = heading.closest('li')!
+    expect(within(step).getByText('Bravasdruid')).toBeInTheDocument()
+    expect(within(step).getByText(/stormscale/)).toBeInTheDocument()
+  })
+
+  // Vi hämtar kontots karaktärer för att bevisa ägarskap, men sparar bara
+  // realm och namn. Det ska stå, så ingen behöver undra.
+  it('says what we store and what we do not', async () => {
+    stubWowMember(null)
+    renderPage()
+
+    await screen.findByRole('heading', { name: /world of warcraft/i })
+    expect(screen.getByText(/inget lösenord och inget battletag/i)).toBeInTheDocument()
   })
 })

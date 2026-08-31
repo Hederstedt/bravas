@@ -194,6 +194,7 @@ test('Mitt konto has no serious accessibility violations, signed in', async ({ p
             avatarUrl: null,
             discordName: 'kungalv',
             wotNickname: 'KungalvIRL',
+            wowCharacter: null,
             mine: true,
           },
         ],

@@ -37,6 +37,7 @@ describe('SteamLogin', () => {
     avatarUrl: 'https://avatars.example/mag.jpg',
     discordName: null,
     wotNickname: null,
+    wowCharacter: null,
     mine: true,
   }
 
@@ -148,6 +149,7 @@ describe('Discord links', () => {
   it('uses the invite the API hands out', async () => {
     vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({
       discordInviteUrl: 'https://discord.gg/R7BTunRvjb',
+      wowLinkEnabled: false,
     })
 
     const { DiscordCta } = await import('./sections')
@@ -159,7 +161,7 @@ describe('Discord links', () => {
 
   // Utan invite är en död "#"-länk sämre än ingen knapp alls.
   it('hides the button when no invite is configured', async () => {
-    vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({ discordInviteUrl: '' })
+    vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({ discordInviteUrl: '', wowLinkEnabled: false })
 
     const { DiscordCta } = await import('./sections')
     render(<DiscordCta />)
@@ -179,13 +181,13 @@ describe('Roster with live data', () => {
           id: 'test-public-id-mag',
           personaName: '[BVS] #Mag',
           avatarUrl: 'https://avatars.example/mag.jpg',
-          discordName: 'mag', wotNickname: null, mine: false,
+          discordName: 'mag', wotNickname: null, wowCharacter: null, mine: false,
         },
         {
           id: 'test-public-id-g0nza',
           personaName: '[BVS] g0nza',
           avatarUrl: null,
-          discordName: null, wotNickname: null, mine: false,
+          discordName: null, wotNickname: null, wowCharacter: null, mine: false,
         },
       ],
     })
@@ -214,9 +216,9 @@ describe('Roster with live data', () => {
     vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({
       ok: true,
       data: [
-        { id: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null, wotNickname: null, mine: false },
-        { id: '2', personaName: 'Vaken', avatarUrl: null, discordName: null, wotNickname: null, mine: false },
-        { id: '3', personaName: 'Borta', avatarUrl: null, discordName: null, wotNickname: null, mine: false },
+        { id: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null, wotNickname: null, wowCharacter: null, mine: false },
+        { id: '2', personaName: 'Vaken', avatarUrl: null, discordName: null, wotNickname: null, wowCharacter: null, mine: false },
+        { id: '3', personaName: 'Borta', avatarUrl: null, discordName: null, wotNickname: null, wowCharacter: null, mine: false },
       ],
     })
     vi.spyOn(api, 'fetchPresence').mockResolvedValue({
@@ -242,7 +244,7 @@ describe('Roster with live data', () => {
   it('renders the roster even when presence is unavailable', async () => {
     vi.spyOn(api, 'fetchMembersResult').mockResolvedValue({
       ok: true,
-      data: [{ id: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null, wotNickname: null, mine: false }],
+      data: [{ id: '1', personaName: 'Spelaren', avatarUrl: null, discordName: null, wotNickname: null, wowCharacter: null, mine: false }],
     })
     vi.spyOn(api, 'fetchPresence').mockResolvedValue({})
 
@@ -261,7 +263,7 @@ describe('Roster with live data', () => {
           id: 'test-public-id-mag',
           personaName: '[BVS] #Mag',
           avatarUrl: 'https://avatars.example/mag.jpg',
-          discordName: null, wotNickname: null, mine: false,
+          discordName: null, wotNickname: null, wowCharacter: null, mine: false,
         },
       ],
     })

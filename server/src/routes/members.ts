@@ -9,6 +9,8 @@ import {
   listMembers,
   setDiscordName,
   setWotAccount,
+  setWowCharacter,
+  clearWowCharacter,
   upsertApplication,
 } from "../db.ts";
 import { authLimiter, mutationLimiter, readLimiter } from "../middleware/rateLimit.ts";
@@ -17,10 +19,20 @@ import { requireSteamIdentity } from "../middleware/requireSteamIdentity.ts";
 import { sessionCookie, verifySessionCookieValue } from "../session.ts";
 import { fetchPlayerSummaries } from "../steamAuth.ts";
 import { buildLoginRedirectUrl, verifyCallback } from "../wotAuth.ts";
+import {
+  buildLoginRedirectUrl as buildWowLoginRedirectUrl,
+  exchangeCode,
+  fetchAccountCharacters,
+  pickMainCharacter,
+  signState,
+  verifyState,
+} from "../wowAuth.ts";
+import { fetchCharacter } from "../wowStats.ts";
 
 export const membersRouter = Router();
 
 const WOT_CALLBACK_PATH = "/api/members/wot/callback";
+const WOW_CALLBACK_PATH = "/api/members/wow/callback";
 
 // Namn och avatar kommer från Steam, aldrig från formuläret — annars kan vem
 // som helst ansöka i någon annans namn. Svarar Steam inte får steamid:t duga:
@@ -55,6 +67,12 @@ membersRouter.get("/", readLimiter, (req, res) => {
     avatarUrl: m.avatar_url,
     discordName: m.discord_name,
     wotNickname: m.wot_nickname,
+    // Realm och namn, aldrig karaktärens id: det hade bara varit ännu en
+    // identifierare att släppa ut publikt utan att någon behöver den.
+    wowCharacter:
+      m.wow_realm_slug && m.wow_character_name
+        ? { realmSlug: m.wow_realm_slug, name: m.wow_character_name }
+        : null,
     mine: steamid64 !== null && m.steamid64 === steamid64,
   }));
   res.json({ members });
@@ -145,4 +163,72 @@ membersRouter.get("/wot/callback", authLimiter, requireAuth, async (req, res) =>
 
   setWotAccount(req.member!.steamid64, result.accountId, result.nickname);
   res.redirect(`${config.publicOrigin}/?wot=linked`);
+});
+
+// Samma idé som WoT: Steam är och förblir identiteten, det här länkar bara ett
+// Battle.net-konto till den som redan är inloggad. Skillnaden är att Blizzard
+// kör riktig OAuth 2.0, så flödet bär en state som binder det till gubben som
+// startade det — se wowAuth.ts för varför det inte räcker att callbacken
+// kräver en session.
+membersRouter.get("/wow/login", authLimiter, requireAuth, (req, res) => {
+  if (!config.blizzardClientId) {
+    res.redirect(`${config.publicOrigin}/mitt-konto?wow=unavailable`);
+    return;
+  }
+  const state = signState(req.member!.steamid64);
+  res.redirect(buildWowLoginRedirectUrl(`${config.publicOrigin}${WOW_CALLBACK_PATH}`, state));
+});
+
+membersRouter.get("/wow/callback", authLimiter, requireAuth, async (req, res) => {
+  const query = req.query as Record<string, string>;
+  const steamid64 = req.member!.steamid64;
+  const failed = `${config.publicOrigin}/mitt-konto?wow=failed`;
+
+  if (!verifyState(query.state, steamid64) || !query.code) {
+    res.redirect(failed);
+    return;
+  }
+
+  const token = await exchangeCode(query.code, `${config.publicOrigin}${WOW_CALLBACK_PATH}`);
+  if (!token) {
+    res.redirect(failed);
+    return;
+  }
+
+  // Listan kommer från kontot bakom tokenen — det är beviset. Att någon vet
+  // ett karaktärsnamn säger ingenting, precis som ett gissat account_id inte
+  // räcker på WoT-sidan.
+  const characters = await fetchAccountCharacters(token);
+  if (characters.length === 0) {
+    res.redirect(`${config.publicOrigin}/mitt-konto?wow=nochars`);
+    return;
+  }
+
+  // Kontosammanfattningen saknar inloggningstidpunkt, så den hämtas per
+  // karaktär. Parallellt: ett konto kan ha ett tjog karaktärer, och i följd
+  // hade länkningen tagit tiotals sekunder.
+  const withLogin = await Promise.all(
+    characters.map(async (c) => {
+      const profile = await fetchCharacter(c.realmSlug, c.name, token).catch(() => null);
+      return { ...c, lastLogin: profile?.lastLogin ?? 0 };
+    })
+  );
+
+  const main = pickMainCharacter(withLogin);
+  if (!main) {
+    res.redirect(`${config.publicOrigin}/mitt-konto?wow=nochars`);
+    return;
+  }
+
+  setWowCharacter(steamid64, {
+    realmSlug: main.realmSlug,
+    name: main.name,
+    characterId: main.id,
+  });
+  res.redirect(`${config.publicOrigin}/mitt-konto?wow=linked`);
+});
+
+membersRouter.post("/wow/unlink", mutationLimiter, requireAuth, (req, res) => {
+  clearWowCharacter(req.member!.steamid64);
+  res.status(204).end();
 });

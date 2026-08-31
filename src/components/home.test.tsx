@@ -28,7 +28,7 @@ beforeEach(() => {
   vi.spyOn(api, 'fetchClipsResult').mockResolvedValue({ ok: true, data: [] })
   vi.spyOn(api, 'fetchCards').mockResolvedValue([])
   vi.spyOn(api, 'fetchPresence').mockResolvedValue({})
-  vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({ discordInviteUrl: '' })
+  vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({ discordInviteUrl: '', wowLinkEnabled: false })
   vi.spyOn(api, 'fetchValheimStatus').mockResolvedValue({
     online: false,
     players: null,
