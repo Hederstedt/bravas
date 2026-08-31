@@ -1,12 +1,19 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import * as api from '../api'
 import { InfoPage } from './infoPage'
+import { resetSiteConfigCache } from '../useSiteConfig'
 
 afterEach(() => {
   vi.restoreAllMocks()
+})
+
+// Sajtkonfigen delas via en modulcache — utan nollställning ser nästa test
+// föregåendes svar, och wowLinkEnabled hade fastnat.
+beforeEach(() => {
+  resetSiteConfigCache()
 })
 
 function renderPage() {
@@ -320,7 +327,10 @@ describe('utmärkelserna på Kom igång', () => {
 })
 
 describe('World of Warcraft-steget', () => {
-  function stubWowMember(wowCharacter: { realmSlug: string; name: string } | null) {
+  function stubWowMember(
+    wowCharacter: { realmSlug: string; name: string } | null,
+    wowLinkEnabled = true,
+  ) {
     vi.spyOn(api, 'fetchSession').mockResolvedValue({
       steamid64: MAG_STEAMID64,
       isMember: true,
@@ -328,6 +338,7 @@ describe('World of Warcraft-steget', () => {
     })
     vi.spyOn(api, 'fetchMembers').mockResolvedValue([{ ...MAG, wowCharacter }])
     vi.spyOn(api, 'fetchCards').mockResolvedValue([MAG_CARD])
+    vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({ discordInviteUrl: '', wowLinkEnabled })
   }
 
   // Samma regel som World of Tanks: en valfri koppling får aldrig se ut som
@@ -360,5 +371,39 @@ describe('World of Warcraft-steget', () => {
 
     await screen.findByRole('heading', { name: /world of warcraft/i })
     expect(screen.getByText(/inget lösenord och inget battletag/i)).toBeInTheDocument()
+  })
+})
+
+// Steget pekade vidare till Mitt konto, där knappen göms utan Blizzard-nycklar
+// — en instruktion till en tom sida. Nu göms hela steget i samma läge.
+describe('World of Warcraft-steget utan nycklar på servern', () => {
+  function stubNoKeys(wowCharacter: { realmSlug: string; name: string } | null) {
+    vi.spyOn(api, 'fetchSession').mockResolvedValue({
+      steamid64: MAG_STEAMID64,
+      isMember: true,
+      isAdmin: false,
+    })
+    vi.spyOn(api, 'fetchMembers').mockResolvedValue([{ ...MAG, wowCharacter }])
+    vi.spyOn(api, 'fetchCards').mockResolvedValue([MAG_CARD])
+    vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({
+      discordInviteUrl: '',
+      wowLinkEnabled: false,
+    })
+  }
+
+  it('is hidden entirely, so nothing points at a dead end', async () => {
+    stubNoKeys(null)
+    renderPage()
+
+    await screen.findByRole('heading', { name: /Discord-namn/i })
+    expect(screen.queryByRole('heading', { name: /world of warcraft/i })).not.toBeInTheDocument()
+  })
+
+  // Men den som redan länkat ska se sin karaktär, även om nycklarna plockas bort.
+  it('still shows an already linked character', async () => {
+    stubNoKeys({ realmSlug: 'stormscale', name: 'Bravasdruid' })
+    renderPage()
+
+    expect(await screen.findByText('Bravasdruid')).toBeInTheDocument()
   })
 })

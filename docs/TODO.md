@@ -15,12 +15,17 @@ Roadmapen i övrigt: [PLAN.md](PLAN.md). Speldesignen: [manager.md](manager.md).
 
 ## 1. Slå på World of Warcraft-kopplingen
 
-**Läget nu:** koden är på plats men `BLIZZARD_CLIENT_ID` saknas, så "Länka World
-of Warcraft" på Mitt konto svarar bara att det inte är påslaget.
+**Läget nu:** koden är på plats men `BLIZZARD_CLIENT_ID` saknas, så kopplingen
+är **helt osynlig** på sajten — varken knappen på Mitt konto eller steg 5 på Kom
+igång visas. Det är avsiktligt: en knapp som inte gör något är sämre än ingen
+knapp. `GET /api/config` svarar `"wowLinkEnabled": false` så länge.
 
 **Kräver ett Blizzard-konto — går inte att göra från koden.**
 
-- [ ] Logga in på <https://develop.battle.net> → **API Access** → **Create Client**
+- [ ] Logga in på <https://community.developer.battle.net/access/> (gamla
+      `develop.battle.net` vidarebefordrar dit) → **API Access** → **Create Client**.
+      Sidan kräver inloggning innan den visar något — ser du en tom sida eller
+      bara en inloggningsruta är det den, inte ett fel.
 - [ ] Sätt **Redirect URI** till exakt
       `https://www.bravas.se/api/members/wow/callback` (Blizzard nekar flödet om
       den inte stämmer på tecknet)

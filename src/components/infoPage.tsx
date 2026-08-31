@@ -10,6 +10,7 @@ import {
   type RosterMember,
 } from '../api'
 import { AWARDS, AWARD_ORDER, CAP_HOURS_PER_GAME } from '../awards'
+import { useSiteConfig } from '../useSiteConfig'
 import { SteamIcon } from './icons'
 
 // Steams webbklient har ingen offentlig djuplänk till en enskild
@@ -254,6 +255,9 @@ function MemberChecklist({
   hasStats: boolean
   onRecheck: () => void
 }) {
+  // Steget pekar vidare till Mitt konto. Är kopplingen inte påslagen finns
+  // ingen knapp där, och steget hade varit en instruktion till en tom sida.
+  const { wowLinkEnabled } = useSiteConfig()
   const hasDiscord = mine.discordName !== null
   const hasWot = mine.wotNickname !== null
 
@@ -308,6 +312,7 @@ function MemberChecklist({
           )}
         </li>
 
+        {(wowLinkEnabled || mine.wowCharacter) && (
         <li>
           <h2>5. World of Warcraft</h2>
           <StepStatus done={mine.wowCharacter !== null} optional />
@@ -324,6 +329,7 @@ function MemberChecklist({
             </p>
           )}
         </li>
+        )}
       </ol>
     </>
   )
