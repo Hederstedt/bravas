@@ -50,9 +50,15 @@ export const AWARDS: Record<AwardKey, AwardCopy> = {
       'Flest byten mellan spel mitt i en session. Aldrig klar med något. Att spela CS2 på måndagen och Valheim på lördagen räknas inte — det ska vara samma kväll.',
     format: (v) => `${v} byten mitt i steget`,
   },
+  nattvakten: {
+    label: 'Nattvakten',
+    earnedBy:
+      'Flest timmar loggade mellan midnatt och sex. Kvällsspel räknas inte — då är halva klanen igång. Sover du någonsin?',
+    format: (v) => `${hours(v)} efter midnatt`,
+  },
 }
 
 // Ett kort bär högst ett band. Vinnaren först, sedan träskeden, sedan
 // skämten — servern delar redan ut högst en utmärkelse per gubbe, men
 // ordningen står här så kortet aldrig behöver gissa.
-export const AWARD_ORDER: AwardKey[] = ['jumbo', 'sofflocket', 'enkelsparet', 'vindflojeln']
+export const AWARD_ORDER: AwardKey[] = ['jumbo', 'sofflocket', 'enkelsparet', 'vindflojeln', 'nattvakten']

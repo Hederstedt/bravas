@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CAP_HOURS_PER_GAME } from "./bvsMonth.ts";
-import { MIN_SWITCHES, decideAwards, monthMetrics } from "./bvsAwards.ts";
+import { MIN_NIGHT_HOURS, MIN_SWITCHES, decideAwards, monthMetrics } from "./bvsAwards.ts";
 import type { DiscordSample, PresenceSample } from "./db.ts";
 
 const MIN = 60_000;
@@ -98,9 +98,40 @@ describe("monthMetrics", () => {
     });
   });
 
+
+  describe("nattimmar", () => {
+    // Natten räknas 00-06 lokal tid. Kvällsspel räknas inte — då är halva
+    // klanen igång, och utmärkelsen ska peka ut den som sitter uppe.
+    it("counts nothing for an ordinary evening", () => {
+      const kvall = new Date(2026, 7, 3, 20, 0, 0).getTime();
+      expect(monthMetrics(played([{ game: CS2, minutes: 120 }], kvall), [], kvall, NOW).nightHours).toBe(0);
+    });
+
+    it("counts a session played in the small hours", () => {
+      const natt = new Date(2026, 7, 3, 1, 0, 0).getTime();
+      const m = monthMetrics(played([{ game: CS2, minutes: 120 }], natt), [], natt, NOW);
+      expect(m.nightHours).toBeCloseTo(2, 1);
+    });
+
+    // Spannet som ligger över gränsen ska delas, inte räknas helt eller inte
+    // alls: den som loggar ut 00:30 har varit uppe en halvtimme, inte noll.
+    it("splits a session that crosses into the night", () => {
+      const kvall = new Date(2026, 7, 3, 23, 0, 0).getTime();
+      const m = monthMetrics(played([{ game: CS2, minutes: 120 }], kvall), [], kvall, NOW);
+      expect(m.nightHours).toBeCloseTo(1, 1);
+      expect(m.gameHours).toBeCloseTo(2, 1);
+    });
+
+    it("splits a session that runs out the other end of the night", () => {
+      const gryning = new Date(2026, 7, 3, 5, 0, 0).getTime();
+      const m = monthMetrics(played([{ game: CS2, minutes: 120 }], gryning), [], gryning, NOW);
+      expect(m.nightHours).toBeCloseTo(1, 1);
+    });
+  });
+
   it("reports an empty month as all zeroes", () => {
     const m = monthMetrics([], [], START, NOW);
-    expect(m).toMatchObject({ score: 0, gameHours: 0, discordHours: 0, gameCount: 0, switches: 0 });
+    expect(m).toMatchObject({ score: 0, gameHours: 0, discordHours: 0, gameCount: 0, switches: 0, nightHours: 0 });
   });
 });
 
@@ -116,6 +147,7 @@ function member(steamid64: string, over: Partial<ReturnType<typeof monthMetrics>
       gameCount: 0,
       topGameHours: 0,
       switches: 0,
+      nightHours: 0,
       ...over,
     },
   };
@@ -269,11 +301,36 @@ describe("decideAwards — vindflöjeln", () => {
   });
 });
 
+describe("decideAwards — nattvakten", () => {
+  it("goes to whoever logged the most hours in the small hours", () => {
+    const rows = decideAwards(
+      [WINNER, SPOON, member(B, { score: 10, nightHours: 4 }), member(C, { score: 10, nightHours: 20 })],
+      A
+    );
+    expect(awardFor(rows, "nattvakten")?.steamid64).toBe(C);
+  });
+
+  // En enda sen kväll är inte ett mönster. Utmärkelsen ska peka ut den som
+  // gör det till en vana, inte den som råkade bli sittande en gång.
+  it("goes to nobody when the latest owl barely stayed up", () => {
+    const rows = decideAwards(
+      [WINNER, SPOON, member(B, { score: 10, nightHours: MIN_NIGHT_HOURS - 0.5 })],
+      A
+    );
+    expect(awardFor(rows, "nattvakten")).toBeNull();
+  });
+
+  it("records the hours it was won with", () => {
+    const rows = decideAwards([WINNER, SPOON, member(B, { score: 10, nightHours: 12.5 })], A);
+    expect(awardFor(rows, "nattvakten")?.value).toBeCloseTo(12.5, 5);
+  });
+});
+
 describe("decideAwards — fördelningen", () => {
   // Fem utmärkelser på fem olika kort. Hade en gubbe kunnat bära två band hade
   // kortet blivit en prislista, och de andra hade blivit utan.
   it("never hands the same person two awards", () => {
-    const greedy = { score: 4, discordHours: 20, gameHours: 1, gameCount: 1, topGameHours: 40, switches: 40 };
+    const greedy = { score: 4, discordHours: 20, gameHours: 1, gameCount: 1, topGameHours: 40, switches: 40, nightHours: 40 };
     const rows = decideAwards(
       [
         member(A, { score: 50 }),
