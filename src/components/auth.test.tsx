@@ -149,6 +149,7 @@ describe('Discord links', () => {
   it('uses the invite the API hands out', async () => {
     vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({
       discordInviteUrl: 'https://discord.gg/R7BTunRvjb',
+      wowLinkEnabled: false,
     })
 
     const { DiscordCta } = await import('./sections')
@@ -160,7 +161,7 @@ describe('Discord links', () => {
 
   // Utan invite är en död "#"-länk sämre än ingen knapp alls.
   it('hides the button when no invite is configured', async () => {
-    vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({ discordInviteUrl: '' })
+    vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({ discordInviteUrl: '', wowLinkEnabled: false })
 
     const { DiscordCta } = await import('./sections')
     render(<DiscordCta />)

@@ -39,6 +39,9 @@ export type PresenceMap = Record<string, Presence>
 
 export interface SiteConfig {
   discordInviteUrl: string
+  // Falskt tills Blizzard-nycklarna är satta på servern — då göms
+  // länkningsknappen helt i stället för att vara ett tyst klick.
+  wowLinkEnabled: boolean
 }
 
 export type CardTier = 'ikon' | 'guld' | 'silver' | 'brons' | 'okänd'
@@ -769,7 +772,7 @@ export async function trainPlayer(player: string, attr: string): Promise<ApiResu
 
 export async function fetchSiteConfig(): Promise<SiteConfig> {
   const data = await getJson<SiteConfig>('/api/config')
-  return data ?? { discordInviteUrl: '' }
+  return data ?? { discordInviteUrl: '', wowLinkEnabled: false }
 }
 
 // Speglar server/src/discordWidget.ts. Widgeten hämtas av BFF:en, inte av

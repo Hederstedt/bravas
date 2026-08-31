@@ -284,6 +284,7 @@ describe('DiscordCta', () => {
     installLiveEvents()
     vi.spyOn(api, 'fetchSiteConfig').mockResolvedValue({
       discordInviteUrl: 'https://discord.gg/test',
+      wowLinkEnabled: false,
     })
   })
 

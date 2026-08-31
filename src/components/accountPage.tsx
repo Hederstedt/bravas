@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
+import { useSiteConfig } from '../useSiteConfig'
 import {
   fetchMembers,
   fetchSession,
@@ -29,6 +30,7 @@ type State =
 // Gubbarna förut, mitt i kortraden, där de inte hörde hemma.
 export function AccountPage() {
   const [state, setState] = useState<State>({ status: 'loading' })
+  const config = useSiteConfig()
   const [params] = useSearchParams()
   // Steam-callbacken skickar hit den som precis loggat in för första gången.
   const isNew = params.get('ny') === '1'
@@ -114,7 +116,13 @@ export function AccountPage() {
                   <h3>Koppla dina konton</h3>
                   <DiscordLink mine={state.mine} onLinked={reload} />
                   <WotLink mine={state.mine} onUnlinked={reload} />
-                  <WowLink mine={state.mine} onUnlinked={reload} />
+                  {/* Utan Blizzard-nycklar på servern hade knappen bara gett
+                      ett tyst klick — då är ingen knapp alls ärligare. En redan
+                      länkad karaktär visas ändå, så ingen tappar sin koppling
+                      om nycklarna plockas bort. */}
+                  {(config.wowLinkEnabled || state.mine.wowCharacter) && (
+                    <WowLink mine={state.mine} onUnlinked={reload} />
+                  )}
                 </div>
               )}
 
