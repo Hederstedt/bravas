@@ -1,0 +1,63 @@
+name: Uptime
+
+# Vaktar utifrån att bravas.se faktiskt svarar, och mejlar via GitHub när den
+# inte gör det.
+#
+# VIKTIGT: runs-on måste vara GitHubs egna maskiner — aldrig [self-hosted].
+# Den självhostade runnern står på samma hemmaserver som den här kollen ska
+# bevaka. Dör servern tystnar runnern med den, kollen körs aldrig, och ingen
+# får veta någonting. Det var precis det som hände: servern föll bort
+# 2026-09-08 och låg nere i elva dygn innan någon märkte det.
+on:
+  schedule:
+    # Varje timme. Tätare behövs inte — det här är en hobbysajt, inte jour.
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check that the site and API respond
+        shell: bash
+        run: |
+          # Tre försök med paus emellan, så att en kort hicka hos Cloudflare
+          # eller GitHub inte drar igång ett falsklarm. Först när alla tre
+          # misslyckas räknas det som nere.
+          check() {
+            local label="$1" url="$2" code
+            for attempt in 1 2 3; do
+              # curl skriver själv 000 via -w när anropet inte gick fram, så
+              # tilldelningen efter || är bara till för att fånga exitkoden
+              # utan att set -e avbryter steget.
+              code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$url") || code=000
+              if [ "$code" = "200" ]; then
+                echo "OK    $label ($url) -> $code"
+                return 0
+              fi
+              echo "FAIL  $label ($url) -> $code (attempt $attempt/3)"
+              if [ "$attempt" -lt 3 ]; then
+                sleep 20
+              fi
+            done
+            echo "DOWN  $label ($url) did not return 200 after three attempts"
+            return 1
+          }
+
+          status=0
+          # Sajten visar att nginx och Cloudflare-tunneln lever.
+          check "Site" "https://bravas.se" || status=1
+          # API:et visar att bravas-api och databasen lever. Den delen kan dö
+          # för sig medan den statiska sajten ser helt frisk ut — och en
+          # sidsökväg duger inte som koll, för SPA-fallbacken (try_files ...
+          # /index.html) svarar 200 på precis allt. /api/ proxas däremot rakt
+          # till 127.0.0.1:3001 utan fallback, så ett dött API ger 502.
+          check "API"  "https://bravas.se/api/config" || status=1
+
+          if [ "$status" -ne 0 ]; then
+            echo "::error::bravas.se svarar inte — hemmaservern kan ligga nere."
+          fi
+          exit "$status"
