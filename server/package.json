@@ -19,7 +19,7 @@
     "csrf-csrf": "^4.1.0",
     "dotenv": "^17.4.2",
     "express": "^5.3.0",
-    "express-rate-limit": "^8.7.2"
+    "express-rate-limit": "^8.7.3"
   },
   "allowScripts": {
     "better-sqlite3": true
@@ -33,6 +33,6 @@
     "supertest": "^7.3.1",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   }
 }
